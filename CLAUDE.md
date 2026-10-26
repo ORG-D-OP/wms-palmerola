@@ -74,6 +74,4 @@ npm ci
 npm run dev
 ```
 
-Con Docker: `docker compose up` (necesita `.env.local`).
-
 Antes de pedir revision: `npm run typecheck`, `npm run lint`, `npm run build`.

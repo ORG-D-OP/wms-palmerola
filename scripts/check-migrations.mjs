@@ -3,7 +3,9 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DIR = 'supabase/migrations'
-const EXPECTED_FLOOR_POSITIONS = 2765
+
+// Capacidad declarada en el plano A-2. Si una migracion deja de cuadrar con esto, falla el CI.
+const PLAN = { floor: 2765, rack: 2816, total: 5581 }
 
 const db = await new PGlite()
 
@@ -31,12 +33,19 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {
   }
 }
 
-const { rows } = await db.query('select count(*)::int as total from location')
-const total = rows[0].total
+const { rows } = await db.query(`
+  select
+    count(*) filter (where z.kind = 'floor')::int as floor,
+    count(*) filter (where z.kind = 'rack')::int as rack,
+    count(*)::int as total
+  from location l join lane la on la.id = l.lane_id join zone z on z.id = la.zone_id
+`)
 
-if (total !== EXPECTED_FLOOR_POSITIONS) {
-  console.error(`Se esperaban ${EXPECTED_FLOOR_POSITIONS} posiciones y hay ${total}`)
-  process.exit(1)
+for (const [key, expected] of Object.entries(PLAN)) {
+  if (rows[0][key] !== expected) {
+    console.error(`${key}: se esperaban ${expected} posiciones y hay ${rows[0][key]}`)
+    process.exit(1)
+  }
 }
 
-console.log(`ok    ${total} posiciones sembradas`)
+console.log(`ok    ${PLAN.total} posiciones (${PLAN.floor} piso + ${PLAN.rack} rack)`)
