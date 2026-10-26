@@ -26,7 +26,7 @@ jobs:
     env:
       # Valores ficticios: el build solo necesita que las variables existan y tengan forma valida.
       NEXT_PUBLIC_SUPABASE_URL: https://ejemplo.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci
       ALLOWED_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v5

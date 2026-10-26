@@ -7,13 +7,13 @@ export async function createSupabaseServerClient() {
 
   return createServerClient(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-    publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           // Un Server Component no puede escribir cookies. El refresco de sesion
-          // ocurre en middleware.ts, asi que aqui se ignora sin perder nada.
+          // ocurre en proxy.ts, asi que aqui se ignora sin perder nada.
           try {
             for (const { name, value, options } of cookiesToSet) {
               cookieStore.set(name, value, options)
