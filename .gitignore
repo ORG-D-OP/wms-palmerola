@@ -1,0 +1,47 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# pruebas
+/coverage
+
+# next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# variables de entorno — solo .env.example se commitea
+.env*
+!.env.example
+
+# vercel / supabase
+.vercel
+.supabase/
+supabase/.temp/
+
+# copia local de los estandares del equipo; la copia buena vive en ORG-D-OP/estandares
+ESTANDARES.md
+
+# datos reales de la empresa: nunca al repositorio
+*.xlsx
+*.xls
+*.csv
+*.bak
+/datos/
+
+# varios
+.DS_Store
+Thumbs.db
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

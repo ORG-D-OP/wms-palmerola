@@ -1,0 +1,28 @@
+#!/bin/sh
+# Activalo una vez por clon:  git config core.hooksPath .githooks
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+bloqueado=$(printf '%s\n' "$staged" | grep -Ei '(^|/)\.env($|\.)|\.(xlsx|xls|csv|bak|pem|pfx|key)$' | grep -v '^\.env\.example$')
+if [ -n "$bloqueado" ]; then
+  echo "Commit detenido. Estos archivos no van al repositorio:"
+  printf '  %s\n' $bloqueado
+  exit 1
+fi
+
+# Este archivo se excluye: sus propios patrones coincidirian consigo mismo.
+revisables=$(printf '%s\n' "$staged" | grep -v '^\.githooks/')
+
+patrones='(SUPABASE_SERVICE_ROLE_KEY|service_role)[[:space:]]*[:=][[:space:]]*["'\'']?ey|sb_secret_|-----BEGIN [A-Z ]*PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{36}'
+if [ -n "$revisables" ] && git diff --cached -U0 -- $revisables | grep -qEi "$patrones"; then
+  echo "Commit detenido: el cambio parece contener un secreto."
+  echo "Revisalo con: git diff --cached"
+  exit 1
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || exit 1
+fi
+
+exit 0
