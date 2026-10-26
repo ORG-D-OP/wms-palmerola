@@ -212,6 +212,8 @@ export type Database = {
           max_pallets_stacked: number | null
           max_weight_kg: number | null
           pick_sequence: number | null
+          reserved_by_task_id: string | null
+          reserved_until: string | null
           retired_at: string | null
           status: Database["public"]["Enums"]["location_status"]
           updated_at: string
@@ -232,6 +234,8 @@ export type Database = {
           max_pallets_stacked?: number | null
           max_weight_kg?: number | null
           pick_sequence?: number | null
+          reserved_by_task_id?: string | null
+          reserved_until?: string | null
           retired_at?: string | null
           status?: Database["public"]["Enums"]["location_status"]
           updated_at?: string
@@ -252,6 +256,8 @@ export type Database = {
           max_pallets_stacked?: number | null
           max_weight_kg?: number | null
           pick_sequence?: number | null
+          reserved_by_task_id?: string | null
+          reserved_until?: string | null
           retired_at?: string | null
           status?: Database["public"]["Enums"]["location_status"]
           updated_at?: string
@@ -262,6 +268,20 @@ export type Database = {
             columns: ["lane_id"]
             isOneToOne: false
             referencedRelation: "lane"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
+            referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
         ]
@@ -669,6 +689,7 @@ export type Database = {
           lot: string | null
           lpn_id: string | null
           product_id: string
+          qty_allocated: number
           qty_base: number
           updated_at: string
         }
@@ -679,6 +700,7 @@ export type Database = {
           lot?: string | null
           lpn_id?: string | null
           product_id: string
+          qty_allocated?: number
           qty_base: number
           updated_at?: string
         }
@@ -689,6 +711,7 @@ export type Database = {
           lot?: string | null
           lpn_id?: string | null
           product_id?: string
+          qty_allocated?: number
           qty_base?: number
           updated_at?: string
         }
@@ -839,6 +862,132 @@ export type Database = {
           },
         ]
       }
+      task: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          closed_reason?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          from_location_id?: string | null
+          id?: string
+          lot?: string | null
+          lpn_id?: string | null
+          packaging_level_id?: string | null
+          priority?: number
+          product_id?: string | null
+          qty_base?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          to_location_id?: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          closed_reason?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          from_location_id?: string | null
+          id?: string
+          lot?: string | null
+          lpn_id?: string | null
+          packaging_level_id?: string | null
+          priority?: number
+          product_id?: string | null
+          qty_base?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          to_location_id?: string | null
+          type?: Database["public"]["Enums"]["task_type"]
+          wave_id?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_packaging_level_id_fkey"
+            columns: ["packaging_level_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_level"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_wave_id_fkey"
+            columns: ["wave_id"]
+            isOneToOne: false
+            referencedRelation: "wave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       uom: {
         Row: {
           code: string
@@ -856,6 +1005,38 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      wave: {
+        Row: {
+          code: string
+          created_at: string
+          cutoff_at: string | null
+          dock_door_id: string | null
+          id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          cutoff_at?: string | null
+          dock_door_id?: string | null
+          id?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          cutoff_at?: string | null
+          dock_door_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wave_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "dock_door"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zone: {
         Row: {
@@ -985,6 +1166,124 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_available: {
+        Row: {
+          expiry_date: string | null
+          id: string | null
+          location_id: string | null
+          lot: string | null
+          lpn_id: string | null
+          product_id: string | null
+          qty_allocated: number | null
+          qty_available: number | null
+          qty_base: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          expiry_date?: string | null
+          id?: string | null
+          location_id?: string | null
+          lot?: string | null
+          lpn_id?: string | null
+          product_id?: string | null
+          qty_allocated?: number | null
+          qty_available?: never
+          qty_base?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          expiry_date?: string | null
+          id?: string | null
+          location_id?: string | null
+          lot?: string | null
+          lpn_id?: string | null
+          product_id?: string | null
+          qty_allocated?: number | null
+          qty_available?: never
+          qty_base?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_timing: {
+        Row: {
+          assigned_to: string | null
+          ciclo_min: number | null
+          completed_at: string | null
+          created_at: string | null
+          ejecucion_min: number | null
+          espera_min: number | null
+          id: string | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          type: Database["public"]["Enums"]["task_type"] | null
+          viaje_min: number | null
+          zone_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          ciclo_min?: never
+          completed_at?: string | null
+          created_at?: string | null
+          ejecucion_min?: never
+          espera_min?: never
+          id?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          type?: Database["public"]["Enums"]["task_type"] | null
+          viaje_min?: never
+          zone_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          ciclo_min?: never
+          completed_at?: string | null
+          created_at?: string | null
+          ejecucion_min?: never
+          espera_min?: never
+          id?: string | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          type?: Database["public"]["Enums"]["task_type"] | null
+          viaje_min?: never
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       apply_stock_delta: {
@@ -997,6 +1296,75 @@ export type Database = {
           p_product_id: string
         }
         Returns: undefined
+      }
+      claim_next_task: {
+        Args: {
+          p_types?: Database["public"]["Enums"]["task_type"][]
+          p_zone_ids?: string[]
+        }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      close_task: {
+        Args: {
+          p_reason?: string
+          p_status: Database["public"]["Enums"]["task_status"]
+          p_task_id: string
+        }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       current_role_name: {
         Args: never
@@ -1028,6 +1396,37 @@ export type Database = {
           p_type: Database["public"]["Enums"]["movement_type"]
         }
         Returns: number
+      }
+      start_task: {
+        Args: { p_task_id: string }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       verify_ledger: {
         Args: never
@@ -1069,6 +1468,20 @@ export type Database = {
         | "AJUSTE"
         | "TRASLADO"
         | "DEVOLUCION"
+      task_status:
+        | "READY"
+        | "ASSIGNED"
+        | "IN_PROGRESS"
+        | "DONE"
+        | "CANCELLED"
+        | "BLOCKED"
+      task_type:
+        | "PUTAWAY"
+        | "PICK"
+        | "REPLENISH"
+        | "MOVE"
+        | "COUNT"
+        | "RELOCATE"
       uom_kind: "count" | "weight" | "volume" | "length"
       user_role:
         | "operador_recibo"
@@ -1251,6 +1664,15 @@ export const Constants = {
         "TRASLADO",
         "DEVOLUCION",
       ],
+      task_status: [
+        "READY",
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "DONE",
+        "CANCELLED",
+        "BLOCKED",
+      ],
+      task_type: ["PUTAWAY", "PICK", "REPLENISH", "MOVE", "COUNT", "RELOCATE"],
       uom_kind: ["count", "weight", "volume", "length"],
       user_role: [
         "operador_recibo",
