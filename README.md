@@ -58,7 +58,8 @@ token se crea en *Account → Access Tokens* y se puede revocar cuando quieras.
 
 ## Usuarios
 
-El registro publico esta **desactivado**: las altas las hace un administrador.
+El registro publico esta **desactivado**: las altas las hace un administrador. El comando se
+corre desde la carpeta del proyecto, que es donde esta `.env.local`.
 
 ```bash
 node scripts/create-user.mjs correo@dinant.com "Nombre Apellido" supervisor

@@ -2,22 +2,12 @@
 // `supabase db push` necesita el puerto de Postgres, que la red de la empresa no deja pasar.
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { loadEnv } from './lib/env.mjs'
 
 const DIR = 'supabase/migrations'
 const FILE_PATTERN = /^(\d{4})_[a-z0-9_]+\.sql$/
 
-const env = {}
-for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
-  const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/)
-  if (match) env[match[1]] = match[2].trim().replace(/^["']|["']$/g, '')
-}
-
-for (const key of ['SUPABASE_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN']) {
-  if (!env[key]) {
-    console.error(`Falta ${key} en .env.local`)
-    process.exit(1)
-  }
-}
+const env = loadEnv(['SUPABASE_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN'])
 
 async function run(query) {
   const res = await fetch(
