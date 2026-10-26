@@ -3,15 +3,20 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 async function getCounts() {
   const supabase = await createSupabaseServerClient()
-  const [locations, products, stock] = await Promise.all([
+  const [locations, products, stock, tasks] = await Promise.all([
     supabase.from('location').select('*', { count: 'exact', head: true }).is('retired_at', null),
     supabase.from('product').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('stock').select('*', { count: 'exact', head: true }).gt('qty_base', 0),
+    supabase
+      .from('task')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['READY', 'ASSIGNED', 'IN_PROGRESS']),
   ])
   return {
     posiciones: locations.count ?? 0,
     productos: products.count ?? 0,
     ocupadas: stock.count ?? 0,
+    'tareas abiertas': tasks.count ?? 0,
   }
 }
 
