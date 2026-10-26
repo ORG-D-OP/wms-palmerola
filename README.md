@@ -39,7 +39,8 @@ Levanta la aplicacion en `http://localhost:3000` con recarga en caliente. Necesi
 | `npm run typecheck` | Comprobacion de tipos |
 | `npm run lint` | ESLint |
 | `npm run db:check` | Corre las migraciones contra un Postgres en memoria y valida el seed |
-| `npm run db:push` | Aplica las migraciones al proyecto enlazado |
+| `npm run db:apply` | Aplica las migraciones al proyecto por HTTPS |
+| `npm run db:push` | Igual, con el CLI (necesita el puerto de Postgres abierto) |
 
 ## Base de datos
 
@@ -47,16 +48,22 @@ Las migraciones viven en `supabase/migrations/` y se aplican en orden. Antes de 
 cualquier cambio de esquema, `npm run db:check` las corre contra un Postgres real en memoria
 (PGlite) y comprueba que el seed deje las posiciones que dice el plano. El CI lo repite.
 
-Para aplicarlas al proyecto, una sola vez por maquina:
+Para aplicarlas al proyecto:
 
 ```bash
-npx supabase login                                  # pega tu Access Token
-npx supabase link --project-ref <ref-del-proyecto>  # pide la contrasena de la base
-npm run db:push
+npm run db:apply
 ```
 
-El `ref` del proyecto, el token y la contrasena de la base van en `.env.local`, nunca en el
-repositorio. El token se crea en *Account → Access Tokens* y se puede revocar cuando quieras.
+Solo necesita `SUPABASE_PROJECT_REF` y `SUPABASE_ACCESS_TOKEN` en `.env.local`. Es idempotente:
+lleva el registro en `supabase_migrations.schema_migrations` y salta lo ya aplicado.
+
+> **Por que no `supabase db push`:** desde la red de la empresa el puerto de Postgres no deja
+> pasar el protocolo (el TCP abre, pero la conexion se agota). `db:apply` hace lo mismo por
+> HTTPS 443 contra la API de gestion. Si trabajas desde una red sin esa restriccion, el
+> `npm run db:push` tambien sirve, previo `npx supabase login` y `npx supabase link`.
+
+El `ref`, el token y la contrasena de la base van en `.env.local`, nunca en el repositorio. El
+token se crea en *Account → Access Tokens* y se puede revocar cuando quieras.
 
 ## Estructura
 

@@ -12,7 +12,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:check": "node scripts/check-migrations.mjs",
-    "db:push": "supabase db push"
+    "db:push": "supabase db push",
+    "db:apply": "node scripts/db-apply.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
