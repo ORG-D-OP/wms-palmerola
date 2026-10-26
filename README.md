@@ -38,6 +38,25 @@ Levanta la aplicacion en `http://localhost:3000` con recarga en caliente. Necesi
 | `npm run build` | Build de produccion |
 | `npm run typecheck` | Comprobacion de tipos |
 | `npm run lint` | ESLint |
+| `npm run db:check` | Corre las migraciones contra un Postgres en memoria y valida el seed |
+| `npm run db:push` | Aplica las migraciones al proyecto enlazado |
+
+## Base de datos
+
+Las migraciones viven en `supabase/migrations/` y se aplican en orden. Antes de subir
+cualquier cambio de esquema, `npm run db:check` las corre contra un Postgres real en memoria
+(PGlite) y comprueba que el seed deje las posiciones que dice el plano. El CI lo repite.
+
+Para aplicarlas al proyecto, una sola vez por maquina:
+
+```bash
+npx supabase login                                  # pega tu Access Token
+npx supabase link --project-ref <ref-del-proyecto>  # pide la contrasena de la base
+npm run db:push
+```
+
+El `ref` del proyecto, el token y la contrasena de la base van en `.env.local`, nunca en el
+repositorio. El token se crea en *Account → Access Tokens* y se puede revocar cuando quieras.
 
 ## Estructura
 
