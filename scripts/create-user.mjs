@@ -1,8 +1,8 @@
 // Crea un usuario y devuelve un enlace para que la persona ponga su propia contrasena.
 // El registro publico esta desactivado a proposito: las altas las hace un administrador.
 //   node scripts/create-user.mjs correo@dinant.com "Nombre Apellido" supervisor
-import { readFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
+import { loadEnv } from './lib/env.mjs'
 
 const [email, fullName, role = 'solo_lectura'] = process.argv.slice(2)
 
@@ -11,18 +11,7 @@ if (!email || !fullName) {
   process.exit(1)
 }
 
-const env = {}
-for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
-  const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/)
-  if (match) env[match[1]] = match[2].trim().replace(/^["']|["']$/g, '')
-}
-
-for (const key of ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SECRET_KEY']) {
-  if (!env[key]) {
-    console.error(`Falta ${key} en .env.local`)
-    process.exit(1)
-  }
-}
+const env = loadEnv(['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SECRET_KEY'])
 
 const auth = async (path, body) => {
   const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1${path}`, {
