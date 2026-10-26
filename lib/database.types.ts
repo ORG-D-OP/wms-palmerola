@@ -1366,6 +1366,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_putaway: {
+        Args: { p_location_code: string; p_task_id: string }
+        Returns: {
+          era_la_sugerida: boolean
+          location_code: string
+        }[]
+      }
       current_role_name: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1414,6 +1421,37 @@ export type Database = {
           to_location_code: string
           to_location_id: string
         }[]
+      }
+      start_putaway: {
+        Args: { p_lpn_code: string; p_task_id: string }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       start_task: {
         Args: { p_task_id: string }
