@@ -51,6 +51,10 @@ Pull Request al terminar. **Nunca commit directo a `main`.**
 
 ## Nunca subas al repositorio
 
+> **Este repositorio es publico.** Todo lo que se commitea queda visible para cualquiera y
+> queda en copias y forks aunque despues se borre. Un dato interno que entre aqui no se puede
+> sacar.
+
 - `.env`, `.env.local`, credenciales, llaves ni tokens. Si se commitea `.env.example`, sin valores.
 - Datos reales de la empresa: Excel, extracciones, listas de clientes o precios. Para probar se
   generan datos inventados.
