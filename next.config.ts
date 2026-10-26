@@ -16,8 +16,9 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Todo vive detras del login y depende del usuario: no hay nada que prerenderizar.
+  // cacheComponents obligaria a envolver cada pagina en Suspense sin ganar nada.
+  cacheComponents: false,
   poweredByHeader: false,
   turbopack: {
     rules: {
