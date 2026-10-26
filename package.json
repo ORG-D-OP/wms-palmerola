@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "db:check": "node scripts/check-migrations.mjs",
     "db:push": "supabase db push",
-    "db:apply": "node scripts/db-apply.mjs"
+    "db:apply": "node scripts/db-apply.mjs",
+    "db:test": "node scripts/check-product-model.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
