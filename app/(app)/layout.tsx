@@ -1,5 +1,6 @@
+import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
-import { ROLE_LABELS } from '@/lib/auth/roles'
+import { ROLE_LABELS, can } from '@/lib/auth/roles'
 import { logout } from '@/app/(public)/login/actions'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -12,11 +13,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="truncate text-sm font-medium">{user.fullName}</p>
           <p className="text-xs opacity-60">{ROLE_LABELS[user.role]}</p>
         </div>
-        <form action={logout}>
-          <button type="submit" className="text-sm underline underline-offset-4">
-            Salir
-          </button>
-        </form>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link href="/" className="underline underline-offset-4">
+            Tablero
+          </Link>
+          {can(user.role, 'inventario:mover') ? (
+            <Link href="/recibo" className="underline underline-offset-4">
+              Recibo
+            </Link>
+          ) : null}
+          <form action={logout}>
+            <button type="submit" className="underline underline-offset-4">
+              Salir
+            </button>
+          </form>
+        </nav>
       </header>
       {children}
     </>

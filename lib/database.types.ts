@@ -1397,6 +1397,24 @@ export type Database = {
         }
         Returns: number
       }
+      receive_pallet: {
+        Args: {
+          p_dock_location_id: string
+          p_expiry?: string
+          p_idempotency_key?: string
+          p_lot?: string
+          p_packaging_level_id: string
+          p_product_id: string
+          p_qty: number
+        }
+        Returns: {
+          lpn_code: string
+          lpn_id: string
+          task_id: string
+          to_location_code: string
+          to_location_id: string
+        }[]
+      }
       start_task: {
         Args: { p_task_id: string }
         Returns: {
@@ -1427,6 +1445,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      suggest_putaway_location: {
+        Args: { p_expiry?: string; p_lot?: string; p_product_id: string }
+        Returns: string
       }
       verify_ledger: {
         Args: never
