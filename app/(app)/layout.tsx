@@ -18,9 +18,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             Tablero
           </Link>
           {can(user.role, 'inventario:mover') ? (
-            <Link href="/recibo" className="underline underline-offset-4">
-              Recibo
-            </Link>
+            <>
+              <Link href="/recibo" className="underline underline-offset-4">
+                Recibo
+              </Link>
+              <Link href="/guardar" className="underline underline-offset-4">
+                Guardar
+              </Link>
+            </>
           ) : null}
           <form action={logout}>
             <button type="submit" className="underline underline-offset-4">
