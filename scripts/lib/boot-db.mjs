@@ -19,6 +19,7 @@ export async function bootDb({ log = false } = {}) {
       select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
     $fn$;
     create role authenticated;
+    create role service_role;
   `)
 
   for (const file of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {

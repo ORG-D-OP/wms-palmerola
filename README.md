@@ -56,6 +56,18 @@ lleva el registro en `supabase_migrations.schema_migrations` y salta lo ya aplic
 El `ref`, el token y la contrasena de la base van en `.env.local`, nunca en el repositorio. El
 token se crea en *Account → Access Tokens* y se puede revocar cuando quieras.
 
+## Usuarios
+
+El registro publico esta **desactivado**: las altas las hace un administrador.
+
+```bash
+node scripts/create-user.mjs correo@dinant.com "Nombre Apellido" supervisor
+```
+
+Devuelve un enlace de un solo uso para que la persona ponga su propia contrasena. El script
+nunca elige ni muestra una contrasena. Roles validos: `operador_recibo`, `operador_picking`,
+`montacargista`, `supervisor`, `inventarios`, `admin`, `solo_lectura`.
+
 ## Estructura
 
 ```
