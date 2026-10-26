@@ -8,7 +8,6 @@ Stack: **Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase 
 ## Requisitos
 
 - Node 22 o superior
-- Docker Desktop (opcional, para levantar el entorno en contenedor)
 
 ## Puesta en marcha
 
@@ -21,14 +20,6 @@ npm run dev
 
 Los valores de `.env.local` se sacan del panel de Supabase, en *Project Settings → API*.
 **`.env.local` no se commitea nunca.**
-
-### Con Docker
-
-```bash
-docker compose up
-```
-
-Levanta la aplicacion en `http://localhost:3000` con recarga en caliente. Necesita `.env.local`.
 
 ## Comandos
 

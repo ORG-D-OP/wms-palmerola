@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
-  output: 'standalone',
   turbopack: {
     rules: {
       '*.css': { loaders: ['@tailwindcss/turbopack'], as: '*.css' },
