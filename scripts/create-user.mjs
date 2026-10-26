@@ -1,5 +1,6 @@
-// Crea un usuario y devuelve un enlace para que la persona ponga su propia contrasena.
-// El registro publico esta desactivado a proposito: las altas las hace un administrador.
+// Da de alta a una persona y devuelve el enlace para que ponga su propia contrasena.
+// Si ya existe, solo genera un enlace nuevo. El registro publico esta desactivado a
+// proposito: las altas las hace un administrador.
 //   node scripts/create-user.mjs correo@dinant.com "Nombre Apellido" supervisor
 import { randomBytes } from 'node:crypto'
 import { loadEnv } from './lib/env.mjs'
@@ -12,52 +13,60 @@ if (!email || !fullName) {
 }
 
 const env = loadEnv(['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SECRET_KEY'])
+const appUrl = env.APP_URL ?? 'http://localhost:3000'
 
-const auth = async (path, body) => {
-  const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1${path}`, {
-    method: 'POST',
-    headers: {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+const headers = {
+  apikey: env.SUPABASE_SECRET_KEY,
+  Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+  'Content-Type': 'application/json',
+}
+
+const call = async (path, method, body) => {
+  const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}${path}`, {
+    method,
+    headers: { ...headers, Prefer: 'return=representation' },
+    body: body && JSON.stringify(body),
   })
-  const json = await res.json()
-  if (!res.ok) throw new Error(json.msg ?? json.message ?? JSON.stringify(json))
-  return json
+  const json = await res.json().catch(() => null)
+  return { ok: res.ok, status: res.status, json }
 }
 
 // Contrasena temporal que nadie llega a ver: la persona pone la suya con el enlace.
-const user = await auth('/admin/users', {
+const created = await call('/auth/v1/admin/users', 'POST', {
   email,
   password: randomBytes(24).toString('base64url'),
   email_confirm: true,
   user_metadata: { full_name: fullName },
 })
 
-const rest = await fetch(
-  `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profile?id=eq.${user.id}`,
-  {
-    method: 'PATCH',
-    headers: {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify({ full_name: fullName, role }),
-  },
-)
-const [profile] = await rest.json()
-
-if (!profile) {
-  console.error('El usuario se creo pero no se pudo asignar el perfil. Revisalo en el panel.')
+if (!created.ok && created.status !== 422) {
+  console.error(`No se pudo crear: ${created.json?.msg ?? created.status}`)
   process.exit(1)
 }
 
-const link = await auth('/admin/generate_link', { type: 'recovery', email })
+const yaExistia = !created.ok
+if (yaExistia) console.log(`${email} ya existe; se genera un enlace nuevo.`)
 
-console.log(`\nUsuario creado: ${email}`)
-console.log(`Rol: ${profile.role}`)
-console.log(`\nEnvia este enlace para que ponga su contrasena (un solo uso):\n${link.action_link}\n`)
+const link = await call('/auth/v1/admin/generate_link', 'POST', { type: 'recovery', email })
+if (!link.ok || !link.json?.hashed_token) {
+  console.error(`No se pudo generar el enlace: ${link.json?.msg ?? link.status}`)
+  process.exit(1)
+}
+
+const profile = await call(
+  `/rest/v1/profile?id=eq.${link.json.id}`,
+  'PATCH',
+  yaExistia ? { role } : { full_name: fullName, role },
+)
+
+if (!profile.ok || !profile.json?.[0]) {
+  console.error('El usuario existe pero no se pudo asignar el rol. Revisalo en el panel.')
+  process.exit(1)
+}
+
+const url = new URL('/auth/confirm', appUrl)
+url.searchParams.set('token_hash', link.json.hashed_token)
+url.searchParams.set('type', 'recovery')
+
+console.log(`\n${email} — rol ${profile.json[0].role}`)
+console.log(`\nEnlace de un solo uso para poner la contrasena:\n${url}\n`)
