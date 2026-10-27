@@ -100,7 +100,7 @@ const repetida = await fails(
   [productId, caseId, anden],
 )
 check(
-  repetida?.includes('ya esta en el sistema'),
+  repetida?.includes('ya está en el sistema'),
   'una matricula repetida se rechaza y dice donde esta ese pallet',
 )
 

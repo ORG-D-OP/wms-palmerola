@@ -70,7 +70,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
           <p className="text-2xl tabular-nums">{done.lpnCode}</p>
         </div>
         <div>
-          <p className="text-sm text-azul/60">Llevalo a</p>
+          <p className="text-sm text-azul/60">Llévalo a</p>
           <p className="text-4xl tabular-nums">{done.locationCode ?? 'Sin hueco libre'}</p>
         </div>
         <button type="button" onClick={reiniciar} className={BOTON}>
@@ -83,7 +83,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
   return (
     <div className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Anden</span>
+        <span className={ETIQUETA}>Andén</span>
         <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={CAMPO}>
           {docks.map((d) => (
             <option key={d.id} value={d.id}>
@@ -107,7 +107,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {lpnCode && !match ? (
         <ScanInput
-          label="Escanea el codigo de la caja"
+          label="Escanea el código de la caja"
           disabled={pending}
           onScan={escanearProducto}
         />
@@ -115,7 +115,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {matches && matches.length > 1 && !match ? (
         <div className="flex flex-col gap-2">
-          <p className={ETIQUETA}>Ese codigo es de varios productos. ¿Cual es?</p>
+          <p className={ETIQUETA}>Ese código es de varios productos. ¿Cuál es?</p>
           {matches.map((m) => (
             <button
               key={m.packagingLevelId}

@@ -50,7 +50,7 @@ check(sinEscanear?.includes('Primero escanea el pallet'), 'no se cierra sin conf
 await one(`select start_putaway($1, $2)`, [tarea.id, r.lpn_code])
 
 const inexistente = await fails(`select * from complete_putaway($1, 'NO-EXISTE')`, [tarea.id])
-check(inexistente?.includes('No existe la posicion'), 'una posicion inventada se rechaza')
+check(inexistente?.includes('No existe la posición'), 'una posicion inventada se rechaza')
 
 // Un carril con otro producto no puede recibir este pallet.
 const { id: intruso } = await one(

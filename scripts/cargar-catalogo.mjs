@@ -45,6 +45,27 @@ const porLotes = async (filas, fn) => {
   return salida
 }
 
+/**
+ * El maestro de origen trae secuencias con doble codificación: «12´S» llega como
+ * «12Â´S» porque un byte UTF-8 se guardó leído como Latin-1.
+ *
+ * Se reparan solo esas secuencias, no la cadena entera: muchos nombres mezclan
+ * acentos correctos («PIÑA», «NÉCTAR») con la parte rota, y reconvertir todo los
+ * destruiría.
+ *   Â + X  (X en U+0080–U+00BF)  ->  X          porque C2 XX codifica ese caracter
+ *   Ã + X  (X en U+0080–U+00BF)  ->  U+00C0+..  porque C3 XX codifica ese otro
+ */
+const reparar = (texto) =>
+  texto
+    .replace(/Â([-¿])/g, '$1')
+    .replace(/Ã([-¿])/g, (_, c) =>
+      String.fromCharCode(0xc0 + (c.charCodeAt(0) - 0x80)),
+    )
+    .replace(/[ÂÃ]+$/g, '')
+    .replace(/ /g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const num = (v) => {
   const n = Number(String(v).replace(',', '.'))
   return Number.isFinite(n) && n > 0 ? n : null
@@ -57,6 +78,11 @@ const entero = (v) => {
 const filas = readCsv(ARCHIVO)
 console.log(`${filas.length} filas en ${ARCHIVO}`)
 
+const rotos = filas.filter((f) => reparar(f.DescripcionSKU) !== f.DescripcionSKU.trim())
+if (rotos.length > 0) {
+  console.log(`se repararon ${rotos.length} nombres con caracteres mal codificados`)
+}
+
 const unidades = new Set((await rest('uom?select=code')).map((u) => u.code))
 const sinUnidad = filas.filter((f) => !unidades.has(f.IdUnidadMedidaBase))
 if (sinUnidad.length > 0) {
@@ -67,14 +93,14 @@ if (sinUnidad.length > 0) {
 
 const cajas = [...new Map(
   filas.filter((f) => f.IdTipoCaja && f.DescripcionTipoCaja)
-    .map((f) => [f.IdTipoCaja, { code: f.IdTipoCaja, name: f.DescripcionTipoCaja }]),
+    .map((f) => [f.IdTipoCaja, { code: f.IdTipoCaja, name: reparar(f.DescripcionTipoCaja) }]),
 ).values()]
 await upsert('box_type', cajas, 'code')
 console.log(`tipos de caja: ${cajas.length}`)
 
 const categorias = [...new Map(
   filas.filter((f) => f.IdGrupoMaterial && f.DesGrupoMaterial)
-    .map((f) => [f.IdGrupoMaterial, { code: f.IdGrupoMaterial, name: f.DesGrupoMaterial }]),
+    .map((f) => [f.IdGrupoMaterial, { code: f.IdGrupoMaterial, name: reparar(f.DesGrupoMaterial) }]),
 ).values()]
 await upsert('product_category', categorias, 'code')
 const categoriaId = new Map(
@@ -84,7 +110,7 @@ console.log(`categorias: ${categorias.length}`)
 
 const productos = filas.map((f) => ({
   sku: f.IdSKU,
-  name: f.DescripcionSKU,
+  name: reparar(f.DescripcionSKU),
   base_uom: f.IdUnidadMedidaBase,
   category_id: categoriaId.get(f.IdGrupoMaterial) ?? null,
   shelf_life_days: entero(f.VidaAnaquel),

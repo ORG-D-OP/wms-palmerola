@@ -33,7 +33,7 @@ await db.query(
 )
 
 const sinSesion = await fails(`select claim_next_task()`)
-check(sinSesion?.includes('sesion'), 'sin sesion no se puede tomar trabajo')
+check(sinSesion?.includes('sesión'), 'sin sesion no se puede tomar trabajo')
 
 await comoOperario(operario)
 const primera = await one(`select * from claim_next_task()`)
@@ -49,7 +49,7 @@ const vacia = await one(`select * from claim_next_task()`)
 check(vacia.id === null, 'sin trabajo pendiente la cola no devuelve nada')
 
 const ajena = await fails(`select start_task($1)`, [primera.id])
-check(ajena?.includes('no esta asignada a ti'), 'no se puede empezar la tarea de otro')
+check(ajena?.includes('no está asignada a ti'), 'no se puede empezar la tarea de otro')
 
 await comoOperario(operario)
 await one(`select start_task($1)`, [primera.id])

@@ -25,7 +25,7 @@ export async function setPassword(
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
 
   if (error) {
-    return { error: 'No se pudo guardar la contrasena. Intenta de nuevo.' }
+    return { error: 'No se pudo guardar la contraseña. Intenta de nuevo.' }
   }
 
   redirect('/')

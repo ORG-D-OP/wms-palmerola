@@ -46,7 +46,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           ],
           ['Peso de caja', caja?.gross_weight_g ? `${(caja.gross_weight_g / 1000).toFixed(2)} kg` : 'sin dato'],
           ['Cajas por pallet', producto.pallet_config[0]?.cases_per_pallet ?? 'sin dato'],
-          ['Vida de anaquel', producto.shelf_life_days ? `${producto.shelf_life_days} dias` : 'sin dato'],
+          ['Vida de anaquel', producto.shelf_life_days ? `${producto.shelf_life_days} días` : 'sin dato'],
           ['Vencimiento', producto.requires_fefo ? 'obligatorio' : 'no exigido'],
         ].map(([k, v]) => (
           <div key={String(k)} className="rounded-xl border border-borde p-3">
@@ -57,7 +57,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       </dl>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg">Codigos de barras</h2>
+        <h2 className="text-lg">Códigos de barras</h2>
         {codigos.length > 0 ? (
           <ul className="flex flex-col gap-1 text-sm">
             {codigos.map((c) => (
@@ -70,7 +70,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-azul/60">Sin codigo asignado. No se puede almacenar todavia.</p>
+          <p className="text-sm text-azul/60">Sin código asignado. No se puede almacenar todavía.</p>
         )}
 
         {can(user.role, 'maestros:editar') && caja ? (

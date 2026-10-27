@@ -66,7 +66,7 @@ const Scan = z.object({ taskId: z.uuid(), code: z.string().trim().min(3).max(48)
 export async function startPutaway(taskId: string, code: string) {
   await requirePermission('inventario:mover')
   const parsed = Scan.safeParse({ taskId, code })
-  if (!parsed.success) return { ok: false as const, error: 'Codigo invalido.' }
+  if (!parsed.success) return { ok: false as const, error: 'Código inválido.' }
 
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.rpc('start_putaway', {
@@ -79,7 +79,7 @@ export async function startPutaway(taskId: string, code: string) {
 export async function completePutaway(taskId: string, code: string) {
   await requirePermission('inventario:mover')
   const parsed = Scan.safeParse({ taskId, code })
-  if (!parsed.success) return { ok: false as const, error: 'Codigo invalido.' }
+  if (!parsed.success) return { ok: false as const, error: 'Código inválido.' }
 
   const supabase = await createSupabaseServerClient()
   const { data, error } = await supabase

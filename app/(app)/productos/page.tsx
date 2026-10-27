@@ -50,7 +50,7 @@ export default async function ProductsPage({
           Todos
         </Link>
         <Link href="/productos?incompletos=1" className={incompletos ? 'font-semibold' : 'underline'}>
-          Sin codigo
+          Sin código
         </Link>
       </nav>
 
@@ -86,7 +86,7 @@ export default async function ProductsPage({
 
       {productos.length === 0 ? <p className="text-azul/60">Sin resultados.</p> : null}
       {productos.length === PAGINA ? (
-        <p className="text-sm text-azul/60">Mostrando los primeros {PAGINA}. Afina la busqueda.</p>
+        <p className="text-sm text-azul/60">Mostrando los primeros {PAGINA}. Afina la búsqueda.</p>
       ) : null}
     </main>
   )

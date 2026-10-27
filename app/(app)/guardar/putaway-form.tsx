@@ -88,16 +88,16 @@ export function PutawayForm() {
             <p className="mt-4 text-sm text-azul/60">Toma el pallet</p>
             <p className="text-2xl tabular-nums">{job?.lpnCode}</p>
           </div>
-          <ScanInput label="Escanea la matricula del pallet" disabled={pending} onScan={escanear} />
+          <ScanInput label="Escanea la matrícula del pallet" disabled={pending} onScan={escanear} />
         </>
       ) : (
         <>
           <div className="text-center">
-            <p className="text-sm text-azul/60">Llevalo a</p>
+            <p className="text-sm text-azul/60">Llévalo a</p>
             <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
           <ScanInput
-            label="Escanea la posicion donde lo dejaste"
+            label="Escanea la posición donde lo dejaste"
             disabled={pending}
             onScan={escanear}
           />

@@ -58,5 +58,5 @@ export function toErrorResponse(error: unknown): { body: ErrorResponse; status: 
 
   const ref = crypto.randomUUID()
   console.error(JSON.stringify({ level: 'error', ref, error: String(error) }))
-  return { body: { error: 'No se pudo completar la operacion.', ref }, status: 500 }
+  return { body: { error: 'No se pudo completar la operación.', ref }, status: 500 }
 }

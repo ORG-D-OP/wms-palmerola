@@ -12,7 +12,7 @@ export async function assignBarcode(productId: string, code: string) {
   await requirePermission('maestros:editar')
 
   const parsed = Input.safeParse({ productId, code })
-  if (!parsed.success) return { ok: false as const, error: 'Codigo invalido.' }
+  if (!parsed.success) return { ok: false as const, error: 'Código inválido.' }
 
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.rpc('assign_barcode', {

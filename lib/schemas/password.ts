@@ -8,9 +8,9 @@ export const PasswordSchema = z
   .string()
   .min(MIN_LENGTH, `Debe tener al menos ${MIN_LENGTH} caracteres`)
   .max(128)
-  .regex(/[a-z]/, 'Debe incluir una minuscula')
-  .regex(/[A-Z]/, 'Debe incluir una mayuscula')
-  .regex(/[0-9]/, 'Debe incluir un numero')
+  .regex(/[a-z]/, 'Debe incluir una minúscula')
+  .regex(/[A-Z]/, 'Debe incluir una mayúscula')
+  .regex(/[0-9]/, 'Debe incluir un número')
 
 export const SetPasswordSchema = z
   .object({
@@ -19,5 +19,5 @@ export const SetPasswordSchema = z
   })
   .refine((data) => data.password === data.confirm, {
     path: ['confirm'],
-    message: 'Las contrasenas no coinciden',
+    message: 'Las contraseñas no coinciden',
   })

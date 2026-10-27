@@ -77,7 +77,7 @@ export default async function DashboardPage() {
       </dl>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg">Ocupacion del almacen</h2>
+        <h2 className="text-lg">Ocupación del almacén</h2>
         <WarehouseMap ocupacion={ocupacion} />
       </section>
     </main>
