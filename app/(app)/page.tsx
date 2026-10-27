@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { WarehouseMap, type Ocupacion } from '@/components/warehouse-map'
+import { WarehouseCanvas, type Ocupacion } from '@/components/warehouse-canvas'
 import { Icon } from '@/components/ui/icon'
 
 async function getDatos() {
@@ -78,7 +78,10 @@ export default async function DashboardPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg">Ocupación del almacén</h2>
-        <WarehouseMap ocupacion={ocupacion} />
+        <p className="text-sm text-azul/60">
+          Arrastra para mover, rueda o pellizca para acercar.
+        </p>
+        <WarehouseCanvas ocupacion={ocupacion} />
       </section>
     </main>
   )
