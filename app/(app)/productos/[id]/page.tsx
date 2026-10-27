@@ -27,13 +27,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const codigos = producto.packaging_level.flatMap((p) => p.barcode)
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
       <div>
         <Link href="/productos" className="text-sm underline underline-offset-4">
           Productos
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">{producto.name}</h1>
-        <p className="text-sm opacity-60">{producto.sku}</p>
+        <h1 className="mt-2 text-xl">{producto.name}</h1>
+        <p className="text-sm text-azul/60">{producto.sku}</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -49,28 +49,28 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           ['Vida de anaquel', producto.shelf_life_days ? `${producto.shelf_life_days} dias` : 'sin dato'],
           ['Vencimiento', producto.requires_fefo ? 'obligatorio' : 'no exigido'],
         ].map(([k, v]) => (
-          <div key={String(k)} className="rounded-lg border border-black/10 p-3 dark:border-white/15">
-            <dt className="text-xs uppercase tracking-wide opacity-60">{k}</dt>
-            <dd className="font-medium">{v}</dd>
+          <div key={String(k)} className="rounded-xl border border-borde p-3">
+            <dt className="text-xs text-azul/60">{k}</dt>
+            <dd className="">{v}</dd>
           </div>
         ))}
       </dl>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">Codigos de barras</h2>
+        <h2 className="text-lg">Codigos de barras</h2>
         {codigos.length > 0 ? (
           <ul className="flex flex-col gap-1 text-sm">
             {codigos.map((c) => (
               <li key={c.code} className="flex items-center gap-2">
                 <span className="font-mono">{c.code}</span>
                 {c.verified_at ? (
-                  <span className="text-xs text-green-700 dark:text-green-400">verificado</span>
+                  <span className="rounded-md bg-[var(--verde)]/30 px-1.5 py-0.5 text-xs">verificado</span>
                 ) : null}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm opacity-70">Sin codigo asignado. No se puede almacenar todavia.</p>
+          <p className="text-sm text-azul/60">Sin codigo asignado. No se puede almacenar todavia.</p>
         )}
 
         {can(user.role, 'maestros:editar') && caja ? (

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
+import { Aviso, Logro } from '@/components/ui/feedback'
 import { assignBarcode } from './actions'
 
 export function AssignBarcode({ productId, hint }: { productId: string; hint: string | null }) {
@@ -25,20 +26,14 @@ export function AssignBarcode({ productId, hint }: { productId: string; hint: st
       <ScanInput label="Escanea la caja para asignar su codigo" disabled={pending} onScan={guardar} />
 
       {hint ? (
-        <p className="text-sm opacity-70">
+        <p className="text-sm text-azul/60">
           El maestro dice <span className="font-mono">{hint}</span>, pero no esta verificado.
           Confirmalo escaneando la caja real.
         </p>
       ) : null}
 
-      {ok ? (
-        <p className="text-sm text-green-700 dark:text-green-400">Codigo {ok} asignado.</p>
-      ) : null}
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      {ok ? <Logro>Codigo {ok} asignado.</Logro> : null}
+      {error ? <Aviso>{error}</Aviso> : null}
     </div>
   )
 }

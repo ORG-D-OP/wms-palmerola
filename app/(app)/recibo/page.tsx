@@ -18,12 +18,12 @@ export default async function ReceivingPage() {
   const docks = (data ?? []).map((d) => ({ id: d.id, code: d.code.replace('STG-', '') }))
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
-      <h1 className="text-xl font-semibold">Recibir pallet</h1>
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+      <h1 className="text-xl">Recibir pallet</h1>
       {docks.length > 0 ? (
         <ReceiveForm docks={docks} />
       ) : (
-        <p className="text-sm opacity-70">No hay andenes de descarga configurados.</p>
+        <p className="text-sm text-azul/60">No hay andenes de descarga configurados.</p>
       )}
     </main>
   )

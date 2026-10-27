@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
+import { Aviso } from '@/components/ui/feedback'
+import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { checkPalletLabel, receivePallet, resolveBarcode, type Match } from './actions'
 
 type Dock = { id: string; code: string }
 type Done = { lpnCode: string; locationCode: string | null }
 
-const campo = 'h-14 w-full rounded-lg border border-black/15 px-3 text-lg dark:border-white/20'
-const boton = 'h-14 w-full rounded-lg bg-foreground text-lg font-medium text-background disabled:opacity-60'
 
 export function ReceiveForm({ docks }: { docks: Dock[] }) {
   const [dockId, setDockId] = useState(docks[0]?.id ?? '')
@@ -66,14 +66,14 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
     return (
       <div className="flex flex-col gap-6 text-center">
         <div>
-          <p className="text-sm uppercase tracking-wide opacity-60">Pallet</p>
-          <p className="text-2xl font-semibold tabular-nums">{done.lpnCode}</p>
+          <p className="text-sm text-azul/60">Pallet</p>
+          <p className="text-2xl tabular-nums">{done.lpnCode}</p>
         </div>
         <div>
-          <p className="text-sm uppercase tracking-wide opacity-60">Llevalo a</p>
-          <p className="text-4xl font-bold tabular-nums">{done.locationCode ?? 'Sin hueco libre'}</p>
+          <p className="text-sm text-azul/60">Llevalo a</p>
+          <p className="text-4xl tabular-nums">{done.locationCode ?? 'Sin hueco libre'}</p>
         </div>
-        <button type="button" onClick={reiniciar} className={boton}>
+        <button type="button" onClick={reiniciar} className={BOTON}>
           Recibir otro
         </button>
       </div>
@@ -83,8 +83,8 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
   return (
     <div className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Anden</span>
-        <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={campo}>
+        <span className={ETIQUETA}>Anden</span>
+        <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={CAMPO}>
           {docks.map((d) => (
             <option key={d.id} value={d.id}>
               {d.code}
@@ -115,15 +115,15 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {matches && matches.length > 1 && !match ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Ese codigo es de varios productos. ¿Cual es?</p>
+          <p className={ETIQUETA}>Ese codigo es de varios productos. ¿Cual es?</p>
           {matches.map((m) => (
             <button
               key={m.packagingLevelId}
               type="button"
               onClick={() => setMatch(m)}
-              className="rounded-lg border border-black/15 p-3 text-left dark:border-white/20"
+              className="rounded-xl border border-borde p-3 text-left transition-colors hover:bg-azul-08"
             >
-              <span className="block font-medium">{m.name}</span>
+              <span className="block">{m.name}</span>
               <span className="block text-sm opacity-60">{m.sku}</span>
             </button>
           ))}
@@ -132,15 +132,15 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {match ? (
         <form action={guardar} className="flex flex-col gap-4">
-          <div className="rounded-lg border border-black/10 p-3 dark:border-white/15">
-            <p className="font-medium">{match.name}</p>
-            <p className="text-sm opacity-60">
+          <div className="rounded-xl bg-azul-08 p-3">
+            <p>{match.name}</p>
+            <p className="text-sm text-azul/60">
               {match.sku} · {match.packagingCode} de {match.qtyBaseUnits}
             </p>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Cajas</span>
+            <span className={ETIQUETA}>Cajas</span>
             <input
               name="qty"
               type="number"
@@ -148,36 +148,32 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
               min={1}
               required
               defaultValue={match.casesPerPallet ?? undefined}
-              className={campo}
+              className={CAMPO}
             />
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Lote</span>
-            <input name="lot" className={campo} />
+            <span className={ETIQUETA}>Lote</span>
+            <input name="lot" className={CAMPO} />
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">
+            <span className={ETIQUETA}>
               Vencimiento {match.requiresFefo ? '(obligatorio)' : ''}
             </span>
-            <input name="expiry" type="date" required={match.requiresFefo} className={campo} />
+            <input name="expiry" type="date" required={match.requiresFefo} className={CAMPO} />
           </label>
 
-          <button type="submit" disabled={pending} className={boton}>
+          <button type="submit" disabled={pending} className={BOTON}>
             {pending ? 'Guardando...' : 'Recibir'}
           </button>
-          <button type="button" onClick={reiniciar} className="text-sm underline underline-offset-4">
+          <button type="button" onClick={reiniciar} className={BOTON_SUAVE}>
             Cancelar
           </button>
         </form>
       ) : null}
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Aviso>{error}</Aviso> : null}
     </div>
   )
 }
