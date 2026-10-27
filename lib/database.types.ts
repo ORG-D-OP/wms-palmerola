@@ -80,6 +80,8 @@ export type Database = {
           is_primary: boolean
           packaging_level_id: string
           symbology: Database["public"]["Enums"]["barcode_symbology"]
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           code: string
@@ -88,6 +90,8 @@ export type Database = {
           is_primary?: boolean
           packaging_level_id: string
           symbology: Database["public"]["Enums"]["barcode_symbology"]
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           code?: string
@@ -96,6 +100,8 @@ export type Database = {
           is_primary?: boolean
           packaging_level_id?: string
           symbology?: Database["public"]["Enums"]["barcode_symbology"]
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -380,11 +386,11 @@ export type Database = {
       pallet_config: {
         Row: {
           allows_stacking: boolean
-          cases_per_layer: number
-          cases_per_pallet: number | null
+          cases_per_layer: number | null
+          cases_per_pallet: number
           id: string
           is_default: boolean
-          layers: number
+          layers: number | null
           max_stack: number | null
           pallet_type_code: string
           product_id: string
@@ -393,11 +399,11 @@ export type Database = {
         }
         Insert: {
           allows_stacking?: boolean
-          cases_per_layer: number
-          cases_per_pallet?: number | null
+          cases_per_layer?: number | null
+          cases_per_pallet: number
           id?: string
           is_default?: boolean
-          layers: number
+          layers?: number | null
           max_stack?: number | null
           pallet_type_code: string
           product_id: string
@@ -406,11 +412,11 @@ export type Database = {
         }
         Update: {
           allows_stacking?: boolean
-          cases_per_layer?: number
-          cases_per_pallet?: number | null
+          cases_per_layer?: number | null
+          cases_per_pallet?: number
           id?: string
           is_default?: boolean
-          layers?: number
+          layers?: number | null
           max_stack?: number | null
           pallet_type_code?: string
           product_id?: string
@@ -477,6 +483,7 @@ export type Database = {
             | Database["public"]["Enums"]["contamination_class"]
             | null
           created_at: string
+          external_barcode_hint: string | null
           external_source: string | null
           humidity_sensitive: boolean
           id: string
@@ -500,6 +507,7 @@ export type Database = {
             | Database["public"]["Enums"]["contamination_class"]
             | null
           created_at?: string
+          external_barcode_hint?: string | null
           external_source?: string | null
           humidity_sensitive?: boolean
           id?: string
@@ -525,6 +533,7 @@ export type Database = {
             | Database["public"]["Enums"]["contamination_class"]
             | null
           created_at?: string
+          external_barcode_hint?: string | null
           external_source?: string | null
           humidity_sensitive?: boolean
           id?: string
@@ -1296,6 +1305,30 @@ export type Database = {
           p_product_id: string
         }
         Returns: undefined
+      }
+      assign_barcode: {
+        Args: {
+          p_code: string
+          p_packaging_code?: Database["public"]["Enums"]["packaging_code"]
+          p_product_id: string
+          p_symbology?: Database["public"]["Enums"]["barcode_symbology"]
+        }
+        Returns: {
+          code: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          packaging_level_id: string
+          symbology: Database["public"]["Enums"]["barcode_symbology"]
+          verified_at: string | null
+          verified_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "barcode"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       claim_next_task: {
         Args: {

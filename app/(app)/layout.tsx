@@ -17,6 +17,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/" className="underline underline-offset-4">
             Tablero
           </Link>
+          <Link href="/productos" className="underline underline-offset-4">
+            Productos
+          </Link>
           {can(user.role, 'inventario:mover') ? (
             <>
               <Link href="/recibo" className="underline underline-offset-4">
