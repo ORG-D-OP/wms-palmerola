@@ -1,7 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { ANDENES, BLOQUES, COLOR, FRANJAS, NAVE } from '@/lib/warehouse/plano'
+import {
+  andenMasCercano,
+  ANDENES,
+  BLOQUES,
+  COLOR,
+  FRANJAS,
+  NAVE,
+  ruta,
+  ubicar,
+} from '@/lib/warehouse/plano'
 import { Icon } from '@/components/ui/icon'
 
 export type Ocupacion = Record<string, { ocupadas: number; total: number }>
@@ -88,7 +97,66 @@ function etiquetas(ctx: CanvasRenderingContext2D, v: Vista) {
   ctx.restore()
 }
 
-export function WarehouseCanvas({ ocupacion }: { ocupacion: Ocupacion }) {
+/** Dibuja el camino y marca el destino encima de la planta ya pintada. */
+function guiado(ctx: CanvasRenderingContext2D, v: Vista, origen?: string, destino?: string) {
+  const fin = destino ? ubicar(destino) : null
+  if (!fin) return
+  // Sin origen explicito, se traza desde el anden de descarga mas cercano.
+  const ini = ubicar(origen ?? andenMasCercano(fin))
+  const aPantalla = (p: { x: number; y: number }) => ({
+    x: p.x * v.escala + v.x,
+    y: p.y * v.escala + v.y,
+  })
+
+  ctx.save()
+  if (ini) {
+    const puntos = ruta(ini, fin).map(aPantalla)
+    ctx.strokeStyle = COLOR.verde
+    ctx.lineWidth = 4
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.setLineDash([10, 7])
+    ctx.beginPath()
+    ctx.moveTo(puntos[0]!.x, puntos[0]!.y)
+    for (const p of puntos.slice(1)) ctx.lineTo(p.x, p.y)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    const a = aPantalla(ini)
+    ctx.fillStyle = COLOR.blanco
+    ctx.strokeStyle = COLOR.azul
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(a.x, a.y, 7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+  }
+
+  const b = aPantalla(fin)
+  ctx.fillStyle = COLOR.verde
+  ctx.strokeStyle = COLOR.azul
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.arc(b.x, b.y, 11, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+
+  ctx.fillStyle = COLOR.azul
+  ctx.font = '500 13px Inter, system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(destino!, b.x, b.y - 18)
+  ctx.restore()
+}
+
+export function WarehouseCanvas({
+  ocupacion,
+  origen,
+  destino,
+}: {
+  ocupacion: Ocupacion
+  origen?: string
+  destino?: string
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const estaticoRef = useRef<HTMLCanvasElement | null>(null)
   // La vista vive en un ref: mover el mapa no debe re-renderizar React.
@@ -116,7 +184,8 @@ export function WarehouseCanvas({ ocupacion }: { ocupacion: Ocupacion }) {
     const v = vistaRef.current
     ctx.drawImage(estatico, v.x, v.y, NAVE.ancho * v.escala, NAVE.alto * v.escala)
     etiquetas(ctx, v)
-  }, [])
+    guiado(ctx, v, origen, destino)
+  }, [origen, destino])
 
   /** Nunca deja que la nave se salga de la vista: si cabe entera, la centra. */
   const encajar = useCallback((v: Vista): Vista => {

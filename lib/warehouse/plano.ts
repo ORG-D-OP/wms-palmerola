@@ -62,7 +62,11 @@ type DefRack = { code: string; x: number; modulos: number[]; bahias: number; niv
  * Cada módulo es un rack; entre módulo y módulo va el pasillo.
  * Los módulos y las bahías salen de las cotas del plano y cuadran exactamente con las
  * posiciones declaradas: abarrotes 12 de fondo x 16 bahías x 6 niveles = 1,152, y
- * snacks 26 x 16 x 4 = 1,664. Si el plano de racks dice otra altura, se cambia aquí.
+ * snacks 26 x 16 x 4 = 1,664.
+ *
+ * Si el plano de racks dice otra altura hay que cambiarla en DOS lugares: aquí, que es
+ * lo que dibujan el mapa y el 3D, y la fila de `zone_spec` en la base, que es lo que
+ * genera las posiciones. Después, `select generate_zone_locations('R-ABA')`.
  */
 const RACKS: DefRack[] = [
   {
@@ -191,4 +195,105 @@ export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
     }
     return { bloque: b, cajas: lista }
   })
+}
+
+/** Centro de una posición, en metros, a partir de su código. */
+export type Punto = { x: number; y: number }
+
+const PISO_RE = /^(F\d)-(\d+)-(\d+)$/
+const RACK_RE = /^(R-[A-Z]+)-L(\d+)-B(\d+)-N\d+-P(\d)$/
+const ANDEN_RE = /^STG-AND-([NS])-(\d+)$/
+
+/** Posiciones de fondo de un rack, en orden, con su franja de x. */
+function fondosDe(code: string): { x: number; w: number }[] {
+  const b = BLOQUES.find((z) => z.code === code)
+  if (!b || b.tipo !== 'rack') return []
+  const vistos = new Map<number, { x: number; w: number }>()
+  for (const c of b.celdas) {
+    const clave = Math.round(c.x * 100)
+    if (!vistos.has(clave)) vistos.set(clave, { x: c.x, w: c.w })
+  }
+  return [...vistos.values()].sort((a, z) => a.x - z.x)
+}
+
+export function ubicar(code: string): Punto | null {
+  const piso = code.match(PISO_RE)
+  if (piso?.[1] && piso[2] && piso[3]) {
+    const b = BLOQUES.find((z) => z.code === piso[1])
+    if (!b) return null
+    const f = FRANJAS[b.franja]
+    const cols = new Set(b.celdas.map((c) => Math.round(c.x * 100))).size
+    const filas = b.celdas.length / cols
+    const pasoX = b.ancho / cols
+    const pasoY = f.alto / filas
+    return {
+      x: b.x + (Number(piso[2]) - 0.5) * pasoX,
+      y: f.y + (Number(piso[3]) - 0.5) * pasoY,
+    }
+  }
+
+  const rack = code.match(RACK_RE)
+  if (rack?.[1] && rack[2] && rack[3] && rack[4]) {
+    const b = BLOQUES.find((z) => z.code === rack[1])
+    if (!b) return null
+    const f = FRANJAS.racks
+    const fondos = fondosDe(rack[1])
+    const indice = (Number(rack[2]) - 1) * 2 + (Number(rack[4]) - 1)
+    const fondo = fondos[indice]
+    if (!fondo) return null
+    const bahias = b.celdas.length / fondos.length
+    return {
+      x: fondo.x + fondo.w / 2,
+      y: f.y + (Number(rack[3]) - 0.5) * (f.alto / bahias),
+    }
+  }
+
+  const anden = code.match(ANDEN_RE)
+  if (anden?.[1] && anden[2]) {
+    const i = Number(anden[2]) - 1
+    return { x: 4 + i * 6.7 + 2.5, y: anden[1] === 'N' ? 3.3 : NAVE.alto - 3.3 }
+  }
+
+  return null
+}
+
+/** Andén de descarga más cercano en horizontal a un punto. */
+export function andenMasCercano(p: Punto): string {
+  let mejor = 1
+  let dist = Infinity
+  for (let i = 1; i <= ANDENES.norte; i++) {
+    const x = 4 + (i - 1) * 6.7 + 2.5
+    if (Math.abs(x - p.x) < dist) {
+      dist = Math.abs(x - p.x)
+      mejor = i
+    }
+  }
+  return `STG-AND-N-${String(mejor).padStart(2, '0')}`
+}
+
+/** Pasillos libres por donde circula el montacargas, en metros. */
+const CORREDORES_H = [6.5, 23.2, 44, 67.7, 85]
+/** Pasillo central entre F3 y F4, más los dos márgenes contra las paredes. */
+const CORREDORES_V = [0.7, 51.45, 107.3]
+
+const masCercano = (opciones: number[], valor: number) =>
+  opciones.reduce((mejor, o) => (Math.abs(o - valor) < Math.abs(mejor - valor) ? o : mejor))
+
+/**
+ * Ruta ortogonal del andén al destino. Solo circula por pasillos reales: baja por
+ * el vertical más cercano, cruza por el horizontal que toca al destino y entra al
+ * bloque. No es la ruta más corta todavía, pero no atraviesa racks.
+ */
+export function ruta(desde: Punto, hasta: Punto): Punto[] {
+  const vertical = masCercano(CORREDORES_V, hasta.x)
+  const horizontal = masCercano(CORREDORES_H, hasta.y)
+  const puntos: Punto[] = [
+    desde,
+    { x: vertical, y: desde.y },
+    { x: vertical, y: horizontal },
+    { x: hasta.x, y: horizontal },
+    hasta,
+  ]
+  // Quita los puntos que no doblan, para que el trazo no tenga vértices de más.
+  return puntos.filter((p, i) => i === 0 || Math.hypot(p.x - puntos[i - 1]!.x, p.y - puntos[i - 1]!.y) > 0.4)
 }
