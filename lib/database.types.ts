@@ -1293,6 +1293,15 @@ export type Database = {
           },
         ]
       }
+      zone_occupancy: {
+        Row: {
+          code: string | null
+          kind: Database["public"]["Enums"]["zone_type"] | null
+          ocupadas: number | null
+          total: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_stock_delta: {

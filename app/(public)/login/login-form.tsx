@@ -1,6 +1,8 @@
 'use client'
 
 import { useActionState } from 'react'
+import { Aviso } from '@/components/ui/feedback'
+import { BOTON, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { login, type LoginState } from './actions'
 
 const INITIAL: LoginState = { error: null }
@@ -9,39 +11,35 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, INITIAL)
 
   return (
-    <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
+    <form action={formAction} className="flex w-full flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Correo</span>
+        <span className={ETIQUETA}>Correo</span>
         <input
           name="email"
           type="email"
           autoComplete="username"
           required
-          className="h-12 rounded-lg border border-black/15 px-3 text-base dark:border-white/20"
+          className={CAMPO}
         />
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Contrasena</span>
+        <span className={ETIQUETA}>Contrasena</span>
         <input
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="h-12 rounded-lg border border-black/15 px-3 text-base dark:border-white/20"
+          className={CAMPO}
         />
       </label>
 
-      {state.error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <Aviso>{state.error}</Aviso> : null}
 
       <button
         type="submit"
         disabled={pending}
-        className="h-12 rounded-lg bg-foreground text-background font-medium disabled:opacity-60"
+        className={BOTON}
       >
         {pending ? 'Entrando...' : 'Entrar'}
       </button>

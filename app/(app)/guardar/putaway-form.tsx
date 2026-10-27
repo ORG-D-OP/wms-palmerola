@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
+import { Aviso } from '@/components/ui/feedback'
+import { BOTON } from '@/components/ui/campos'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
 
-const boton = 'h-14 w-full rounded-lg bg-foreground text-lg font-medium text-background disabled:opacity-60'
 
 type Paso = 'inicio' | 'tomar' | 'llevar' | 'listo'
 
@@ -49,9 +50,9 @@ export function PutawayForm() {
   if (paso === 'listo') {
     return (
       <div className="flex flex-col gap-6 text-center">
-        <p className="text-sm uppercase tracking-wide opacity-60">Guardado en</p>
-        <p className="text-4xl font-bold tabular-nums">{guardadoEn}</p>
-        <button type="button" onClick={tomar} disabled={pending} className={boton}>
+        <p className="text-sm text-azul/60">Guardado en</p>
+        <p className="text-4xl tabular-nums">{guardadoEn}</p>
+        <button type="button" onClick={tomar} disabled={pending} className={BOTON}>
           Siguiente tarea
         </button>
       </div>
@@ -61,24 +62,20 @@ export function PutawayForm() {
   if (paso === 'inicio') {
     return (
       <div className="flex flex-col gap-4">
-        <button type="button" onClick={tomar} disabled={pending} className={boton}>
+        <button type="button" onClick={tomar} disabled={pending} className={BOTON}>
           {pending ? 'Buscando...' : 'Tomar siguiente tarea'}
         </button>
-        {vacio ? <p className="text-center opacity-70">No hay tareas pendientes.</p> : null}
-        {error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
+        {vacio ? <p className="text-center text-azul/60">No hay tareas pendientes.</p> : null}
+        {error ? <Aviso>{error}</Aviso> : null}
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-lg border border-black/10 p-3 dark:border-white/15">
-        <p className="font-medium">{job?.productName}</p>
-        <p className="text-sm opacity-60">
+      <div className="rounded-xl bg-azul-08 p-3">
+        <p>{job?.productName}</p>
+        <p className="text-sm text-azul/60">
           {job?.sku} · {job?.qty} cajas{job?.lot ? ` · lote ${job.lot}` : ''}
         </p>
       </div>
@@ -86,18 +83,18 @@ export function PutawayForm() {
       {paso === 'tomar' ? (
         <>
           <div className="text-center">
-            <p className="text-sm uppercase tracking-wide opacity-60">Ve a</p>
-            <p className="text-3xl font-bold tabular-nums">{job?.fromCode}</p>
-            <p className="mt-3 text-sm uppercase tracking-wide opacity-60">Toma el pallet</p>
-            <p className="text-2xl font-semibold tabular-nums">{job?.lpnCode}</p>
+            <p className="text-sm text-azul/60">Ve a</p>
+            <p className="text-3xl tabular-nums">{job?.fromCode}</p>
+            <p className="mt-4 text-sm text-azul/60">Toma el pallet</p>
+            <p className="text-2xl tabular-nums">{job?.lpnCode}</p>
           </div>
           <ScanInput label="Escanea la matricula del pallet" disabled={pending} onScan={escanear} />
         </>
       ) : (
         <>
           <div className="text-center">
-            <p className="text-sm uppercase tracking-wide opacity-60">Llevalo a</p>
-            <p className="text-5xl font-bold tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
+            <p className="text-sm text-azul/60">Llevalo a</p>
+            <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
           <ScanInput
             label="Escanea la posicion donde lo dejaste"
@@ -107,11 +104,7 @@ export function PutawayForm() {
         </>
       )}
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Aviso>{error}</Aviso> : null}
     </div>
   )
 }

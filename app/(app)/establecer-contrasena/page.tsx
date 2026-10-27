@@ -9,8 +9,8 @@ export default async function SetPasswordPage() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
       <div className="text-center">
-        <h1 className="text-xl font-semibold">Pon tu contrasena</h1>
-        <p className="text-sm opacity-70">{user.email}</p>
+        <h1 className="text-xl">Pon tu contrasena</h1>
+        <p className="text-sm text-azul/60">{user.email}</p>
       </div>
       <PasswordForm />
     </main>
