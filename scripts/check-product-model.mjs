@@ -107,7 +107,7 @@ const ajeno = await db
   .query(`select * from assign_barcode($1, '7501234567890')`, [productId])
   .then(() => null, (e) => e.message)
 check(
-  ajeno?.includes('ya esta asignado al producto'),
+  ajeno?.includes('ya está asignado al producto'),
   'un codigo de otro producto se rechaza nombrando cual',
 )
 

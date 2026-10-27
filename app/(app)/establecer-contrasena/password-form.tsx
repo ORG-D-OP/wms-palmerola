@@ -14,7 +14,7 @@ export function PasswordForm() {
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Contrasena nueva</span>
+        <span className={ETIQUETA}>Contraseña nueva</span>
         <input
           name="password"
           type="password"
@@ -26,7 +26,7 @@ export function PasswordForm() {
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Repitela</span>
+        <span className={ETIQUETA}>Repítela</span>
         <input
           name="confirm"
           type="password"
@@ -37,7 +37,7 @@ export function PasswordForm() {
       </label>
 
       <p className="text-xs text-azul/60">
-        Al menos {MIN_LENGTH} caracteres, con una mayuscula, una minuscula y un numero.
+        Al menos {MIN_LENGTH} caracteres, con una mayúscula, una minúscula y un número.
       </p>
 
       {state.error ? <Aviso>{state.error}</Aviso> : null}

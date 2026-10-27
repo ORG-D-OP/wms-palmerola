@@ -7,7 +7,7 @@ import { LoginSchema } from '@/lib/schemas/auth'
 export type LoginState = { error: string | null }
 
 // Mensaje unico: distinguir "no existe" de "contrasena incorrecta" regala una lista de usuarios.
-const CREDENCIALES = 'Usuario o contrasena incorrectos.'
+const CREDENCIALES = 'Usuario o contraseña incorrectos.'
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const parsed = LoginSchema.safeParse({
@@ -28,7 +28,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   if (!profile?.is_active) {
     await supabase.auth.signOut()
-    return { error: 'Tu usuario esta desactivado. Habla con tu supervisor.' }
+    return { error: 'Tu usuario está desactivado. Habla con tu supervisor.' }
   }
 
   redirect('/')

@@ -26,7 +26,7 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
   await requirePermission('inventario:mover')
 
   const parsed = CodeSchema.safeParse(code)
-  if (!parsed.success) return { ok: false, error: 'Codigo invalido.' }
+  if (!parsed.success) return { ok: false, error: 'Código inválido.' }
 
   const supabase = await createSupabaseServerClient()
   const { data, error } = await supabase
@@ -41,7 +41,7 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
     .eq('code', parsed.data)
     .limit(10)
 
-  if (error) return { ok: false, error: 'No se pudo consultar el codigo.' }
+  if (error) return { ok: false, error: 'No se pudo consultar el código.' }
 
   const matches: Match[] = (data ?? [])
     .filter((row) => row.packaging_level.product.status === 'active')
@@ -57,7 +57,7 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
     }))
 
   if (matches.length === 0) {
-    return { ok: false, error: 'Ese codigo no corresponde a ningun producto activo.' }
+    return { ok: false, error: 'Ese código no corresponde a ningún producto activo.' }
   }
 
   return { ok: true, matches }
@@ -71,12 +71,12 @@ export async function checkPalletLabel(
   await requirePermission('inventario:mover')
 
   const parsed = LabelSchema.safeParse(code)
-  if (!parsed.success) return { ok: false, error: 'Etiqueta invalida.' }
+  if (!parsed.success) return { ok: false, error: 'Etiqueta inválida.' }
 
   const supabase = await createSupabaseServerClient()
   const { data } = await supabase.from('lpn').select('code').eq('code', parsed.data).maybeSingle()
 
-  if (data) return { ok: false, error: `El pallet ${parsed.data} ya esta en el sistema.` }
+  if (data) return { ok: false, error: `El pallet ${parsed.data} ya está en el sistema.` }
   return { ok: true, code: parsed.data }
 }
 
@@ -123,7 +123,7 @@ export async function receivePallet(formData: FormData): Promise<ReceiveResult> 
   }
 
   const row = data?.[0]
-  if (!row) return { ok: false, error: 'No se pudo registrar la recepcion.' }
+  if (!row) return { ok: false, error: 'No se pudo registrar la recepción.' }
 
   return { ok: true, lpnCode: row.lpn_code, locationCode: row.to_location_code }
 }

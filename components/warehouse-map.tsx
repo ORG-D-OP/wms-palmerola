@@ -31,7 +31,7 @@ export function WarehouseMap({ ocupacion }: { ocupacion: Ocupacion }) {
       viewBox={`0 0 ${NAVE.ancho} ${NAVE.alto}`}
       className="w-full rounded-2xl border border-borde bg-white"
       role="img"
-      aria-label="Planta del almacen con la ocupacion de cada bloque"
+      aria-label="Planta del almacén con la ocupación de cada bloque"
     >
       <defs>
         <linearGradient id="rack" x1="0" y1="0" x2="1" y2="1">

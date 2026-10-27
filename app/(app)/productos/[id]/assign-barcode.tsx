@@ -23,16 +23,16 @@ export function AssignBarcode({ productId, hint }: { productId: string; hint: st
 
   return (
     <div className="flex flex-col gap-3">
-      <ScanInput label="Escanea la caja para asignar su codigo" disabled={pending} onScan={guardar} />
+      <ScanInput label="Escanea la caja para asignar su código" disabled={pending} onScan={guardar} />
 
       {hint ? (
         <p className="text-sm text-azul/60">
-          El maestro dice <span className="font-mono">{hint}</span>, pero no esta verificado.
-          Confirmalo escaneando la caja real.
+          El maestro dice <span className="font-mono">{hint}</span>, pero no está verificado.
+          Confírmalo escaneando la caja real.
         </p>
       ) : null}
 
-      {ok ? <Logro>Codigo {ok} asignado.</Logro> : null}
+      {ok ? <Logro>Código {ok} asignado.</Logro> : null}
       {error ? <Aviso>{error}</Aviso> : null}
     </div>
   )
