@@ -31,11 +31,21 @@ await one(
 )
 
 const pallet = await one(
-  `insert into pallet_config (product_id, pallet_type_code, cases_per_layer, layers)
-   values ($1, 'STD', $2, $3) returning cases_per_pallet`,
-  [productId, GALLETA.casesPerLayer, GALLETA.layers],
+  `insert into pallet_config (product_id, pallet_type_code, cases_per_layer, layers, cases_per_pallet)
+   values ($1, 'STD', $2, $3, $4) returning cases_per_pallet`,
+  [productId, GALLETA.casesPerLayer, GALLETA.layers, GALLETA.casesPerLayer * GALLETA.layers],
 )
-check(pallet.cases_per_pallet === 144, 'cajas por pallet se calculan solas (18 x 8 = 144)')
+check(pallet.cases_per_pallet === 144, 'cajas por pallet queda en 144')
+
+const patronTorcido = await db
+  .query(
+    `insert into pallet_config (product_id, pallet_type_code, cases_per_layer, layers, cases_per_pallet)
+     values ($1, 'EUR', 10, 10, 99)`,
+    [productId],
+  )
+  .then(() => null)
+  .catch((e) => e.message)
+check(patronTorcido !== null, 'un patron que no cuadra con el total se rechaza')
 
 const ready = await one('select * from product_readiness where id = $1', [productId])
 check(
@@ -82,3 +92,27 @@ const dosPick = await db
   .then(() => null)
   .catch((e) => e.message)
 check(dosPick !== null, 'un producto no puede tener dos unidades de picking')
+
+// Asignacion de codigo verificado
+const { id: quien } = await one(
+  `insert into auth.users (email) values ('admin@ejemplo.test') returning id`,
+)
+await db.query(`update profile set role = 'admin' where id = '${quien}'`)
+await db.query(`select set_config('request.jwt.claim.sub', '${quien}', false)`)
+
+const asignado = await one(`select * from assign_barcode($1, '7501234567890')`, [gemeloId])
+check(asignado.is_primary && asignado.verified_at !== null, 'el codigo asignado queda verificado')
+
+const ajeno = await db
+  .query(`select * from assign_barcode($1, '7501234567890')`, [productId])
+  .then(() => null, (e) => e.message)
+check(
+  ajeno?.includes('ya esta asignado al producto'),
+  'un codigo de otro producto se rechaza nombrando cual',
+)
+
+await db.query(`update profile set role = 'operador_picking' where id = '${quien}'`)
+const sinPermiso = await db
+  .query(`select * from assign_barcode($1, '7509999999999')`, [productId])
+  .then(() => null, (e) => e.message)
+check(sinPermiso?.includes('permiso'), 'un operario no puede asignar codigos')
