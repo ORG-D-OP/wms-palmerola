@@ -9,7 +9,7 @@ async function getDatos() {
   const supabase = await createSupabaseServerClient()
 
   const [zonas, productos, tareas] = await Promise.all([
-    supabase.from('zone_occupancy').select('code, ocupadas, total'),
+    supabase.from('zone_occupancy').select('code, kind, ocupadas, total').in('kind', ['floor', 'rack']),
     supabase.from('product_readiness').select('*', { count: 'exact', head: true }),
     supabase
       .from('task')
