@@ -1410,6 +1410,7 @@ export type Database = {
           p_expiry?: string
           p_idempotency_key?: string
           p_lot?: string
+          p_lpn_code: string
           p_packaging_level_id: string
           p_product_id: string
           p_qty: number

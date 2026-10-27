@@ -1,42 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { ScanInput } from '@/components/ui/scan-input'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
 
-const campo = 'h-14 w-full rounded-lg border border-black/15 px-3 text-lg dark:border-white/20'
 const boton = 'h-14 w-full rounded-lg bg-foreground text-lg font-medium text-background disabled:opacity-60'
 
 type Paso = 'inicio' | 'tomar' | 'llevar' | 'listo'
-
-// Fuera del render a proposito: si se declara adentro, React lo recrea en cada
-// actualizacion y el campo pierde el foco, que con un escaner es inusable.
-function Scan({
-  etiqueta,
-  disabled,
-  onScan,
-}: {
-  etiqueta: string
-  disabled: boolean
-  onScan: (code: string) => void
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{etiqueta}</span>
-      <input
-        autoFocus
-        inputMode="none"
-        disabled={disabled}
-        className={campo}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter') return
-          e.preventDefault()
-          onScan(e.currentTarget.value)
-          e.currentTarget.value = ''
-        }}
-      />
-    </label>
-  )
-}
 
 export function PutawayForm() {
   const [paso, setPaso] = useState<Paso>('inicio')
@@ -121,7 +91,7 @@ export function PutawayForm() {
             <p className="mt-3 text-sm uppercase tracking-wide opacity-60">Toma el pallet</p>
             <p className="text-2xl font-semibold tabular-nums">{job?.lpnCode}</p>
           </div>
-          <Scan etiqueta="Escanea la matricula del pallet" disabled={pending} onScan={escanear} />
+          <ScanInput label="Escanea la matricula del pallet" disabled={pending} onScan={escanear} />
         </>
       ) : (
         <>
@@ -129,8 +99,8 @@ export function PutawayForm() {
             <p className="text-sm uppercase tracking-wide opacity-60">Llevalo a</p>
             <p className="text-5xl font-bold tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
-          <Scan
-            etiqueta="Escanea la posicion donde lo dejaste"
+          <ScanInput
+            label="Escanea la posicion donde lo dejaste"
             disabled={pending}
             onScan={escanear}
           />

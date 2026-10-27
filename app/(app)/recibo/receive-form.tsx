@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
-import { receivePallet, resolveBarcode, type Match } from './actions'
+import { useState, useTransition } from 'react'
+import { ScanInput } from '@/components/ui/scan-input'
+import { checkPalletLabel, receivePallet, resolveBarcode, type Match } from './actions'
 
 type Dock = { id: string; code: string }
 type Done = { lpnCode: string; locationCode: string | null }
@@ -11,47 +12,52 @@ const boton = 'h-14 w-full rounded-lg bg-foreground text-lg font-medium text-bac
 
 export function ReceiveForm({ docks }: { docks: Dock[] }) {
   const [dockId, setDockId] = useState(docks[0]?.id ?? '')
+  const [lpnCode, setLpnCode] = useState<string | null>(null)
   const [matches, setMatches] = useState<Match[] | null>(null)
   const [match, setMatch] = useState<Match | null>(null)
   const [done, setDone] = useState<Done | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-  const scanRef = useRef<HTMLInputElement>(null)
 
   const reiniciar = () => {
+    setLpnCode(null)
     setMatches(null)
     setMatch(null)
     setDone(null)
     setError(null)
-    scanRef.current?.focus()
   }
 
-  const escanear = (code: string) => {
+  const escanearEtiqueta = (code: string) => {
+    if (!code.trim()) return
+    setError(null)
+    startTransition(async () => {
+      const res = await checkPalletLabel(code)
+      if (!res.ok) return setError(res.error)
+      setLpnCode(res.code)
+    })
+  }
+
+  const escanearProducto = (code: string) => {
     if (!code.trim()) return
     setError(null)
     startTransition(async () => {
       const res = await resolveBarcode(code)
-      if (!res.ok) {
-        setError(res.error)
-        return
-      }
+      if (!res.ok) return setError(res.error)
       setMatches(res.matches)
       if (res.matches.length === 1) setMatch(res.matches[0] ?? null)
     })
   }
 
   const guardar = (formData: FormData) => {
-    if (!match) return
+    if (!match || !lpnCode) return
+    formData.set('lpnCode', lpnCode)
     formData.set('productId', match.productId)
     formData.set('packagingLevelId', match.packagingLevelId)
     formData.set('dockLocationId', dockId)
     formData.set('idempotencyKey', crypto.randomUUID())
     startTransition(async () => {
       const res = await receivePallet(formData)
-      if (!res.ok) {
-        setError(res.error)
-        return
-      }
+      if (!res.ok) return setError(res.error)
       setDone({ lpnCode: res.lpnCode, locationCode: res.locationCode })
     })
   }
@@ -60,8 +66,8 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
     return (
       <div className="flex flex-col gap-6 text-center">
         <div>
-          <p className="text-sm uppercase tracking-wide opacity-60">Matricula</p>
-          <p className="text-3xl font-semibold tabular-nums">{done.lpnCode}</p>
+          <p className="text-sm uppercase tracking-wide opacity-60">Pallet</p>
+          <p className="text-2xl font-semibold tabular-nums">{done.lpnCode}</p>
         </div>
         <div>
           <p className="text-sm uppercase tracking-wide opacity-60">Llevalo a</p>
@@ -78,11 +84,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
     <div className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Anden</span>
-        <select
-          value={dockId}
-          onChange={(e) => setDockId(e.target.value)}
-          className={campo}
-        >
+        <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={campo}>
           {docks.map((d) => (
             <option key={d.id} value={d.id}>
               {d.code}
@@ -91,23 +93,24 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
         </select>
       </label>
 
-      {!match ? (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">Escanea el codigo de la caja</span>
-          <input
-            ref={scanRef}
-            autoFocus
-            inputMode="none"
-            disabled={pending}
-            className={campo}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter') return
-              e.preventDefault()
-              escanear(e.currentTarget.value)
-              e.currentTarget.value = ''
-            }}
-          />
-        </label>
+      {!lpnCode ? (
+        <ScanInput
+          label="Escanea la etiqueta del pallet"
+          disabled={pending}
+          onScan={escanearEtiqueta}
+        />
+      ) : (
+        <p className="text-sm">
+          Pallet <span className="font-semibold tabular-nums">{lpnCode}</span>
+        </p>
+      )}
+
+      {lpnCode && !match ? (
+        <ScanInput
+          label="Escanea el codigo de la caja"
+          disabled={pending}
+          onScan={escanearProducto}
+        />
       ) : null}
 
       {matches && matches.length > 1 && !match ? (
@@ -158,12 +161,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
             <span className="text-sm font-medium">
               Vencimiento {match.requiresFefo ? '(obligatorio)' : ''}
             </span>
-            <input
-              name="expiry"
-              type="date"
-              required={match.requiresFefo}
-              className={campo}
-            />
+            <input name="expiry" type="date" required={match.requiresFefo} className={campo} />
           </label>
 
           <button type="submit" disabled={pending} className={boton}>

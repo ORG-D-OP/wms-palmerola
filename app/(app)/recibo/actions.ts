@@ -63,7 +63,25 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
   return { ok: true, matches }
 }
 
+const LabelSchema = z.string().trim().min(4).max(32)
+
+export async function checkPalletLabel(
+  code: string,
+): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  await requirePermission('inventario:mover')
+
+  const parsed = LabelSchema.safeParse(code)
+  if (!parsed.success) return { ok: false, error: 'Etiqueta invalida.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { data } = await supabase.from('lpn').select('code').eq('code', parsed.data).maybeSingle()
+
+  if (data) return { ok: false, error: `El pallet ${parsed.data} ya esta en el sistema.` }
+  return { ok: true, code: parsed.data }
+}
+
 const ReceiveSchema = z.object({
+  lpnCode: LabelSchema,
   productId: z.uuid(),
   packagingLevelId: z.uuid(),
   dockLocationId: z.uuid(),
@@ -87,6 +105,7 @@ export async function receivePallet(formData: FormData): Promise<ReceiveResult> 
 
   const supabase = await createSupabaseServerClient()
   const { data, error } = await supabase.rpc('receive_pallet', {
+    p_lpn_code: parsed.data.lpnCode,
     p_product_id: parsed.data.productId,
     p_packaging_level_id: parsed.data.packagingLevelId,
     p_qty: parsed.data.qty,
