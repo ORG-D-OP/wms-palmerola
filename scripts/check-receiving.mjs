@@ -29,7 +29,7 @@ const { id: bloqueadoId } = await one(
 const { id: anden } = await one(`select id from location where code = 'STG-AND-N-01'`)
 
 const sinVencimiento = await fails(
-  `select * from receive_pallet($1, $2, 144, $3)`,
+  `select * from receive_pallet('PAL-0001', $1, $2, 144, $3)`,
   [productId, caseId, anden],
 )
 check(
@@ -38,16 +38,16 @@ check(
 )
 
 const bloqueado = await fails(
-  `select * from receive_pallet($1, null, 10, $2, null, '2027-04-24')`,
+  `select * from receive_pallet('PAL-0002', $1, null, 10, $2, null, '2027-04-24')`,
   [bloqueadoId, anden],
 )
 check(bloqueado?.includes('blocked'), 'un producto bloqueado no se puede recibir')
 
 const r = await one(
-  `select * from receive_pallet($1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-1')`,
+  `select * from receive_pallet('PAL-0003', $1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-1')`,
   [productId, caseId, anden],
 )
-check(/^LPN\d{10}$/.test(r.lpn_code), `la matricula se genera sola (${r.lpn_code})`)
+check(r.lpn_code === 'PAL-0003', 'la matricula es la que traia la etiqueta')
 check(r.to_location_id !== null, `asigna una posicion de destino (${r.to_location_code})`)
 
 const enAnden = await one(
@@ -68,7 +68,7 @@ check(reserva.reserved_by_task_id === r.task_id, 'el destino queda apartado para
 check(reserva.reserved_until !== null, 'la reserva tiene vencimiento')
 
 const segundo = await one(
-  `select * from receive_pallet($1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-2')`,
+  `select * from receive_pallet('PAL-0004', $1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-2')`,
   [productId, caseId, anden],
 )
 check(
@@ -94,3 +94,18 @@ const mismoCarril = await one(
   [r.to_location_id, destinoOtro.id],
 )
 check(mismoCarril.n === 0, 'otro producto no se sugiere en un carril ya ocupado')
+
+const repetida = await fails(
+  `select * from receive_pallet('PAL-0003', $1, $2, 10, $3, 'L2601', '2027-04-24')`,
+  [productId, caseId, anden],
+)
+check(
+  repetida?.includes('ya esta en el sistema'),
+  'una matricula repetida se rechaza y dice donde esta ese pallet',
+)
+
+const sinEtiqueta = await fails(
+  `select * from receive_pallet('  ', $1, $2, 10, $3, 'L2601', '2027-04-24')`,
+  [productId, caseId, anden],
+)
+check(sinEtiqueta?.includes('Escanea la etiqueta'), 'no se recibe sin escanear la etiqueta')

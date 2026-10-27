@@ -24,13 +24,13 @@ const { id: anden } = await one(`select id from location where code = 'STG-AND-N
 
 await como(yo)
 const r = await one(
-  `select * from receive_pallet($1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-1')`,
+  `select * from receive_pallet('PAL-9001', $1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-1')`,
   [productId, caseId, anden],
 )
 const tarea = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(tarea.id === r.task_id, 'el montacarguista recibe la tarea que dejo la recepcion')
 
-const otroPallet = await fails(`select start_putaway($1, 'LPN0000009999')`, [tarea.id])
+const otroPallet = await fails(`select start_putaway($1, 'PAL-0000')`, [tarea.id])
 check(
   otroPallet?.includes('no es el pallet de esta tarea'),
   'escanear otro pallet se detiene antes de mover nada',
