@@ -1,31 +1,68 @@
 /**
- * Planta del almacen a escala del plano A-2 (108 x 91 m). Cada bloque se tinta segun
- * su ocupacion, del Azul Dinant al 8 % (vacio) al Azul pleno (lleno).
- * Las medidas viven aqui, en un solo lugar, para ajustarlas cuando llegue el plano final.
+ * Planta del almacén, reconstruida con las cotas del plano A-2 (108 x 91 m).
+ *
+ * Todas las medidas están en metros y viven aquí, en un solo lugar:
+ *  - Módulo de rack 5.03 m, módulo contra pared 2.39 m, pasillo 3.20 m.
+ *  - Bloques de piso con las columnas que les numera el plano.
+ * Cuando llegue el plano de racks se ajustan estos números y el dibujo se acomoda solo.
  */
 const NAVE = { ancho: 108, alto: 91 }
+const MARGEN = 1.4
+const RACK = { modulo: 5.03, pared: 2.39, pasillo: 3.2 }
 
-type Bloque = { code: string; x: number; y: number; w: number; h: number; paso?: boolean }
+const FRANJAS = {
+  superior: { y: 10, alto: 11 },
+  media: { y: 25.4, alto: 17 },
+  racks: { y: 45.9, alto: 19.59 },
+  inferior: { y: 69.86, alto: 11 },
+} as const
 
-const BLOQUES: Bloque[] = [
-  { code: 'F1', x: 1.4, y: 6, w: 34.8, h: 11 },
-  { code: 'PREP-N', x: 37, y: 6, w: 18.5, h: 11, paso: true },
-  { code: 'F2', x: 56, y: 6, w: 44.4, h: 11 },
-  { code: 'F3', x: 1.4, y: 21, w: 46, h: 17 },
-  { code: 'F4', x: 48.5, y: 21, w: 51.9, h: 17 },
-  { code: 'R-ABA', x: 1.4, y: 42, w: 27.6, h: 19.6 },
-  { code: 'F5', x: 29.5, y: 42, w: 19.2, h: 19.6 },
-  { code: 'R-SNK', x: 49.8, y: 42, w: 50.6, h: 19.6 },
-  { code: 'F6', x: 1.4, y: 65.6, w: 34.8, h: 11 },
-  { code: 'PREP-S', x: 37, y: 65.6, w: 18.5, h: 11, paso: true },
-  { code: 'F7', x: 56, y: 65.6, w: 44.4, h: 11 },
+type Franja = keyof typeof FRANJAS
+
+/** Los bloques de piso se dibujan como sus columnas reales, igual que en el plano. */
+const PISO: { code: string; franja: Franja; x: number; ancho: number; columnas: number }[] = [
+  { code: 'F1', franja: 'superior', x: MARGEN, ancho: 34.8, columnas: 25 },
+  { code: 'F2', franja: 'superior', x: 55.5, ancho: 44.4, columnas: 34 },
+  { code: 'F3', franja: 'media', x: MARGEN, ancho: 46, columnas: 33 },
+  { code: 'F4', franja: 'media', x: 55.5, ancho: 51.6, columnas: 37 },
+  { code: 'F5', franja: 'racks', x: 29.59, ancho: 19.2, columnas: 14 },
+  { code: 'F6', franja: 'inferior', x: MARGEN, ancho: 34.8, columnas: 25 },
+  { code: 'F7', franja: 'inferior', x: 55.5, ancho: 44.4, columnas: 32 },
 ]
 
-const ANDENES = { entrada: 15, salida: 14 }
+/** Cada módulo es un rack; entre módulo y módulo va el pasillo de 3.20 m. */
+const RACKS: { code: string; x: number; modulos: number[] }[] = [
+  {
+    code: 'R-ABA',
+    x: MARGEN + 0.56,
+    modulos: [RACK.pared, RACK.modulo, RACK.modulo, RACK.pared],
+  },
+  {
+    code: 'R-SNK',
+    x: 57.49,
+    // Seis modulos y cinco pasillos, como los numera la cadena de cotas del plano.
+    // Lo que queda hasta la pared es el area de montacargas.
+    modulos: Array.from({ length: 6 }, () => RACK.modulo),
+  },
+]
+
+const PREPARACION: { code: string; franja: Franja; x: number; ancho: number }[] = [
+  { code: 'PREP-N', franja: 'superior', x: 37.4, ancho: 17 },
+  { code: 'PREP-S', franja: 'inferior', x: 37.4, ancho: 17 },
+]
+
+const ANDENES = { norte: 15, sur: 14 }
 
 export type Ocupacion = Record<string, { ocupadas: number; total: number }>
 
+const tinte = (pct: number) => 0.1 + pct * 0.8
+
 export function WarehouseMap({ ocupacion }: { ocupacion: Ocupacion }) {
+  const pct = (code: string) => {
+    const d = ocupacion[code]
+    return d && d.total > 0 ? d.ocupadas / d.total : 0
+  }
+
   return (
     <svg
       viewBox={`0 0 ${NAVE.ancho} ${NAVE.alto}`}
@@ -34,99 +71,145 @@ export function WarehouseMap({ ocupacion }: { ocupacion: Ocupacion }) {
       aria-label="Planta del almacén con la ocupación de cada bloque"
     >
       <defs>
-        <linearGradient id="rack" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="rackLleno" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0%" stopColor="#0049e8" />
           <stop offset="100%" stopColor="#37f0b4" />
         </linearGradient>
       </defs>
 
-      {Array.from({ length: ANDENES.entrada }, (_, i) => (
+      <rect
+        x={0.4}
+        y={0.4}
+        width={NAVE.ancho - 0.8}
+        height={NAVE.alto - 0.8}
+        rx={1}
+        fill="none"
+        stroke="#2c2b8f"
+        strokeOpacity={0.35}
+        strokeWidth={0.4}
+      />
+
+      {Array.from({ length: ANDENES.norte }, (_, i) => (
+        <rect key={`n${i}`} x={4 + i * 6.7} y={1.4} width={5} height={1.9} rx={0.4} fill="#009bdd" />
+      ))}
+      {Array.from({ length: ANDENES.sur }, (_, i) => (
         <rect
-          key={`n${i}`}
-          x={6 + i * 6.4}
-          y={0.6}
-          width={4.6}
-          height={2.4}
-          rx={0.6}
-          fill="#009bdd"
+          key={`s${i}`}
+          x={4 + i * 6.7}
+          y={NAVE.alto - 3.3}
+          width={5}
+          height={1.9}
+          rx={0.4}
+          fill="#37f0b4"
         />
       ))}
+      <text x={4} y={6.2} fontSize={2.1} fill="#2c2b8f" fillOpacity={0.55}>
+        Descarga
+      </text>
+      <text x={4} y={NAVE.alto - 4.6} fontSize={2.1} fill="#2c2b8f" fillOpacity={0.55}>
+        Carga
+      </text>
 
-      {BLOQUES.map((b) => {
-        const datos = ocupacion[b.code]
-        const pct = datos && datos.total > 0 ? datos.ocupadas / datos.total : 0
-        const esRack = b.code.startsWith('R-')
-
+      {PISO.map((b) => {
+        const f = FRANJAS[b.franja]
+        const paso = b.ancho / b.columnas
+        const ocupado = pct(b.code)
         return (
           <g key={b.code}>
-            <rect
-              x={b.x}
-              y={b.y}
-              width={b.w}
-              height={b.h}
-              rx={1}
-              fill={b.paso ? 'none' : '#2c2b8f'}
-              fillOpacity={b.paso ? 0 : 0.08 + pct * 0.85}
-              stroke="#2c2b8f"
-              strokeOpacity={b.paso ? 0.25 : 0.35}
-              strokeWidth={0.3}
-              strokeDasharray={b.paso ? '1.5 1.5' : undefined}
-            />
-            {esRack ? (
+            {Array.from({ length: b.columnas }, (_, i) => (
               <rect
-                x={b.x}
-                y={b.y + b.h - 1.2}
-                width={b.w * Math.max(pct, 0.02)}
-                height={1.2}
-                rx={0.6}
-                fill="url(#rack)"
+                key={i}
+                x={b.x + i * paso + paso * 0.14}
+                y={f.y}
+                width={paso * 0.72}
+                height={f.alto}
+                fill="#2c2b8f"
+                fillOpacity={tinte(ocupado)}
               />
-            ) : null}
+            ))}
             <text
-              x={b.x + b.w / 2}
-              y={b.y + b.h / 2}
+              x={b.x + b.ancho / 2}
+              y={f.y + f.alto / 2}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={2.6}
-              fill={pct > 0.55 && !b.paso ? '#ffffff' : '#2c2b8f'}
-              fillOpacity={b.paso ? 0.5 : 1}
+              fontSize={2.8}
+              fill={ocupado > 0.5 ? '#ffffff' : '#2c2b8f'}
             >
               {b.code}
             </text>
-            {datos && !b.paso ? (
-              <text
-                x={b.x + b.w / 2}
-                y={b.y + b.h / 2 + 3.2}
-                textAnchor="middle"
-                fontSize={2}
-                fill={pct > 0.55 ? '#ffffff' : '#2c2b8f'}
-                fillOpacity={0.7}
-              >
-                {Math.round(pct * 100)}%
-              </text>
-            ) : null}
           </g>
         )
       })}
 
-      {Array.from({ length: ANDENES.salida }, (_, i) => (
-        <rect
-          key={`s${i}`}
-          x={6 + i * 6.8}
-          y={NAVE.alto - 3}
-          width={4.6}
-          height={2.4}
-          rx={0.6}
-          fill="#37f0b4"
-        />
-      ))}
+      {RACKS.map((b) => {
+        const f = FRANJAS.racks
+        const ocupado = pct(b.code)
+        let x = b.x
+        const modulos = b.modulos.map((ancho) => {
+          const actual = x
+          x += ancho + RACK.pasillo
+          return { x: actual, ancho }
+        })
+        return (
+          <g key={b.code}>
+            {modulos.map((m, i) => (
+              <g key={i}>
+                <rect
+                  x={m.x}
+                  y={f.y}
+                  width={m.ancho}
+                  height={f.alto}
+                  rx={0.4}
+                  fill="#2c2b8f"
+                  fillOpacity={tinte(ocupado)}
+                />
+                <rect
+                  x={m.x}
+                  y={f.y + f.alto * (1 - Math.max(ocupado, 0.02))}
+                  width={m.ancho}
+                  height={f.alto * Math.max(ocupado, 0.02)}
+                  rx={0.4}
+                  fill="url(#rackLleno)"
+                />
+              </g>
+            ))}
+            <text x={b.x} y={f.y - 1.4} fontSize={2.5} fill="#2c2b8f" fillOpacity={0.8}>
+              {b.code}
+            </text>
+          </g>
+        )
+      })}
 
-      <text x={6} y={NAVE.alto - 4.4} fontSize={2.2} fill="#2c2b8f" fillOpacity={0.6}>
-        Carga
-      </text>
-      <text x={6} y={5.2} fontSize={2.2} fill="#2c2b8f" fillOpacity={0.6}>
-        Descarga
-      </text>
+      {PREPARACION.map((p) => {
+        const f = FRANJAS[p.franja]
+        return (
+          <g key={p.code}>
+            <rect
+              x={p.x}
+              y={f.y}
+              width={p.ancho}
+              height={f.alto}
+              rx={0.8}
+              fill="none"
+              stroke="#2c2b8f"
+              strokeOpacity={0.3}
+              strokeWidth={0.3}
+              strokeDasharray="1.4 1.4"
+            />
+            <text
+              x={p.x + p.ancho / 2}
+              y={f.y + f.alto / 2}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={2.2}
+              fill="#2c2b8f"
+              fillOpacity={0.55}
+            >
+              Preparación
+            </text>
+          </g>
+        )
+      })}
     </svg>
   )
 }
