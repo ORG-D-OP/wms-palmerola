@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { WarehouseCanvas, type Ocupacion } from '@/components/warehouse-canvas'
+import type { Ocupacion } from '@/components/warehouse-canvas'
+import { WarehouseView } from '@/components/warehouse-view'
 import { Icon } from '@/components/ui/icon'
 
 async function getDatos() {
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
         <p className="text-sm text-azul/60">
           Arrastra para mover, rueda o pellizca para acercar.
         </p>
-        <WarehouseCanvas ocupacion={ocupacion} />
+        <WarehouseView ocupacion={ocupacion} permite3D={can(user.role, 'kpi:ver')} />
       </section>
     </main>
   )

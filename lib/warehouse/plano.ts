@@ -6,6 +6,12 @@ export const NAVE = { ancho: 108, alto: 91 }
 
 export const RACK = { modulo: 5.03, pared: 2.39, pasillo: 3.2 }
 
+/**
+ * Altura entre niveles y apilado en piso. **Provisional**: falta el plano A-03.
+ * Solo afecta a la vista 3D; cambiar estos números la reconstruye entera.
+ */
+export const ALTURA = { nivel: 1.8, piso: 1.5 }
+
 /** Posiciones de fondo que caben en cada ancho de módulo. */
 const FONDO_POR_MODULO = new Map([
   [RACK.modulo, 4],
@@ -30,6 +36,8 @@ export type Bloque = {
   x: number
   ancho: number
   celdas: Celda[]
+  /** Solo en racks: cuántos niveles tiene cada posición de la planta. */
+  niveles?: number
 }
 
 type DefPiso = { code: string; franja: Franja; x: number; ancho: number; cols: number; filas: number }
@@ -48,12 +56,29 @@ const PISO: DefPiso[] = [
   { code: 'F7', franja: 'inferior', x: 55.5, ancho: 44.4, cols: 32, filas: 11 },
 ]
 
-type DefRack = { code: string; x: number; modulos: number[]; bahias: number }
+type DefRack = { code: string; x: number; modulos: number[]; bahias: number; niveles: number }
 
-/** Cada módulo es un rack; entre módulo y módulo va el pasillo. */
+/**
+ * Cada módulo es un rack; entre módulo y módulo va el pasillo.
+ * Los módulos y las bahías salen de las cotas del plano y cuadran exactamente con las
+ * posiciones declaradas: abarrotes 12 de fondo x 16 bahías x 6 niveles = 1,152, y
+ * snacks 26 x 16 x 4 = 1,664. Si el plano de racks dice otra altura, se cambia aquí.
+ */
 const RACKS: DefRack[] = [
-  { code: 'R-ABA', x: 0.56, modulos: [RACK.pared, RACK.modulo, RACK.modulo, RACK.pared], bahias: 16 },
-  { code: 'R-SNK', x: 55.5, modulos: Array.from({ length: 6 }, () => RACK.modulo), bahias: 16 },
+  {
+    code: 'R-ABA',
+    x: 0.56,
+    modulos: [RACK.pared, RACK.modulo, RACK.modulo, RACK.pared],
+    bahias: 16,
+    niveles: 6,
+  },
+  {
+    code: 'R-SNK',
+    x: 55.5,
+    modulos: [...Array.from({ length: 6 }, () => RACK.modulo), RACK.pared],
+    bahias: 16,
+    niveles: 4,
+  },
 ]
 
 const PREPARACION: { code: string; franja: Franja; x: number; ancho: number }[] = [
@@ -118,6 +143,7 @@ export const BLOQUES: Bloque[] = [
     code: b.code,
     tipo: 'rack' as const,
     franja: 'racks' as const,
+    niveles: b.niveles,
     x: b.x,
     ancho: b.modulos.reduce((a, m) => a + m, 0) + RACK.pasillo * (b.modulos.length - 1),
     celdas: celdasRack(b),
@@ -140,4 +166,29 @@ export const COLOR = {
   celeste: '#009bdd',
   verde: '#37f0b4',
   borde: 'rgba(44, 43, 143, 0.35)',
+}
+
+
+/** Una caja de la vista 3D: posición en planta más el nivel en el que está. */
+export type Caja = { x: number; z: number; w: number; d: number; y: number; alto: number }
+
+export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
+  return BLOQUES.filter((b) => b.tipo !== 'preparacion').map((b) => {
+    const niveles = b.niveles ?? 1
+    const alto = b.tipo === 'rack' ? ALTURA.nivel * 0.82 : ALTURA.piso
+    const lista: Caja[] = []
+    for (const c of b.celdas) {
+      for (let n = 0; n < niveles; n++) {
+        lista.push({
+          x: c.x,
+          z: c.y,
+          w: c.w,
+          d: c.h,
+          y: b.tipo === 'rack' ? n * ALTURA.nivel : 0,
+          alto,
+        })
+      }
+    }
+    return { bloque: b, cajas: lista }
+  })
 }
