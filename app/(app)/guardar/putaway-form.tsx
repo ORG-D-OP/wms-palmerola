@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
+import { WarehouseCanvas } from '@/components/warehouse-canvas'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON } from '@/components/ui/campos'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
@@ -96,6 +97,13 @@ export function PutawayForm() {
             <p className="text-sm text-azul/60">Llévalo a</p>
             <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
+          {job?.toCode ? (
+            <WarehouseCanvas
+              ocupacion={{}}
+              origen={job.fromCode ?? undefined}
+              destino={job.toCode}
+            />
+          ) : null}
           <ScanInput
             label="Escanea la posición donde lo dejaste"
             disabled={pending}
