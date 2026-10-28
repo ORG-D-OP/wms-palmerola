@@ -257,6 +257,12 @@ export function ubicar(code: string): Punto | null {
   return null
 }
 
+/** Niveles que tiene la zona de rack a la que pertenece un código. */
+export function nivelesDe(code: string): number {
+  const zona = BLOQUES.find((b) => b.tipo === 'rack' && code.startsWith(b.code))
+  return zona?.niveles ?? 1
+}
+
 /** Andén de descarga más cercano en horizontal a un punto. */
 export function andenMasCercano(p: Punto): string {
   let mejor = 1

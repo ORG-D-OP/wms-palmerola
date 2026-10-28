@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { WarehouseCanvas } from '@/components/warehouse-canvas'
+import { RackElevation } from '@/components/rack-elevation'
+import { nivelesDe } from '@/lib/warehouse/plano'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON } from '@/components/ui/campos'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
@@ -97,6 +99,9 @@ export function PutawayForm() {
             <p className="text-sm text-azul/60">Llévalo a</p>
             <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
+          {job?.toCode ? (
+            <RackElevation code={job.toCode} niveles={nivelesDe(job.toCode)} />
+          ) : null}
           {job?.toCode ? (
             <WarehouseCanvas
               ocupacion={{}}
