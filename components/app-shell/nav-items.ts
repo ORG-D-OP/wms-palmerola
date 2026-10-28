@@ -4,6 +4,8 @@ const TODOS = [
   { href: '/', label: 'Tablero', icon: 'dashboard', permiso: null },
   { href: '/recibo', label: 'Recibo', icon: 'move_to_inbox', permiso: 'inventario:mover' },
   { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover' },
+  { href: '/surtir', label: 'Surtir', icon: 'shopping_basket', permiso: 'surtido:ejecutar' },
+  { href: '/pedidos', label: 'Pedidos', icon: 'receipt_long', permiso: 'pedidos:administrar' },
   { href: '/productos', label: 'Productos', icon: 'inventory_2', permiso: null },
 ] as const
 

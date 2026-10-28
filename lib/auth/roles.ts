@@ -20,6 +20,7 @@ const PERMISSIONS = {
   'inventario:mover': ['operador_recibo', 'montacargista', 'supervisor', 'inventarios', 'admin'],
   'inventario:ajustar': ['inventarios', 'supervisor', 'admin'],
   'surtido:ejecutar': ['operador_picking', 'montacargista', 'supervisor', 'admin'],
+  'pedidos:administrar': ['supervisor', 'admin'],
   'tareas:reasignar': ['supervisor', 'admin'],
   'kpi:ver': ['supervisor', 'admin', 'solo_lectura'],
   'maestros:editar': ['admin'],

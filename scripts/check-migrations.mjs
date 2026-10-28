@@ -3,7 +3,7 @@ import { bootDb, check } from './lib/boot-db.mjs'
 // Capacidad de almacenaje declarada en el plano A-2. Las posiciones de anden no cuentan:
 // son de paso, no guardan inventario.
 const PLAN = { floor: 2765, rack: 2816, almacenaje: 5581 }
-const ANDENES_ENTRADA = 15
+const ANDENES = 29
 
 const db = await bootDb({ log: true })
 
@@ -21,6 +21,6 @@ for (const [key, expected] of Object.entries(PLAN)) {
 }
 
 check(
-  rows[0].transito === ANDENES_ENTRADA,
-  `transito: una posicion por anden de descarga (hay ${rows[0].transito})`,
+  rows[0].transito === ANDENES,
+  `transito: una posicion por anden (hay ${rows[0].transito})`,
 )

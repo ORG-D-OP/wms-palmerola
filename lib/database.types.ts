@@ -39,6 +39,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      allocation: {
+        Row: {
+          created_at: string
+          id: string
+          order_line_id: string
+          qty_base: number
+          stock_id: string
+          task_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_line_id: string
+          qty_base: number
+          stock_id: string
+          task_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_line_id?: string
+          qty_base?: number
+          stock_id?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocation_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "order_line"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stock_available"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_timing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -315,6 +378,62 @@ export type Database = {
           status?: Database["public"]["Enums"]["lpn_status"]
         }
         Relationships: []
+      }
+      order_line: {
+        Row: {
+          id: string
+          line_no: number
+          order_id: string
+          packaging_level_id: string | null
+          product_id: string
+          qty_base: number
+        }
+        Insert: {
+          id?: string
+          line_no: number
+          order_id: string
+          packaging_level_id?: string | null
+          product_id: string
+          qty_base: number
+        }
+        Update: {
+          id?: string
+          line_no?: number
+          order_id?: string
+          packaging_level_id?: string | null
+          product_id?: string
+          qty_base?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_line_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_order"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_line_packaging_level_id_fkey"
+            columns: ["packaging_level_id"]
+            isOneToOne: false
+            referencedRelation: "packaging_level"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       packaging_level: {
         Row: {
@@ -668,6 +787,60 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      sales_order: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          dock_door_id: string | null
+          id: string
+          released_at: string | null
+          shipped_at: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          wave_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          dock_door_id?: string | null
+          id?: string
+          released_at?: string | null
+          shipped_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          wave_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          dock_door_id?: string | null
+          id?: string
+          released_at?: string | null
+          shipped_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          wave_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "dock_door"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_wave_id_fkey"
+            columns: ["wave_id"]
+            isOneToOne: false
+            referencedRelation: "wave"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site: {
         Row: {
@@ -1408,6 +1581,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_pick: {
+        Args: { p_barcode: string; p_qty: number; p_task_id: string }
+        Returns: {
+          pedido: number
+          surtido: number
+        }[]
+      }
       complete_putaway: {
         Args: { p_location_code: string; p_task_id: string }
         Returns: {
@@ -1464,6 +1644,38 @@ export type Database = {
           to_location_code: string
           to_location_id: string
         }[]
+      }
+      release_order: { Args: { p_order_id: string }; Returns: number }
+      start_pick: {
+        Args: { p_location_code: string; p_task_id: string }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       start_putaway: {
         Args: { p_lpn_code: string; p_task_id: string }
@@ -1561,6 +1773,13 @@ export type Database = {
         | "COUNT"
         | "SHIP"
         | "RETURN"
+      order_status:
+        | "DRAFT"
+        | "RELEASED"
+        | "PICKING"
+        | "PICKED"
+        | "SHIPPED"
+        | "CANCELLED"
       packaging_code: "UNIT" | "INNER" | "CASE" | "LAYER" | "PALLET"
       product_status: "active" | "blocked" | "discontinued"
       reason_category:
@@ -1755,6 +1974,14 @@ export const Constants = {
         "COUNT",
         "SHIP",
         "RETURN",
+      ],
+      order_status: [
+        "DRAFT",
+        "RELEASED",
+        "PICKING",
+        "PICKED",
+        "SHIPPED",
+        "CANCELLED",
       ],
       packaging_code: ["UNIT", "INNER", "CASE", "LAYER", "PALLET"],
       product_status: ["active", "blocked", "discontinued"],
