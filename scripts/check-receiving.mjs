@@ -50,11 +50,18 @@ const r = await one(
 check(r.lpn_code === 'PAL-0003', 'la matricula es la que traia la etiqueta')
 check(r.to_location_id !== null, `asigna una posicion de destino (${r.to_location_code})`)
 
+// El operario cuenta cajas; el inventario se lleva en unidades base. 144 x 24 = 3,456.
 const enAnden = await one(
   `select qty_base from stock where location_id = $1 and qty_base > 0`,
   [anden],
 )
-check(Number(enAnden.qty_base) === 144, 'la existencia queda en la posicion de anden')
+check(Number(enAnden.qty_base) === 3456, 'el anden queda con 144 cajas en unidades base')
+
+const vuelta = await one(`select * from desglose($1, $2)`, [productId, enAnden.qty_base])
+check(
+  vuelta.cajas === 144 && Number(vuelta.sueltas) === 0,
+  'el desglose devuelve las 144 cajas exactas, sin sueltas',
+)
 
 const tarea = await one(`select * from task where id = $1`, [r.task_id])
 check(tarea.type === 'PUTAWAY' && tarea.status === 'READY', 'deja la tarea de guardado lista')
@@ -81,7 +88,7 @@ const { id: otroProducto } = await one(
    returning id`,
 )
 await db.query(
-  `select post_movement('PUTAWAY'::movement_type, $1::uuid, 144::numeric, $2::uuid, $3::uuid,
+  `select post_movement('PUTAWAY'::movement_type, $1::uuid, 3456::numeric, $2::uuid, $3::uuid,
                         $4::uuid, 'L2601'::text, '2027-04-24'::date)`,
   [productId, anden, r.to_location_id, r.lpn_id],
 )

@@ -52,23 +52,27 @@ export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
       total,
     )
     const m = new THREE.Matrix4()
-    const vacia = new THREE.Color('#c9c9e4')
-    const llena = new THREE.Color('#2c2b8f')
+    // Cada caja es una posicion con su nivel, asi que el color es el de esa posicion y no
+    // el promedio de la zona: aqui se ve en que nivel esta puesto el pallet.
+    const COLORES = {
+      libre: new THREE.Color('#dcdcea'),
+      OCUPADA: new THREE.Color('#2c2b8f'),
+      APARTADA: new THREE.Color('#009bdd'),
+      OTRO_USO: new THREE.Color('#aeaebe'),
+    }
     let i = 0
 
     for (const g of grupos) {
-      const d = ocupacion[g.bloque.code]
-      const pct = d && d.total > 0 ? d.ocupadas / d.total : 0
-      const color = vacia.clone().lerp(llena, pct)
       for (const c of g.cajas) {
         m.makeScale(c.w, c.alto, c.d)
         m.setPosition(c.x + c.w / 2, c.y + c.alto / 2, c.z + c.d / 2)
         malla.setMatrixAt(i, m)
-        malla.setColorAt(i, color)
+        malla.setColorAt(i, COLORES[ocupacion[c.code] ?? 'libre'])
         i++
       }
     }
     malla.instanceMatrix.needsUpdate = true
+    if (malla.instanceColor) malla.instanceColor.needsUpdate = true
     escena.add(malla)
 
     let giro = Math.PI / 4

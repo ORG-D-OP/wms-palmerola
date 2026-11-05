@@ -15,7 +15,7 @@ const { id: operario } = await one(
   `insert into auth.users (email) values ('surtidor@ejemplo.test') returning id`,
 )
 await db.query(`update profile set role = 'supervisor' where id = '${jefe}'`)
-await db.query(`update profile set role = 'operador_picking' where id = '${operario}'`)
+await db.query(`update profile set role = 'auxiliar' where id = '${operario}'`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 const { id: productId } = await one(
@@ -139,3 +139,53 @@ check(estado.status === 'PICKING', 'el pedido pasa a en surtido')
 
 const tiempos = await one(`select * from task_timing where id = $1`, [tarea.id])
 check(tiempos.ejecucion_min !== null, 'la tarea de surtido deja sus tiempos')
+
+// Un pallet con matricula no puede quedar en dos lugares. Lo que sale sin vaciarlo
+// deja de ser parte de el: va suelto, y el pallet se queda con el resto.
+const [palletPos, anden] = (
+  await db.query(`select id, code from location where code in ('F1-010-01','F1-011-01') order by code`)
+).rows
+const { id: matricula } = await one(
+  `insert into lpn (code) values ('SN26TEST01') returning id`,
+)
+await one(
+  `select post_movement(p_type => 'MOVE', p_product_id => $1, p_qty => 144,
+     p_to_location_id => $2, p_lpn_id => $3, p_lot => 'PAL', p_expiry => '2027-06-30')`,
+  [productId, palletPos.id, matricula],
+)
+
+const enDos = await fails(
+  `select post_movement(p_type => 'MOVE', p_product_id => $1, p_qty => 10,
+     p_from_location_id => $2, p_to_location_id => $3, p_lpn_id => $4,
+     p_lot => 'PAL', p_expiry => '2027-06-30')`,
+  [productId, palletPos.id, anden.id, matricula],
+)
+check(
+  enDos?.includes('un_lugar_por_pallet'),
+  'un pallet no puede tener existencia en dos posiciones',
+)
+
+await one(
+  `select post_movement(p_type => 'MOVE', p_product_id => $1, p_qty => 10,
+     p_from_location_id => $2, p_to_location_id => $3, p_lpn_id => $4,
+     p_lot => 'PAL', p_expiry => '2027-06-30', p_desprende => true)`,
+  [productId, palletPos.id, anden.id, matricula],
+)
+
+const queda = await one(
+  `select qty_base, lpn_id from stock where location_id = $1 and qty_base > 0`,
+  [palletPos.id],
+)
+check(
+  Number(queda.qty_base) === 134 && queda.lpn_id === matricula,
+  'el pallet se queda en su posicion con las 134 restantes',
+)
+
+const suelto = await one(
+  `select qty_base, lpn_id from stock where location_id = $1 and qty_base > 0`,
+  [anden.id],
+)
+check(
+  Number(suelto.qty_base) === 10 && suelto.lpn_id === null,
+  'las 10 que salieron quedan sueltas, sin matricula',
+)

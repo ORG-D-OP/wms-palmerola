@@ -74,6 +74,21 @@ export function WarehouseView({
       ) : (
         <WarehouseCanvas ocupacion={ocupacion} destino={destino} />
       )}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-azul/60">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[3px] border border-borde bg-azul-08" /> libre
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[3px] bg-azul" /> con producto
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[3px] bg-celeste/70" /> apartada por una tarea
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[3px] bg-[#aeaebe]" /> otro uso
+        </span>
+      </div>
     </div>
   )
 }

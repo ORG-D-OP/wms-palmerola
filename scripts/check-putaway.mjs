@@ -85,7 +85,13 @@ const saldoDestino = await one(
   [r.to_location_code],
 )
 check(Number(saldoAnden.q) === 0, 'el anden queda libre')
-check(Number(saldoDestino.q) === 144, 'las 144 cajas quedan en su posicion')
+check(Number(saldoDestino.q) === 3456, 'las 144 cajas quedan en su posicion, en unidades base')
+
+const desglosado = await one(`select * from desglose($1, $2)`, [productId, saldoDestino.q])
+check(
+  desglosado.cajas === 144 && Number(desglosado.sueltas) === 0,
+  'el pallet guardado se lee como 144 cajas completas',
+)
 
 const tareaFinal = await one(`select * from task where id = $1`, [tarea.id])
 check(tareaFinal.status === 'DONE', 'la tarea queda cerrada')
