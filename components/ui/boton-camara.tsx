@@ -41,7 +41,7 @@ export function BotonCamara({ campo, enviar = false }: { campo: string; enviar?:
         ref={boton}
         type="button"
         onClick={() => setAbierta(true)}
-        aria-label="Buscar escaneando"
+        aria-label={enviar ? 'Buscar escaneando' : 'Escanear con la cámara'}
         className="flex h-14 items-center rounded-xl border border-borde px-4 text-azul"
       >
         <Icon name="photo_camera" />

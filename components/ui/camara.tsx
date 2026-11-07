@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { abrirDecodificador } from '@/lib/warehouse/lector'
+import { abrirLector, type Lectura } from '@/lib/warehouse/lector'
 import { Icon } from './icon'
-
-/** Solo se decodifica esta franja del centro: va mas rapido y no lee el codigo de al lado. */
-const FRANJA = 0.3
 
 /** Cada cuanto se mira el video donde el navegador no avisa de cuadro nuevo. */
 const MS_ENTRE_INTENTOS = 120
+
+/** Tropiezos seguidos del decodificador antes de rendirse y decirlo. */
+const TOPE_FALLOS = 10
 
 type VideoConCuadros = HTMLVideoElement & {
   requestVideoFrameCallback?: (callback: () => void) => number
@@ -41,6 +41,8 @@ export function Camara({
   const pista = useRef<MediaStreamTrack | null>(null)
   const alLeer = useRef(onLeer)
   const [error, setError] = useState('')
+  const [motor, setMotor] = useState('')
+  const [descartada, setDescartada] = useState<Lectura | null>(null)
   const [encendida, setEncendida] = useState(false)
   const [hayLinterna, setHayLinterna] = useState(false)
 
@@ -56,13 +58,20 @@ export function Camara({
 
     let vivo = true
     let espera = 0
+    let fallos = 0
     let camara: MediaStream | null = null
 
-    const programar = (mirar: () => void) => {
+    // Con `conCuadro` se espera al siguiente cuadro del video; sin el, al reloj. Lo segundo
+    // hace falta mientras el video no arranca: ahi no hay cuadros que esperar y el bucle
+    // se quedaria colgado para siempre.
+    const programar = (conCuadro: boolean, seguir: () => void) => {
       if (!vivo) return
       const conCuadros = elemento as VideoConCuadros
-      if (conCuadros.requestVideoFrameCallback) conCuadros.requestVideoFrameCallback(mirar)
-      else espera = window.setTimeout(mirar, MS_ENTRE_INTENTOS)
+      if (conCuadro && conCuadros.requestVideoFrameCallback) {
+        conCuadros.requestVideoFrameCallback(seguir)
+      } else {
+        espera = window.setTimeout(seguir, MS_ENTRE_INTENTOS)
+      }
     }
 
     const arrancar = async () => {
@@ -96,7 +105,10 @@ export function Camara({
         setHayLinterna('torch' in (track.getCapabilities?.() ?? {}))
       }
 
-      const decodificar = await abrirDecodificador()
+      const lector = await abrirLector()
+      if (!vivo) return
+      setMotor(lector.motor)
+
       const lienzo = document.createElement('canvas')
       const pincel = lienzo.getContext('2d', { willReadFrequently: true })
       if (!pincel) {
@@ -107,29 +119,45 @@ export function Camara({
       const mirar = async (): Promise<void> => {
         if (!vivo) return
         const ancho = elemento.videoWidth
-        if (!ancho) return programar(() => void mirar())
+        const alto = elemento.videoHeight
+        if (!ancho || !alto) return programar(false, () => void mirar())
 
-        const alto = Math.round(elemento.videoHeight * FRANJA)
-        const desde = Math.round((elemento.videoHeight - alto) / 2)
         lienzo.width = ancho
         lienzo.height = alto
-        pincel.drawImage(elemento, 0, desde, ancho, alto, 0, 0, ancho, alto)
+        pincel.drawImage(elemento, 0, 0, ancho, alto)
 
-        const lecturas = await decodificar(pincel.getImageData(0, 0, ancho, alto))
+        let lecturas: Lectura[] = []
+        try {
+          lecturas = await lector.leer(pincel.getImageData(0, 0, ancho, alto))
+          fallos = 0
+        } catch {
+          // Un tropiezo del decodificador no puede matar el bucle. Sin esto la camara se
+          // queda abierta, encendida, y no vuelve a leer nunca: parece que no pasa nada.
+          fallos += 1
+          if (fallos >= TOPE_FALLOS) {
+            vivo = false
+            setError(`El decodificador (${lector.motor}) falló varias veces seguidas.`)
+            return
+          }
+        }
         if (!vivo) return
-        const lectura = lecturas[0]
-        if (!lectura) return programar(() => void mirar())
 
-        // Una sola lectura por apertura, asi que no hay forma de contar dos veces el mismo
-        // pallet. En bodega con ruido la vibracion le gana al pitido.
-        vivo = false
-        navigator.vibrate?.(60)
-        alLeer.current(lectura.texto)
+        const buena = lecturas.find((lectura) => lectura.confiable)
+        if (buena) {
+          // Una sola lectura por apertura, asi que no hay forma de contar dos veces el
+          // mismo pallet. En bodega con ruido la vibracion le gana al pitido.
+          vivo = false
+          navigator.vibrate?.(60)
+          alLeer.current(buena.texto)
+          return
+        }
+
+        setDescartada(lecturas[0] ?? null)
+        programar(true, () => void mirar())
       }
 
       void mirar()
     }
-
 
     void arrancar()
 
@@ -154,21 +182,29 @@ export function Camara({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="relative flex-1 overflow-hidden">
-        <video ref={video} playsInline muted className="h-full w-full object-cover" />
-        <div className="absolute inset-0 flex flex-col" aria-hidden>
-          <div className="flex-1 bg-black/55" />
-          <div className="border-y-2 border-celeste" style={{ height: `${FRANJA * 100}%` }} />
-          <div className="flex-1 bg-black/55" />
-        </div>
-        {error ? (
-          <p role="alert" className="absolute inset-x-4 top-1/2 text-center text-lg text-white">
-            {error}
+        <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-6 rounded-2xl border-2 border-celeste/70" />
+
+        <p className="absolute inset-x-4 bottom-6 text-center text-white/80">
+          {error ? (
+            <span role="alert" className="text-lg text-white">
+              {error}
+            </span>
+          ) : descartada ? (
+            <>
+              Leí <span className="tabular-nums">{descartada.texto}</span> y no es un código
+              completo. Acércate un poco más.
+            </>
+          ) : (
+            <>Centra el código y acerca el teléfono a unos 20 cm</>
+          )}
+        </p>
+
+        {motor && !error ? (
+          <p className="absolute inset-x-4 top-4 text-center text-xs text-white/40">
+            Leyendo con {motor}
           </p>
-        ) : (
-          <p className="absolute inset-x-4 bottom-6 text-center text-white/80">
-            Pon el código dentro de la franja, a unos 20 cm
-          </p>
-        )}
+        ) : null}
       </div>
 
       <div className="flex gap-3 p-4">
