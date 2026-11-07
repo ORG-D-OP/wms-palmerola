@@ -41,7 +41,7 @@ export default async function InventarioPage({
           placeholder="SKU, DUN-14, pallet o posición"
           className={`${CAMPO} flex-1`}
         />
-        <BotonCamara campo="q" />
+        <BotonCamara campo="q" enviar />
         <button
           aria-label="Buscar"
           className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"

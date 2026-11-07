@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
+import { BotonCamara } from '@/components/ui/boton-camara'
 import { addLine, releaseOrder, removeLine } from '../actions'
 
 type Linea = { id: string; lineNo: number; sku: string; name: string; qty: number }
@@ -56,8 +57,11 @@ export function OrderLines({
           <form action={agregar} className="flex flex-col gap-3 rounded-2xl border border-borde p-4">
             <div className="flex gap-3">
               <label className="flex flex-[2] flex-col gap-1.5">
-                <span className={ETIQUETA}>SKU</span>
-                <input name="sku" required maxLength={40} className={CAMPO} />
+                <span className={ETIQUETA}>SKU o DUN-14</span>
+                <span className="flex gap-2">
+                  <input name="sku" required maxLength={40} className={`${CAMPO} flex-1`} />
+                  <BotonCamara campo="sku" />
+                </span>
               </label>
               <label className="flex flex-1 flex-col gap-1.5">
                 <span className={ETIQUETA}>Cajas</span>

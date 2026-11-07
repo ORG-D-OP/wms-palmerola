@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { BotonCamara } from '@/components/ui/boton-camara'
 import { createOrder } from './actions'
 
 export function NewOrder({ andenes }: { andenes: { id: string; code: string }[] }) {
@@ -14,7 +15,10 @@ export function NewOrder({ andenes }: { andenes: { id: string; code: string }[] 
 
       <label className="flex flex-col gap-1.5">
         <span className={ETIQUETA}>Código</span>
-        <input name="code" required maxLength={40} className={CAMPO} />
+        <span className="flex gap-2">
+          <input name="code" required maxLength={40} className={`${CAMPO} flex-1`} />
+          <BotonCamara campo="code" />
+        </span>
       </label>
 
       <label className="flex flex-col gap-1.5">
