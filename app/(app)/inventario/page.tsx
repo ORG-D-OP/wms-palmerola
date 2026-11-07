@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
+import { BotonCamara } from '@/components/ui/boton-camara'
 
 export const metadata = { title: 'Inventario · WMS Palmerola' }
 
@@ -40,6 +41,7 @@ export default async function InventarioPage({
           placeholder="SKU, DUN-14, pallet o posición"
           className={`${CAMPO} flex-1`}
         />
+        <BotonCamara campo="q" />
         <button
           aria-label="Buscar"
           className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"
