@@ -1,16 +1,12 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from './icon'
 import { CAMPO, ETIQUETA } from './campos'
+import { useHayCamara } from './hay-camara'
 
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
-
-/** El servidor no sabe si el aparato tiene camara; el navegador si, y nunca cambia. */
-const sinCambios = () => () => {}
-const conCamara = () => Boolean(navigator.mediaDevices?.getUserMedia)
-const enElServidor = () => false
 
 /**
  * Campo de escaneo. Va fuera de cualquier render: si se declara dentro, React lo
@@ -31,7 +27,7 @@ export function ScanInput({
   onScan: (code: string) => void
 }) {
   const campo = useRef<HTMLInputElement>(null)
-  const hayCamara = useSyncExternalStore(sinCambios, conCamara, enElServidor)
+  const hayCamara = useHayCamara()
   const [camara, setCamara] = useState(false)
   const [teclado, setTeclado] = useState(false)
 

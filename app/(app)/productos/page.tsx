@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
+import { BotonCamara } from '@/components/ui/boton-camara'
 
 export const metadata = { title: 'Productos · WMS Palmerola' }
 
@@ -61,6 +62,7 @@ export default async function ProductsPage({
           className={`${CAMPO} flex-1`}
         />
         {filtro ? <input type="hidden" name="filtro" value={filtro} /> : null}
+        <BotonCamara campo="q" />
         <button
           aria-label="Buscar"
           className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"
