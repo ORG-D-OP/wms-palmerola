@@ -45,3 +45,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# lo copia scripts/copiar-wasm.mjs antes de dev y build
+/public/zxing_reader.wasm

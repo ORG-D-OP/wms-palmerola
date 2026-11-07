@@ -1,11 +1,25 @@
 'use client'
 
+import dynamic from 'next/dynamic'
+import { useRef, useState, useSyncExternalStore } from 'react'
 import { Icon } from './icon'
 import { CAMPO, ETIQUETA } from './campos'
+
+const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
+
+/** El servidor no sabe si el aparato tiene camara; el navegador si, y nunca cambia. */
+const sinCambios = () => () => {}
+const conCamara = () => Boolean(navigator.mediaDevices?.getUserMedia)
+const enElServidor = () => false
 
 /**
  * Campo de escaneo. Va fuera de cualquier render: si se declara dentro, React lo
  * recrea en cada actualizacion, el campo pierde el foco y el lector deja de servir.
+ *
+ * Tres formas de llenarlo y una sola salida, `onScan`. El laser teclea el codigo y manda
+ * Enter, como cualquier teclado. La camara decodifica y llama la misma funcion. Y el boton
+ * del teclado existe porque `inputMode="none"` —necesario para que el teclado del telefono
+ * no tape la pantalla cuando hay laser— tambien impide teclear cuando no lo hay.
  */
 export function ScanInput({
   label,
@@ -16,16 +30,33 @@ export function ScanInput({
   disabled: boolean
   onScan: (code: string) => void
 }) {
+  const campo = useRef<HTMLInputElement>(null)
+  const hayCamara = useSyncExternalStore(sinCambios, conCamara, enElServidor)
+  const [camara, setCamara] = useState(false)
+  const [teclado, setTeclado] = useState(false)
+
+  function escribirAMano() {
+    setTeclado(true)
+    campo.current?.focus()
+  }
+
+  function recibirDeCamara(codigo: string) {
+    setCamara(false)
+    onScan(codigo)
+    campo.current?.focus()
+  }
+
   return (
     <label className="flex flex-col gap-1.5">
       <span className={ETIQUETA}>{label}</span>
       <span className="relative flex items-center">
         <Icon name="barcode_scanner" className="pointer-events-none absolute left-3 text-azul/40" />
         <input
+          ref={campo}
           autoFocus
-          inputMode="none"
+          inputMode={teclado ? 'text' : 'none'}
           disabled={disabled}
-          className={`${CAMPO} pl-12`}
+          className={`${CAMPO} pl-12 pr-24`}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return
             e.preventDefault()
@@ -33,7 +64,32 @@ export function ScanInput({
             e.currentTarget.value = ''
           }}
         />
+        <span className="absolute right-2 flex items-center gap-1">
+          {!teclado && (
+            <button
+              type="button"
+              onClick={escribirAMano}
+              disabled={disabled}
+              aria-label="Escribir a mano"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-azul/60 hover:bg-azul-08 disabled:opacity-50"
+            >
+              <Icon name="keyboard" />
+            </button>
+          )}
+          {hayCamara && (
+            <button
+              type="button"
+              onClick={() => setCamara(true)}
+              disabled={disabled}
+              aria-label="Escanear con la cámara"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-azul-08 text-azul hover:bg-azul-15 disabled:opacity-50"
+            >
+              <Icon name="photo_camera" />
+            </button>
+          )}
+        </span>
       </span>
+      {camara && <Camara onLeer={recibirDeCamara} onCerrar={() => setCamara(false)} />}
     </label>
   )
 }
