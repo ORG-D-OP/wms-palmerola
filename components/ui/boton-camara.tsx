@@ -8,14 +8,17 @@ import { useHayCamara } from './hay-camara'
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
 
 /**
- * Camara para un formulario de busqueda corriente: lee, escribe el codigo en el campo que
- * se le indique y manda el formulario.
+ * Camara para un campo de formulario corriente: lee y escribe el codigo donde se le diga.
  *
- * Los buscadores de productos y de inventario aceptan DUN-14, matricula de pallet y codigo
- * de posicion, que es justo lo que hay impreso en bodega. Teclear catorce digitos parado
- * frente a un rack no tiene sentido si la caja los trae en un codigo de barras.
+ * Todo lo que esta impreso en bodega se puede escanear —el DUN-14 de la caja, la matricula
+ * del pallet, el codigo de la posicion, el tabulado de la hoja—, asi que ningun campo que
+ * reciba uno de esos deberia obligar a teclear.
+ *
+ * Con `enviar` manda el formulario de una vez: sirve en los buscadores, donde el codigo es
+ * lo unico que hace falta. Sin `enviar` solo llena el campo, porque en los formularios que
+ * piden algo mas —la cantidad, el anden— mandarlo a medias seria un error.
  */
-export function BotonCamara({ campo }: { campo: string }) {
+export function BotonCamara({ campo, enviar = false }: { campo: string; enviar?: boolean }) {
   const boton = useRef<HTMLButtonElement>(null)
   const [abierta, setAbierta] = useState(false)
   const hayCamara = useHayCamara()
@@ -28,7 +31,8 @@ export function BotonCamara({ campo }: { campo: string }) {
     const entrada = formulario?.elements.namedItem(campo)
     if (!formulario || !(entrada instanceof HTMLInputElement)) return
     entrada.value = codigo
-    formulario.requestSubmit()
+    if (enviar) formulario.requestSubmit()
+    else entrada.focus()
   }
 
   return (

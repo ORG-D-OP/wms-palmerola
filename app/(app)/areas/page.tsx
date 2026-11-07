@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
+import { BotonCamara } from '@/components/ui/boton-camara'
 import { Cambios } from './cambios'
 
 export const metadata = { title: 'Áreas · WMS Palmerola' }
@@ -103,6 +104,7 @@ export default async function AreasPage({
             placeholder="Por ejemplo F1-001 o R-ABA-L01"
             className={`${CAMPO} flex-1`}
           />
+          <BotonCamara campo="q" enviar />
           <button
             aria-label="Contar"
             className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"

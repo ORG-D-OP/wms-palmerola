@@ -62,7 +62,7 @@ export default async function ProductsPage({
           className={`${CAMPO} flex-1`}
         />
         {filtro ? <input type="hidden" name="filtro" value={filtro} /> : null}
-        <BotonCamara campo="q" />
+        <BotonCamara campo="q" enviar />
         <button
           aria-label="Buscar"
           className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"
