@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.18"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       allocation: {
@@ -76,6 +51,13 @@ export type Database = {
             foreignKeyName: "allocation_stock_id_fkey"
             columns: ["stock_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
             referencedRelation: "stock"
             referencedColumns: ["id"]
           },
@@ -97,10 +79,92 @@ export type Database = {
             foreignKeyName: "allocation_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
+            referencedRelation: "task_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
         ]
+      }
+      area: {
+        Row: {
+          barcode: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          site_id: string
+          type_code: string
+        }
+        Insert: {
+          barcode?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          site_id: string
+          type_code: string
+        }
+        Update: {
+          barcode?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          site_id?: string
+          type_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "area_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "site"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "area_type_code_fkey"
+            columns: ["type_code"]
+            isOneToOne: false
+            referencedRelation: "area_type"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      area_type: {
+        Row: {
+          code: string
+          is_active: boolean
+          is_terminal: boolean
+          is_virtual: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          is_active?: boolean
+          is_terminal?: boolean
+          is_virtual?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          is_active?: boolean
+          is_terminal?: boolean
+          is_virtual?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       audit_log: {
         Row: {
@@ -232,6 +296,267 @@ export type Database = {
           },
         ]
       }
+      equipment: {
+        Row: {
+          code: string
+          id: string
+          is_active: boolean
+          type_code: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          is_active?: boolean
+          type_code: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          is_active?: boolean
+          type_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_type_code_fkey"
+            columns: ["type_code"]
+            isOneToOne: false
+            referencedRelation: "equipment_type"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      equipment_type: {
+        Row: {
+          code: string
+          is_active: boolean
+          max_level: number
+          name: string
+        }
+        Insert: {
+          code: string
+          is_active?: boolean
+          max_level: number
+          name: string
+        }
+        Update: {
+          code?: string
+          is_active?: boolean
+          max_level?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      inbound_doc: {
+        Row: {
+          created_at: string
+          entrega: string | null
+          goods_issue: string | null
+          id: string
+          mix: string | null
+          origin_plant: string | null
+          pedido: string
+          planned_at: string | null
+          status: string
+          tabulado: string | null
+          transporte: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entrega?: string | null
+          goods_issue?: string | null
+          id?: string
+          mix?: string | null
+          origin_plant?: string | null
+          pedido: string
+          planned_at?: string | null
+          status?: string
+          tabulado?: string | null
+          transporte?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entrega?: string | null
+          goods_issue?: string | null
+          id?: string
+          mix?: string | null
+          origin_plant?: string | null
+          pedido?: string
+          planned_at?: string | null
+          status?: string
+          tabulado?: string | null
+          transporte?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inbound_line: {
+        Row: {
+          doc_id: string
+          expiry_date: string | null
+          id: string
+          line_no: number
+          lot: string | null
+          product_id: string
+          qty_cases: number
+        }
+        Insert: {
+          doc_id: string
+          expiry_date?: string | null
+          id?: string
+          line_no: number
+          lot?: string | null
+          product_id: string
+          qty_cases: number
+        }
+        Update: {
+          doc_id?: string
+          expiry_date?: string | null
+          id?: string
+          line_no?: number
+          lot?: string | null
+          product_id?: string
+          qty_cases?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_line_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_doc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_line_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inbound_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inbound_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_pallet: {
+        Row: {
+          doc_id: string
+          expiry_date: string | null
+          id: string
+          lot: string | null
+          pallet_code: string
+          product_id: string
+          qty_cases: number
+          received_at: string | null
+          received_lpn_id: string | null
+        }
+        Insert: {
+          doc_id: string
+          expiry_date?: string | null
+          id?: string
+          lot?: string | null
+          pallet_code: string
+          product_id: string
+          qty_cases: number
+          received_at?: string | null
+          received_lpn_id?: string | null
+        }
+        Update: {
+          doc_id?: string
+          expiry_date?: string | null
+          id?: string
+          lot?: string | null
+          pallet_code?: string
+          product_id?: string
+          qty_cases?: number
+          received_at?: string | null
+          received_lpn_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_doc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_received_lpn_id_fkey"
+            columns: ["received_lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_received_lpn_id_fkey"
+            columns: ["received_lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lane: {
         Row: {
           aisle_code: string | null
@@ -286,6 +611,7 @@ export type Database = {
           retired_at: string | null
           status: Database["public"]["Enums"]["location_status"]
           updated_at: string
+          usage_code: string
         }
         Insert: {
           barcode: string
@@ -308,6 +634,7 @@ export type Database = {
           retired_at?: string | null
           status?: Database["public"]["Enums"]["location_status"]
           updated_at?: string
+          usage_code?: string
         }
         Update: {
           barcode?: string
@@ -330,6 +657,7 @@ export type Database = {
           retired_at?: string | null
           status?: Database["public"]["Enums"]["location_status"]
           updated_at?: string
+          usage_code?: string
         }
         Relationships: [
           {
@@ -350,10 +678,148 @@ export type Database = {
             foreignKeyName: "location_reserved_by_task_id_fkey"
             columns: ["reserved_by_task_id"]
             isOneToOne: false
+            referencedRelation: "task_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "location_usage_code_fkey"
+            columns: ["usage_code"]
+            isOneToOne: false
+            referencedRelation: "location_usage"
+            referencedColumns: ["code"]
+          },
         ]
+      }
+      location_area: {
+        Row: {
+          area_id: string
+          location_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          area_id: string
+          location_id: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          area_id?: string
+          location_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_area_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "area"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_area_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "location_area_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_area_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_tag: {
+        Row: {
+          location_id: string
+          tag_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          location_id: string
+          tag_id: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          location_id?: string
+          tag_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_tag_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "location_tag_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_tag_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_tag_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_usage: {
+        Row: {
+          code: string
+          holds_product: boolean
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          holds_product?: boolean
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          holds_product?: boolean
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       lpn: {
         Row: {
@@ -361,6 +827,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          level: Database["public"]["Enums"]["packaging_code"]
+          parent_id: string | null
+          source: string
           status: Database["public"]["Enums"]["lpn_status"]
         }
         Insert: {
@@ -368,6 +837,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          level?: Database["public"]["Enums"]["packaging_code"]
+          parent_id?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["lpn_status"]
         }
         Update: {
@@ -375,9 +847,27 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          level?: Database["public"]["Enums"]["packaging_code"]
+          parent_id?: string | null
+          source?: string
           status?: Database["public"]["Enums"]["lpn_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lpn_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
+          },
+          {
+            foreignKeyName: "lpn_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_line: {
         Row: {
@@ -423,6 +913,20 @@ export type Database = {
             foreignKeyName: "order_line_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "product"
             referencedColumns: ["id"]
           },
@@ -435,6 +939,24 @@ export type Database = {
           },
         ]
       }
+      packaging_form: {
+        Row: {
+          code: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       packaging_level: {
         Row: {
           box_type_code: string | null
@@ -444,6 +966,7 @@ export type Database = {
           id: string
           is_pick_unit: boolean
           is_receipt_unit: boolean
+          is_sellable: boolean
           length_mm: number | null
           net_weight_g: number | null
           product_id: string
@@ -458,6 +981,7 @@ export type Database = {
           id?: string
           is_pick_unit?: boolean
           is_receipt_unit?: boolean
+          is_sellable?: boolean
           length_mm?: number | null
           net_weight_g?: number | null
           product_id: string
@@ -472,6 +996,7 @@ export type Database = {
           id?: string
           is_pick_unit?: boolean
           is_receipt_unit?: boolean
+          is_sellable?: boolean
           length_mm?: number | null
           net_weight_g?: number | null
           product_id?: string
@@ -485,6 +1010,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "box_type"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "packaging_level_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "packaging_level_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "packaging_level_product_id_fkey"
@@ -554,6 +1093,20 @@ export type Database = {
             foreignKeyName: "pallet_config_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "pallet_config_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "pallet_config_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "product"
             referencedColumns: ["id"]
           },
@@ -595,6 +1148,7 @@ export type Database = {
       }
       product: {
         Row: {
+          base_code: string | null
           base_uom: string
           brand: string | null
           category_id: string | null
@@ -609,16 +1163,22 @@ export type Database = {
           is_fragile: boolean
           min_days_on_dispatch: number | null
           name: string
+          packaging_form_code: string | null
           requires_fefo: boolean
+          sector: string | null
           shelf_life_days: number | null
           sku: string
           status: Database["public"]["Enums"]["product_status"]
           temp_max_c: number | null
           temp_min_c: number | null
+          type_code: string
+          units_label: string | null
           updated_at: string
+          variant: string | null
           weight_category: Database["public"]["Enums"]["weight_category"] | null
         }
         Insert: {
+          base_code?: string | null
           base_uom: string
           brand?: string | null
           category_id?: string | null
@@ -633,18 +1193,24 @@ export type Database = {
           is_fragile?: boolean
           min_days_on_dispatch?: number | null
           name: string
+          packaging_form_code?: string | null
           requires_fefo?: boolean
+          sector?: string | null
           shelf_life_days?: number | null
           sku: string
           status?: Database["public"]["Enums"]["product_status"]
           temp_max_c?: number | null
           temp_min_c?: number | null
+          type_code?: string
+          units_label?: string | null
           updated_at?: string
+          variant?: string | null
           weight_category?:
             | Database["public"]["Enums"]["weight_category"]
             | null
         }
         Update: {
+          base_code?: string | null
           base_uom?: string
           brand?: string | null
           category_id?: string | null
@@ -659,13 +1225,18 @@ export type Database = {
           is_fragile?: boolean
           min_days_on_dispatch?: number | null
           name?: string
+          packaging_form_code?: string | null
           requires_fefo?: boolean
+          sector?: string | null
           shelf_life_days?: number | null
           sku?: string
           status?: Database["public"]["Enums"]["product_status"]
           temp_max_c?: number | null
           temp_min_c?: number | null
+          type_code?: string
+          units_label?: string | null
           updated_at?: string
+          variant?: string | null
           weight_category?:
             | Database["public"]["Enums"]["weight_category"]
             | null
@@ -684,6 +1255,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_category"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_packaging_form_code_fkey"
+            columns: ["packaging_form_code"]
+            isOneToOne: false
+            referencedRelation: "packaging_form"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "product_type_code_fkey"
+            columns: ["type_code"]
+            isOneToOne: false
+            referencedRelation: "product_type"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -715,6 +1300,89 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_label_profile: {
+        Row: {
+          assessed_at: string | null
+          has_expiry: boolean
+          has_gtin: boolean
+          has_lot: boolean
+          has_unique_case_code: boolean
+          product_id: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          assessed_at?: string | null
+          has_expiry?: boolean
+          has_gtin?: boolean
+          has_lot?: boolean
+          has_unique_case_code?: boolean
+          product_id: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assessed_at?: string | null
+          has_expiry?: boolean
+          has_gtin?: boolean
+          has_lot?: boolean
+          has_unique_case_code?: boolean
+          product_id?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_label_profile_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_label_profile_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_label_profile_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_label_profile_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_type: {
+        Row: {
+          code: string
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       profile: {
         Row: {
@@ -842,6 +1510,48 @@ export type Database = {
           },
         ]
       }
+      shift_assignment: {
+        Row: {
+          ended_at: string | null
+          equipment_id: string | null
+          flow: string
+          id: string
+          profile_id: string
+          started_at: string
+        }
+        Insert: {
+          ended_at?: string | null
+          equipment_id?: string | null
+          flow?: string
+          id?: string
+          profile_id: string
+          started_at?: string
+        }
+        Update: {
+          ended_at?: string | null
+          equipment_id?: string | null
+          flow?: string
+          id?: string
+          profile_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignment_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site: {
         Row: {
           code: string
@@ -902,8 +1612,29 @@ export type Database = {
             foreignKeyName: "stock_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
             referencedRelation: "location"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
           },
           {
             foreignKeyName: "stock_lpn_id_fkey"
@@ -911,6 +1642,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lpn"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "stock_product_id_fkey"
@@ -932,6 +1677,7 @@ export type Database = {
         Row: {
           actor_id: string | null
           device_id: string | null
+          equipment_id: string | null
           expiry_date: string | null
           from_location_id: string | null
           hash: string
@@ -953,6 +1699,7 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           device_id?: string | null
+          equipment_id?: string | null
           expiry_date?: string | null
           from_location_id?: string | null
           hash: string
@@ -974,6 +1721,7 @@ export type Database = {
         Update: {
           actor_id?: string | null
           device_id?: string | null
+          equipment_id?: string | null
           expiry_date?: string | null
           from_location_id?: string | null
           hash?: string
@@ -994,11 +1742,39 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "stock_movement_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
             foreignKeyName: "stock_movement_from_location_id_fkey"
             columns: ["from_location_id"]
             isOneToOne: false
             referencedRelation: "location"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
           },
           {
             foreignKeyName: "stock_movement_lpn_id_fkey"
@@ -1013,6 +1789,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "packaging_level"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_movement_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "stock_movement_product_id_fkey"
@@ -1039,10 +1829,48 @@ export type Database = {
             foreignKeyName: "stock_movement_to_location_id_fkey"
             columns: ["to_location_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_movement_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
             referencedRelation: "location"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movement_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      tag: {
+        Row: {
+          code: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+        }
+        Relationships: []
       }
       task: {
         Row: {
@@ -1052,10 +1880,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1074,10 +1904,12 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           expiry_date?: string | null
+          flow?: string | null
           from_location_id?: string | null
           id?: string
           lot?: string | null
           lpn_id?: string | null
+          min_level?: number | null
           packaging_level_id?: string | null
           priority?: number
           product_id?: string | null
@@ -1096,10 +1928,12 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           expiry_date?: string | null
+          flow?: string | null
           from_location_id?: string | null
           id?: string
           lot?: string | null
           lpn_id?: string | null
+          min_level?: number | null
           packaging_level_id?: string | null
           priority?: number
           product_id?: string | null
@@ -1116,8 +1950,29 @@ export type Database = {
             foreignKeyName: "task_from_location_id_fkey"
             columns: ["from_location_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
             referencedRelation: "location"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
           },
           {
             foreignKeyName: "task_lpn_id_fkey"
@@ -1137,6 +1992,20 @@ export type Database = {
             foreignKeyName: "task_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "product"
             referencedColumns: ["id"]
           },
@@ -1151,7 +2020,21 @@ export type Database = {
             foreignKeyName: "task_to_location_id_fkey"
             columns: ["to_location_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
             referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
             referencedColumns: ["id"]
           },
           {
@@ -1307,46 +2190,273 @@ export type Database = {
       }
     }
     Views: {
-      barcode_conflict: {
+      area_occupancy: {
         Row: {
           code: string | null
+          is_virtual: boolean | null
+          name: string | null
+          ocupadas: number | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      barcode_conflict: {
+        Row: {
+          bases: number | null
+          code: string | null
           productos: number | null
-          skus: string[] | null
+        }
+        Relationships: []
+      }
+      estiba_vs_capacidad: {
+        Row: {
+          estiba_mas_pesada_kg: number | null
+          kind: Database["public"]["Enums"]["zone_type"] | null
+          limite_kg: number | null
+          no_caben: number | null
+          productos: number | null
+          zona: string | null
+        }
+        Relationships: []
+      }
+      inbound_detail: {
+        Row: {
+          base_code: string | null
+          doc_id: string | null
+          expiry_date: string | null
+          id: string | null
+          lot: string | null
+          name: string | null
+          pallet_code: string | null
+          pedido: string | null
+          product_id: string | null
+          qty_cases: number | null
+          received_at: string | null
+          received_lpn_id: string | null
+          sku: string | null
+          tipo_caja: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_doc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_received_lpn_id_fkey"
+            columns: ["received_lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_received_lpn_id_fkey"
+            columns: ["received_lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_progress: {
+        Row: {
+          cajas: number | null
+          id: string | null
+          materiales: number | null
+          pallets: number | null
+          pedido: string | null
+          planned_at: string | null
+          recibidos: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      inventario: {
+        Row: {
+          area_code: string | null
+          area_name: string | null
+          base_code: string | null
+          cajas: number | null
+          disponible: number | null
+          expiry_date: string | null
+          id: string | null
+          level: number | null
+          location_code: string | null
+          location_id: string | null
+          lot: string | null
+          lpn_code: string | null
+          lpn_id: string | null
+          name: string | null
+          por_caja: number | null
+          product_id: string | null
+          qty_allocated: number | null
+          qty_base: number | null
+          sku: string | null
+          sueltas: number | null
+          zone_code: string | null
+          zone_kind: Database["public"]["Enums"]["zone_type"] | null
+        }
+        Relationships: []
+      }
+      posicion_detalle: {
+        Row: {
+          apartada: boolean | null
+          area_code: string | null
+          area_name: string | null
+          code: string | null
+          holds_product: boolean | null
+          id: string | null
+          ocupada: boolean | null
+          usage_code: string | null
+          usage_name: string | null
+          zone_code: string | null
+          zone_kind: Database["public"]["Enums"]["zone_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_usage_code_fkey"
+            columns: ["usage_code"]
+            isOneToOne: false
+            referencedRelation: "location_usage"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      posicion_estado: {
+        Row: {
+          code: string | null
+          estado: string | null
         }
         Relationships: []
       }
       product_readiness: {
         Row: {
+          base_code: string | null
+          cajas_por_pallet: number | null
+          codigo_compartido: boolean | null
           codigo_sin_conflicto: boolean | null
+          dun: string | null
           id: string | null
           name: string | null
+          por_caja: number | null
+          sector: string | null
           sku: string | null
+          status: Database["public"]["Enums"]["product_status"] | null
           tiene_clase: boolean | null
           tiene_codigo: boolean | null
           tiene_corrugado: boolean | null
           tiene_estiba: boolean | null
+          tipo_caja: string | null
+          units_label: string | null
+          variant: string | null
         }
         Insert: {
+          base_code?: string | null
+          cajas_por_pallet?: never
+          codigo_compartido?: never
           codigo_sin_conflicto?: never
+          dun?: never
           id?: string | null
           name?: string | null
+          por_caja?: never
+          sector?: string | null
           sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"] | null
           tiene_clase?: never
           tiene_codigo?: never
           tiene_corrugado?: never
           tiene_estiba?: never
+          tipo_caja?: never
+          units_label?: string | null
+          variant?: string | null
         }
         Update: {
+          base_code?: string | null
+          cajas_por_pallet?: never
+          codigo_compartido?: never
           codigo_sin_conflicto?: never
+          dun?: never
           id?: string | null
           name?: string | null
+          por_caja?: never
+          sector?: string | null
           sku?: string | null
+          status?: Database["public"]["Enums"]["product_status"] | null
           tiene_clase?: never
           tiene_codigo?: never
           tiene_corrugado?: never
           tiene_estiba?: never
+          tipo_caja?: never
+          units_label?: string | null
+          variant?: string | null
         }
         Relationships: []
+      }
+      rack_elevacion: {
+        Row: {
+          apartada: boolean | null
+          bahia: number | null
+          code: string | null
+          expiry_date: string | null
+          fondo: number | null
+          lane_code: string | null
+          lot: string | null
+          lpn_code: string | null
+          name: string | null
+          nivel: number | null
+          product_id: string | null
+          qty_base: number | null
+          sku: string | null
+          status: Database["public"]["Enums"]["location_status"] | null
+          usage_code: string | null
+          zone_code: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_usage_code_fkey"
+            columns: ["usage_code"]
+            isOneToOne: false
+            referencedRelation: "location_usage"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_available: {
         Row: {
@@ -1390,8 +2500,29 @@ export type Database = {
             foreignKeyName: "stock_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
             referencedRelation: "location"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
           },
           {
             foreignKeyName: "stock_lpn_id_fkey"
@@ -1399,6 +2530,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lpn"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "stock_product_id_fkey"
@@ -1412,6 +2557,125 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_queue: {
+        Row: {
+          al_alcance: boolean | null
+          created_at: string | null
+          de_mi_flujo: boolean | null
+          flow: string | null
+          from_location_id: string | null
+          id: string | null
+          min_level: number | null
+          priority: number | null
+          product_id: string | null
+          qty_base: number | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"] | null
+        }
+        Insert: {
+          al_alcance?: never
+          created_at?: string | null
+          de_mi_flujo?: never
+          flow?: string | null
+          from_location_id?: string | null
+          id?: string | null
+          min_level?: number | null
+          priority?: number | null
+          product_id?: string | null
+          qty_base?: number | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          to_location_id?: string | null
+          type?: Database["public"]["Enums"]["task_type"] | null
+        }
+        Update: {
+          al_alcance?: never
+          created_at?: string | null
+          de_mi_flujo?: never
+          flow?: string | null
+          from_location_id?: string | null
+          id?: string | null
+          min_level?: number | null
+          priority?: number | null
+          product_id?: string | null
+          qty_base?: number | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          to_location_id?: string | null
+          type?: Database["public"]["Enums"]["task_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
             referencedColumns: ["id"]
           },
         ]
@@ -1477,6 +2741,7 @@ export type Database = {
       }
     }
     Functions: {
+      alcance_de: { Args: { p_profile_id: string }; Returns: number }
       apply_stock_delta: {
         Args: {
           p_delta: number
@@ -1487,6 +2752,25 @@ export type Database = {
           p_product_id: string
         }
         Returns: undefined
+      }
+      area_de: {
+        Args: { p_location_id: string }
+        Returns: {
+          barcode: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          site_id: string
+          type_code: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "area"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       assign_barcode: {
         Args: {
@@ -1512,6 +2796,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      buscar_ingreso: {
+        Args: { p_pedido: string }
+        Returns: {
+          cajas: number | null
+          id: string | null
+          materiales: number | null
+          pallets: number | null
+          pedido: string | null
+          planned_at: string | null
+          recibidos: number | null
+          status: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "inbound_progress"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      cerrar_turno: { Args: never; Returns: number }
       claim_next_task: {
         Args: {
           p_types?: Database["public"]["Enums"]["task_type"][]
@@ -1524,10 +2828,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1559,10 +2865,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1599,6 +2907,48 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      desglose: {
+        Args: { p_product_id: string; p_qty: number }
+        Returns: {
+          cajas: number
+          por_caja: number
+          sueltas: number
+        }[]
+      }
+      existencia_de: {
+        Args: { p_texto: string }
+        Returns: {
+          area_code: string | null
+          area_name: string | null
+          base_code: string | null
+          cajas: number | null
+          disponible: number | null
+          expiry_date: string | null
+          id: string | null
+          level: number | null
+          location_code: string | null
+          location_id: string | null
+          lot: string | null
+          lpn_code: string | null
+          lpn_id: string | null
+          name: string | null
+          por_caja: number | null
+          product_id: string | null
+          qty_allocated: number | null
+          qty_base: number | null
+          sku: string | null
+          sueltas: number | null
+          zone_code: string | null
+          zone_kind: Database["public"]["Enums"]["zone_type"] | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "inventario"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      flujo_de: { Args: { p_profile_id: string }; Returns: string }
       generate_zone_locations: {
         Args: { p_zone_code: string }
         Returns: number
@@ -1607,8 +2957,36 @@ export type Database = {
         Args: { roles: Database["public"]["Enums"]["user_role"][] }
         Returns: boolean
       }
+      iniciar_turno: {
+        Args: { p_equipment_code?: string; p_flow?: string }
+        Returns: {
+          ended_at: string | null
+          equipment_id: string | null
+          flow: string
+          id: string
+          profile_id: string
+          started_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      lpn_contenido: {
+        Args: { p_lpn_id: string }
+        Returns: {
+          code: string
+          depth: number
+          level: Database["public"]["Enums"]["packaging_code"]
+          lpn_id: string
+        }[]
+      }
+      posiciones_como: { Args: { p_patron: string }; Returns: string[] }
       post_movement: {
         Args: {
+          p_desprende?: boolean
           p_device_id?: string
           p_expiry?: string
           p_from_location_id?: string
@@ -1626,16 +3004,33 @@ export type Database = {
         }
         Returns: number
       }
+      reasignar_area: {
+        Args: { p_area_code: string; p_location_ids: string[] }
+        Returns: number
+      }
+      reasignar_area_por_codigo: {
+        Args: { p_area_code: string; p_patron: string }
+        Returns: number
+      }
+      reasignar_uso: {
+        Args: { p_location_ids: string[]; p_usage_code: string }
+        Returns: number
+      }
+      reasignar_uso_por_codigo: {
+        Args: { p_patron: string; p_usage_code: string }
+        Returns: number
+      }
       receive_pallet: {
         Args: {
+          p_cases: number
           p_dock_location_id: string
           p_expiry?: string
           p_idempotency_key?: string
           p_lot?: string
           p_lpn_code: string
+          p_max_level?: number
           p_packaging_level_id: string
           p_product_id: string
-          p_qty: number
         }
         Returns: {
           lpn_code: string
@@ -1643,6 +3038,24 @@ export type Database = {
           task_id: string
           to_location_code: string
           to_location_id: string
+        }[]
+      }
+      recibir_del_documento: {
+        Args: {
+          p_barcode?: string
+          p_dock_location_id: string
+          p_max_level?: number
+          p_pallet_code: string
+          p_pedido: string
+        }
+        Returns: {
+          cases: number
+          lpn_code: string
+          pallets: number
+          product_name: string
+          recibidos: number
+          sku: string
+          to_location_code: string
         }[]
       }
       release_order: { Args: { p_order_id: string }; Returns: number }
@@ -1655,10 +3068,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1686,10 +3101,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1717,10 +3134,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           expiry_date: string | null
+          flow: string | null
           from_location_id: string | null
           id: string
           lot: string | null
           lpn_id: string | null
+          min_level: number | null
           packaging_level_id: string | null
           priority: number
           product_id: string | null
@@ -1740,9 +3159,15 @@ export type Database = {
         }
       }
       suggest_putaway_location: {
-        Args: { p_expiry?: string; p_lot?: string; p_product_id: string }
+        Args: {
+          p_expiry?: string
+          p_lot?: string
+          p_max_level?: number
+          p_product_id: string
+        }
         Returns: string
       }
+      unidades_por: { Args: { p_packaging_level_id: string }; Returns: number }
       verify_ledger: {
         Args: never
         Returns: {
@@ -1806,8 +3231,8 @@ export type Database = {
         | "RELOCATE"
       uom_kind: "count" | "weight" | "volume" | "length"
       user_role:
-        | "operador_recibo"
-        | "operador_picking"
+        | "auxiliar"
+        | "chequeador"
         | "montacargista"
         | "supervisor"
         | "inventarios"
@@ -1946,9 +3371,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       abc_class: ["A", "B", "C"],
@@ -2005,8 +3427,8 @@ export const Constants = {
       task_type: ["PUTAWAY", "PICK", "REPLENISH", "MOVE", "COUNT", "RELOCATE"],
       uom_kind: ["count", "weight", "volume", "length"],
       user_role: [
-        "operador_recibo",
-        "operador_picking",
+        "auxiliar",
+        "chequeador",
         "montacargista",
         "supervisor",
         "inventarios",

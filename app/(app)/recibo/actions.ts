@@ -9,6 +9,8 @@ export type Match = {
   productId: string
   sku: string
   name: string
+  baseCode: string | null
+  tipoCaja: string | null
   packagingLevelId: string
   packagingCode: string
   qtyBaseUnits: number
@@ -34,8 +36,11 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
     .select(
       `packaging_level_id,
        packaging_level!inner(
-         code, qty_base_units,
-         product!inner(id, sku, name, requires_fefo, status, pallet_config(cases_per_pallet))
+         code, qty_base_units, box_type(name),
+         product!inner(
+           id, sku, name, base_code, requires_fefo, status,
+           pallet_config(cases_per_pallet)
+         )
        )`,
     )
     .eq('code', parsed.data)
@@ -49,6 +54,8 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
       productId: row.packaging_level.product.id,
       sku: row.packaging_level.product.sku,
       name: row.packaging_level.product.name,
+      baseCode: row.packaging_level.product.base_code,
+      tipoCaja: row.packaging_level.box_type?.name ?? null,
       packagingLevelId: row.packaging_level_id,
       packagingCode: row.packaging_level.code,
       qtyBaseUnits: Number(row.packaging_level.qty_base_units),
@@ -57,7 +64,7 @@ export async function resolveBarcode(code: string): Promise<ResolveResult> {
     }))
 
   if (matches.length === 0) {
-    return { ok: false, error: 'Ese código no corresponde a ningún producto activo.' }
+    return { ok: false, error: 'Ese DUN-14 no corresponde a ningún producto activo.' }
   }
 
   return { ok: true, matches }
@@ -108,7 +115,7 @@ export async function receivePallet(formData: FormData): Promise<ReceiveResult> 
     p_lpn_code: parsed.data.lpnCode,
     p_product_id: parsed.data.productId,
     p_packaging_level_id: parsed.data.packagingLevelId,
-    p_qty: parsed.data.qty,
+    p_cases: parsed.data.qty,
     p_dock_location_id: parsed.data.dockLocationId,
     p_lot: parsed.data.lot || undefined,
     p_expiry: parsed.data.expiry || undefined,

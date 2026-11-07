@@ -107,7 +107,7 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {lpnCode && !match ? (
         <ScanInput
-          label="Escanea el código de la caja"
+          label="Escanea el DUN-14 de la caja"
           disabled={pending}
           onScan={escanearProducto}
         />
@@ -115,7 +115,10 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
 
       {matches && matches.length > 1 && !match ? (
         <div className="flex flex-col gap-2">
-          <p className={ETIQUETA}>Ese código es de varios productos. ¿Cuál es?</p>
+          <p className={ETIQUETA}>
+            Ese DUN-14 lo comparten varias presentaciones del mismo producto. Míralo en la
+            caja: ¿cuál es?
+          </p>
           {matches.map((m) => (
             <button
               key={m.packagingLevelId}
@@ -123,8 +126,11 @@ export function ReceiveForm({ docks }: { docks: Dock[] }) {
               onClick={() => setMatch(m)}
               className="rounded-xl border border-borde p-3 text-left transition-colors hover:bg-azul-08"
             >
-              <span className="block">{m.name}</span>
-              <span className="block text-sm opacity-60">{m.sku}</span>
+              <span className="block">{m.tipoCaja ?? m.name}</span>
+              <span className="block text-sm opacity-60">
+                {m.sku} · {m.qtyBaseUnits} por caja
+                {m.casesPerPallet ? ` · ${m.casesPerPallet} cajas/pallet` : ''}
+              </span>
             </button>
           ))}
         </div>

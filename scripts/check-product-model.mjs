@@ -111,7 +111,7 @@ check(
   'un codigo de otro producto se rechaza nombrando cual',
 )
 
-await db.query(`update profile set role = 'operador_picking' where id = '${quien}'`)
+await db.query(`update profile set role = 'auxiliar' where id = '${quien}'`)
 const sinPermiso = await db
   .query(`select * from assign_barcode($1, '7509999999999')`, [productId])
   .then(() => null, (e) => e.message)

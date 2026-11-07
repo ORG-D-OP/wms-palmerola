@@ -12,6 +12,12 @@ export const RACK = { modulo: 5.03, pared: 2.39, pasillo: 3.2 }
  */
 export const ALTURA = { nivel: 1.8, piso: 1.5 }
 
+/**
+ * Posiciones de fondo por carril. Es el `lane_depth` de `zone_spec`: doble profundidad.
+ * Si algún día se cambia allá, hay que cambiarlo aquí, que es lo que numera el dibujo.
+ */
+const FONDO_POR_CARRIL = 2
+
 /** Posiciones de fondo que caben en cada ancho de módulo. */
 const FONDO_POR_MODULO = new Map([
   [RACK.modulo, 4],
@@ -27,7 +33,20 @@ export const FRANJAS = {
 
 export type Franja = keyof typeof FRANJAS
 
-export type Celda = { x: number; y: number; w: number; h: number }
+/**
+ * Un cuadro de la planta. `code` es el codigo de la posicion real: en piso, el codigo
+ * completo; en rack, el de la pila sin el `-N#`, porque desde arriba seis niveles son un
+ * solo cuadro. Con esto el mapa pinta posicion por posicion en lugar de pintar la zona
+ * entera del mismo tono.
+ */
+export type Celda = { code: string; x: number; y: number; w: number; h: number }
+
+const pad = (n: number, largo: number) => String(n).padStart(largo, '0')
+
+/** El cuadro de planta al que pertenece una posicion: en rack, su pila de niveles. */
+export function claveDePlanta(code: string): string {
+  return code.replace(/-N\d+-/, '-')
+}
 
 export type Bloque = {
   code: string
@@ -100,6 +119,7 @@ function celdasPiso(b: DefPiso): Celda[] {
   for (let c = 0; c < b.cols; c++) {
     for (let r = 0; r < b.filas; r++) {
       celdas.push({
+        code: `${b.code}-${pad(c + 1, 3)}-${pad(r + 1, 2)}`,
         x: b.x + c * pasoX + pasoX * HUECO,
         y: f.y + r * pasoY + pasoY * HUECO,
         w: pasoX * (1 - 2 * HUECO),
@@ -115,13 +135,19 @@ function celdasRack(b: DefRack): Celda[] {
   const pasoY = f.alto / b.bahias
   const celdas: Celda[] = []
   let x = b.x
+  // Las posiciones de fondo se numeran de corrido por toda la zona, igual que las
+  // genera la base: cada dos fondos son un carril, y dentro del carril P1 va al frente.
+  let desde = 0
 
   for (const ancho of b.modulos) {
-    const fondo = FONDO_POR_MODULO.get(ancho) ?? 2
+    const fondo = FONDO_POR_MODULO.get(ancho) ?? FONDO_POR_CARRIL
     const pasoX = ancho / fondo
     for (let d = 0; d < fondo; d++) {
+      const carril = Math.floor((desde + d) / FONDO_POR_CARRIL) + 1
+      const profundidad = ((desde + d) % FONDO_POR_CARRIL) + 1
       for (let r = 0; r < b.bahias; r++) {
         celdas.push({
+          code: `${b.code}-L${pad(carril, 2)}-B${pad(r + 1, 2)}-P${profundidad}`,
           x: x + d * pasoX + pasoX * HUECO,
           y: f.y + r * pasoY + pasoY * HUECO,
           w: pasoX * (1 - 2 * HUECO),
@@ -129,6 +155,7 @@ function celdasRack(b: DefRack): Celda[] {
         })
       }
     }
+    desde += fondo
     x += ancho + RACK.pasillo
   }
   return celdas
@@ -173,8 +200,20 @@ export const COLOR = {
 }
 
 
-/** Una caja de la vista 3D: posición en planta más el nivel en el que está. */
-export type Caja = { x: number; z: number; w: number; d: number; y: number; alto: number }
+/**
+ * Una caja de la vista 3D: posición en planta más el nivel en el que está. `code` es el
+ * código completo de esa posición, nivel incluido, así que el 3D puede pintar ocupada la
+ * posición exacta y no la zona entera.
+ */
+export type Caja = {
+  code: string
+  x: number
+  z: number
+  w: number
+  d: number
+  y: number
+  alto: number
+}
 
 export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
   return BLOQUES.filter((b) => b.tipo !== 'preparacion').map((b) => {
@@ -184,6 +223,8 @@ export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
     for (const c of b.celdas) {
       for (let n = 0; n < niveles; n++) {
         lista.push({
+          code:
+            b.tipo === 'rack' ? c.code.replace(/-P(\d)$/, `-N${n + 1}-P$1`) : c.code,
           x: c.x,
           z: c.y,
           w: c.w,

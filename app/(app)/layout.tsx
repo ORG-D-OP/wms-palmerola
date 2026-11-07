@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import { requireUser } from '@/lib/auth/session'
 import { ROLE_LABELS } from '@/lib/auth/roles'
-import { navParaRol } from '@/components/app-shell/nav-items'
+import { navMovil, navParaRol } from '@/components/app-shell/nav-items'
 import { BottomNav } from '@/components/app-shell/bottom-nav'
 import { TopNav } from '@/components/app-shell/top-nav'
 import { Icon } from '@/components/ui/icon'
@@ -10,6 +10,7 @@ import { logout } from '@/app/(public)/login/actions'
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser()
   const items = navParaRol(user.role)
+  const abajo = navMovil(user.role)
 
   return (
     <>
@@ -37,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col">{children}</div>
 
-      <BottomNav items={items} />
+      <BottomNav items={abajo} />
     </>
   )
 }

@@ -6,7 +6,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "node scripts/copiar-wasm.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copiar-wasm.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,7 +16,7 @@
     "db:check": "node scripts/check-migrations.mjs",
     "db:push": "supabase db push",
     "db:apply": "node scripts/db-apply.mjs",
-    "db:test": "node scripts/check-product-model.mjs && node scripts/check-inventory-model.mjs && node scripts/check-task-model.mjs && node scripts/check-receiving.mjs && node scripts/check-putaway.mjs && node scripts/check-picking.mjs"
+    "db:test": "node scripts/check-product-model.mjs && node scripts/check-inventory-model.mjs && node scripts/check-task-model.mjs && node scripts/check-receiving.mjs && node scripts/check-putaway.mjs && node scripts/check-picking.mjs && node scripts/check-areas.mjs && node scripts/check-turno.mjs && node scripts/check-ingreso.mjs && node scripts/check-plano.mjs && node scripts/check-codigo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -24,7 +26,8 @@
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "three": "^0.186.1",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "zxing-wasm": "^3.1.6"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.12",

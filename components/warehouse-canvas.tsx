@@ -5,6 +5,7 @@ import {
   andenMasCercano,
   ANDENES,
   BLOQUES,
+  claveDePlanta,
   COLOR,
   FRANJAS,
   NAVE,
@@ -13,7 +14,46 @@ import {
 } from '@/lib/warehouse/plano'
 import { Icon } from '@/components/ui/icon'
 
-export type Ocupacion = Record<string, { ocupadas: number; total: number }>
+export type Estado = 'OCUPADA' | 'APARTADA' | 'OTRO_USO'
+
+/**
+ * El estado de cada posición que no está libre, por su código. Antes esto era el resumen
+ * de la zona y el mapa pintaba sus cientos de posiciones del mismo tono: decía «F3 va al
+ * 34%» pero no cuál posición estaba ocupada, que es justo lo que uno va a ver al mapa.
+ */
+export type Ocupacion = Record<string, Estado>
+
+type Conteo = { ocupadas: number; apartadas: number; otros: number }
+
+/** Lo que hay en cada cuadro de la planta; en rack, la pila entera de niveles. */
+function porCuadro(ocupacion: Ocupacion): Map<string, Conteo> {
+  const cuadros = new Map<string, Conteo>()
+  for (const [code, estado] of Object.entries(ocupacion)) {
+    const clave = claveDePlanta(code)
+    const c = cuadros.get(clave) ?? { ocupadas: 0, apartadas: 0, otros: 0 }
+    if (estado === 'OCUPADA') c.ocupadas++
+    else if (estado === 'APARTADA') c.apartadas++
+    else c.otros++
+    cuadros.set(clave, c)
+  }
+  return cuadros
+}
+
+const LIBRE = 'rgba(44, 43, 143, 0.1)'
+const OTRO_USO = 'rgba(44, 43, 143, 0.055)'
+const APARTADA = 'rgba(0, 155, 221, 0.45)'
+
+/**
+ * El tono dice qué tan llena está esa posición. En piso es sí o no; en rack, cuántos de
+ * sus niveles están ocupados, porque desde arriba los seis niveles son un solo cuadro y
+ * la cara con nivel por nivel está en /rack.
+ */
+function tono(c: Conteo | undefined, niveles: number) {
+  if (!c) return LIBRE
+  if (c.ocupadas > 0) return `rgba(44, 43, 143, ${0.3 + (c.ocupadas / niveles) * 0.7})`
+  if (c.apartadas > 0) return APARTADA
+  return OTRO_USO
+}
 
 /**
  * La planta se dibuja una sola vez en un canvas fuera de pantalla a esta resolución y
@@ -27,6 +67,7 @@ type Vista = { x: number; y: number; escala: number }
 
 function pintarEstatico(ctx: CanvasRenderingContext2D, ocupacion: Ocupacion) {
   const k = PX_POR_METRO
+  const cuadros = porCuadro(ocupacion)
   ctx.fillStyle = COLOR.blanco
   ctx.fillRect(0, 0, NAVE.ancho * k, NAVE.alto * k)
 
@@ -54,10 +95,11 @@ function pintarEstatico(ctx: CanvasRenderingContext2D, ocupacion: Ocupacion) {
       ctx.restore()
       continue
     }
-    const d = ocupacion[b.code]
-    const pct = d && d.total > 0 ? d.ocupadas / d.total : 0
-    ctx.fillStyle = `rgba(44, 43, 143, ${0.14 + pct * 0.76})`
-    for (const c of b.celdas) ctx.fillRect(c.x * k, c.y * k, c.w * k, c.h * k)
+    const niveles = b.niveles ?? 1
+    for (const c of b.celdas) {
+      ctx.fillStyle = tono(cuadros.get(c.code), niveles)
+      ctx.fillRect(c.x * k, c.y * k, c.w * k, c.h * k)
+    }
   }
 
   ctx.fillStyle = 'rgba(44, 43, 143, 0.75)'
