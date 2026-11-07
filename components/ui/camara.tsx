@@ -17,6 +17,15 @@ type VideoConCuadros = HTMLVideoElement & {
 /** `torch` y `focusMode` existen en los navegadores moviles pero no en los tipos del DOM. */
 type AjusteCamara = MediaTrackConstraintSet & { torch?: boolean; focusMode?: string }
 
+/** Decir cual de todas fallo ahorra media hora de adivinar frente al telefono. */
+const MOTIVOS: Record<string, string> = {
+  NotAllowedError: 'El navegador negó la cámara. Dale permiso al sitio y vuelve a intentar.',
+  NotFoundError: 'Este aparato no tiene ninguna cámara disponible.',
+  NotReadableError: 'Otra aplicación está usando la cámara. Ciérrala y vuelve a intentar.',
+  OverconstrainedError: 'La cámara del aparato no acepta la calidad que se le pidió.',
+  SecurityError: 'La cámara sólo funciona sobre HTTPS.',
+}
+
 /**
  * Lee con la camara del telefono. Existe porque los lectores laser son pocos y la mayoria
  * de la gente va a andar con un telefono normal.
@@ -65,8 +74,9 @@ export function Camara({
             height: { ideal: 1080 },
           },
         })
-      } catch {
-        setError('No se pudo abrir la cámara. Revisa el permiso del navegador y vuelve a intentar.')
+      } catch (falla) {
+        const causa = falla instanceof Error ? falla.name : ''
+        setError(MOTIVOS[causa] ?? `No se pudo abrir la cámara (${causa || 'causa desconocida'}).`)
         return
       }
       if (!vivo) {
