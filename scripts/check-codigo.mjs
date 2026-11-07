@@ -20,10 +20,15 @@ check(cumpleGs1('1750123456') === false, 'rechaza un largo que no es de GS1')
 check(cumpleGs1('1750123456789X') === false, 'rechaza un codigo con letras')
 
 // Un ITF leido a medias es el caso que importa: 14 digitos partidos en 8 siguen siendo
-// pares, asi que el decodificador los entrega sin quejarse.
+// pares, asi que el decodificador los entrega sin quejarse. Lo que lo atrapa es el largo.
 check(esConfiable('17501234567890', 'itf') === true, 'deja pasar el ITF completo')
 check(esConfiable('17501234', 'itf') === false, 'frena el ITF leido a medias')
 check(esConfiable('1750123456', 'ITF14') === false, 'frena el ITF corto, venga el formato como venga')
+
+// Siete DUN-14 del maestro vienen de SAP con el digito verificador mal. Son productos
+// reales que hay que poder escanear, y catorce digitos ya descartan la lectura parcial.
+check(cumpleGs1('20750894620277') === false, 'el DUN-14 20750894620277 no cuadra el verificador')
+check(esConfiable('20750894620277', 'itf') === true, 'y aun asi se puede escanear, por el largo')
 
 // El Code 128 del tabulado son siete digitos sin verificador: no es GS1 y no se le exige.
 check(esConfiable('3916464', 'code_128') === true, 'deja pasar el transporte del tabulado')

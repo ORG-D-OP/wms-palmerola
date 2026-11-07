@@ -52,15 +52,25 @@ export function normalizar(texto: string): string {
   return texto.replace(/[\u0000-\u001f\u007f]/g, '').trim()
 }
 
+/** Todos los DUN-14 del maestro tienen catorce digitos; ninguno tiene otro largo. */
+const LARGO_DUN = 14
+
 /**
  * El ITF se lee de a pares de digitos y no tiene delimitador propio, asi que una camara
  * puede devolver un pedazo del codigo como si fuera el codigo entero. Un DUN-14 leido a
- * medias no da error: da otro numero, valido, que apunta a otro producto. Por eso al ITF
- * se le exige largo de GS1 y digito verificador. Los demas formatos ya traen su control:
- * el Code 128 lleva suma de verificacion obligatoria y el QR, correccion de errores.
+ * medias no da error: da otro numero, valido, que apunta a otro producto.
+ *
+ * Lo que atrapa ese caso es el largo, no el verificador: un ITF leido a medias siempre
+ * sale mas corto. Y exigir verificador de mas dejaria siete productos del maestro sin
+ * poder escanearse, porque su DUN-14 viene de SAP con el digito mal. Asi que un ITF pasa
+ * si trae los catorce digitos, o si cuadra el verificador con otro largo de GS1.
+ *
+ * Los demas formatos ya traen su propio control: el Code 128 lleva suma de verificacion
+ * obligatoria y el QR, correccion de errores.
  */
 export function esConfiable(texto: string, formato: string): boolean {
   if (!texto) return false
-  if (formato.toLowerCase().startsWith('itf')) return cumpleGs1(texto)
-  return true
+  if (!formato.toLowerCase().startsWith('itf')) return true
+  if (/^\d+$/.test(texto) && texto.length === LARGO_DUN) return true
+  return cumpleGs1(texto)
 }

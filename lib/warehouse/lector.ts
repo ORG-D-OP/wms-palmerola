@@ -1,7 +1,13 @@
 import { FORMATOS_NATIVOS, FORMATOS_ZXING, esConfiable, normalizar } from './codigo'
 
-export type Lectura = { texto: string; formato: string }
-export type Decodificador = (imagen: ImageData) => Promise<Lectura[]>
+export type Lectura = { texto: string; formato: string; confiable: boolean }
+export type Lector = {
+  /** Cual de los dos motores quedo. Se muestra en pantalla: si algo no lee, importa saberlo. */
+  motor: string
+  leer: (imagen: ImageData) => Promise<Lectura[]>
+}
+
+type Crudo = (imagen: ImageData) => Promise<{ texto: string; formato: string }[]>
 
 type Detector = { detect(imagen: ImageData): Promise<{ rawValue: string; format: string }[]> }
 type ApiDetector = {
@@ -16,16 +22,26 @@ type ApiDetector = {
  * sin descargar nada. Donde no esta —Safari, sobre todo— se usa zxing, el mismo motor con
  * el que se leyeron los tabulados, que pesa casi un mega y por eso se baja solo cuando
  * alguien abre la camara. Quien escanea con laser no descarga ninguno de los dos.
+ *
+ * Las lecturas salen todas, con su marca de confiable: una que no cuadra tambien dice
+ * algo, y callarla deja al operario mirando una pantalla que no reacciona.
  */
-export async function abrirDecodificador(): Promise<Decodificador> {
-  const decodificar = (await nativo()) ?? (await respaldo())
-  return async (imagen) =>
-    (await decodificar(imagen))
-      .map((lectura) => ({ ...lectura, texto: normalizar(lectura.texto) }))
-      .filter((lectura) => esConfiable(lectura.texto, lectura.formato))
+export async function abrirLector(): Promise<Lector> {
+  const nativo = await intentarNativo()
+  const motor = nativo ? 'navegador' : 'zxing'
+  const decodificar = nativo ?? (await cargarZxing())
+
+  return {
+    motor,
+    leer: async (imagen) =>
+      (await decodificar(imagen)).map((lectura) => {
+        const texto = normalizar(lectura.texto)
+        return { texto, formato: lectura.formato, confiable: esConfiable(texto, lectura.formato) }
+      }),
+  }
 }
 
-async function nativo(): Promise<Decodificador | null> {
+async function intentarNativo(): Promise<Crudo | null> {
   const api = (globalThis as { BarcodeDetector?: ApiDetector }).BarcodeDetector
   if (!api) return null
 
@@ -43,7 +59,7 @@ async function nativo(): Promise<Decodificador | null> {
     }))
 }
 
-async function respaldo(): Promise<Decodificador> {
+async function cargarZxing(): Promise<Crudo> {
   const { readBarcodes, prepareZXingModule } = await import('zxing-wasm/reader')
 
   // El `.wasm` se sirve desde nuestro propio dominio. Por defecto zxing lo baja de un CDN,
@@ -56,6 +72,8 @@ async function respaldo(): Promise<Decodificador> {
       await readBarcodes(imagen, {
         formats: [...FORMATOS_ZXING],
         tryHarder: true,
+        tryRotate: true,
+        tryDownscale: true,
         maxNumberOfSymbols: 1,
       })
     )
