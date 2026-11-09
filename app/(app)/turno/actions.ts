@@ -120,20 +120,32 @@ export async function cambiarEstadoEquipo(datos: FormData) {
   revalidatePath('/turno')
 }
 
-/** El jefe de bodega para a alguien en un andén, o lo suelta para toda la bodega. */
-export async function asignarAnden(datos: FormData) {
+/**
+ * El jefe de bodega para a alguien en un andén, o lo suelta para toda la bodega.
+ *
+ * Devuelve qué pasó con su trabajo, porque eso es lo que hay que contarle: cuántas tareas
+ * soltó al andén que deja, y si va a medio camino con algo que no se le puede quitar.
+ */
+export async function asignarAnden(personaId: string, anden: string) {
   await requirePermission('tareas:reasignar')
 
-  const persona = z.uuid().safeParse(datos.get('persona'))
-  if (!persona.success) throw new Error('Persona inválida.')
-  const anden = z.string().trim().max(12).safeParse(datos.get('anden') ?? '')
+  const persona = z.uuid().safeParse(personaId)
+  if (!persona.success) return { ok: false as const, error: 'Persona inválida.' }
 
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('asignar_anden', {
-    p_profile_id: persona.data,
-    p_anden: anden.success && anden.data ? anden.data : undefined,
-  })
+  const { data, error } = await supabase
+    .rpc('asignar_anden', {
+      p_profile_id: persona.data,
+      p_anden: anden.trim() || undefined,
+    })
+    .single()
 
-  if (error) throw new Error(fallo(error).error)
+  if (error) return fallo(error)
   revalidatePath('/turno')
+  return {
+    ok: true as const,
+    anden: data?.anden ?? null,
+    liberadas: data?.liberadas ?? 0,
+    enCurso: data?.en_curso ?? null,
+  }
 }

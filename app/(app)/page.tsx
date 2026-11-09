@@ -79,7 +79,7 @@ export default async function DashboardPage() {
     { href: '/ingreso', label: 'Ingreso', icon: 'local_shipping', permiso: 'inventario:mover' },
     { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover' },
     { href: '/surtir', label: 'Surtir', icon: 'shopping_basket', permiso: 'surtido:ejecutar' },
-    { href: '/despacho', label: 'Despacho', icon: 'outbound', permiso: 'despachos:administrar' },
+    { href: '/despacho', label: 'Despacho', icon: 'outbound', permiso: 'inventario:mover' },
     { href: '/inventario', label: 'Buscar', icon: 'search', permiso: 'inventario:ver' },
   ] as const
 
@@ -125,16 +125,11 @@ export default async function DashboardPage() {
       </dl>
 
       <section className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-          <h2 className="text-lg">Ocupación del almacén</h2>
-          <Link href="/rack" className="text-sm underline underline-offset-4">
-            Ver la cara del rack
-          </Link>
-        </div>
+        <h2 className="text-lg">Ocupación del almacén</h2>
         <p className="text-sm text-azul/60">
-          Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles: el
-          tono dice cuántos están ocupados y los niveles se ven uno por uno en la cara del
-          rack.
+          Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles y el tono
+          dice cuántos están ocupados; los niveles uno por uno se ven en la cara del rack, que
+          sale en Guardar y Surtir cuando llegas al rack al que vas.
         </p>
         <WarehouseView ocupacion={ocupacion} permite3D={can(user.role, 'kpi:ver')} />
       </section>

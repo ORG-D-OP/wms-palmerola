@@ -125,6 +125,71 @@ await db.query(`select asignar_anden($1, null)`, [dos])
 const suelto = await one(`select anden from disponibles where id = $1`, [dos])
 check(suelto.anden === null, 'y lo puede soltar para que atienda toda la bodega')
 
+// --- mover de anden no arrastra ni cancela tareas -----------------------------------------
+
+await como(jefe)
+await db.query(`select asignar_anden($1, $2)`, [dos, andenB.code])
+
+// Tres tareas del anden B: una se le asigna sin empezar, otra la empieza, otra queda libre.
+const asignada = await tarea('PUTAWAY', stgB.id, posicion)
+const empezada = await tarea('PUTAWAY', stgB.id, posicion)
+await tarea('PUTAWAY', stgB.id, posicion)
+
+await db.query(
+  `update task set status = 'ASSIGNED', assigned_to = $1, assigned_at = now()
+   where id in ($2, $3)`,
+  [dos, asignada.id, empezada.id],
+)
+await db.query(`update task set status = 'IN_PROGRESS' where id = $1`, [empezada.id])
+
+const cargaB = await one(`select * from carga_por_anden where anden = $1`, [andenB.code])
+check(cargaB.libres >= 1, 'el jefe ve cuantas tareas hay sin tomar en cada anden')
+check(cargaB.en_curso === 1, 'y cuantas van a medio camino')
+check(cargaB.personas === 2, 'y cuanta gente hay ahi para hacerlas')
+
+await como(jefe)
+const mismo = await falla(`select * from asignar_anden($1, $2)`, [dos, andenB.code])
+check(mismo?.includes('ya está ahí'), 'moverlo al anden donde ya esta no hace nada')
+
+const movido = await one(`select * from asignar_anden($1, $2)`, [dos, andenA.code])
+check(movido.anden === andenA.code, 'el jefe lo pasa al otro anden')
+check(movido.liberadas === 1, 'y suelta la tarea que tenia asignada sin empezar')
+check(
+  movido.en_curso !== null,
+  'y avisa que anda a medio camino con algo, con la posicion a la que va',
+)
+
+const suelta = await one(`select status, assigned_to from task where id = $1`, [asignada.id])
+check(
+  suelta.status === 'READY' && suelta.assigned_to === null,
+  'la tarea sin empezar vuelve libre a la cola de su anden, no se va con la persona',
+)
+
+const enCurso = await one(`select status, assigned_to from task where id = $1`, [empezada.id])
+check(
+  enCurso.status === 'IN_PROGRESS' && enCurso.assigned_to === dos,
+  'la que ya empezo no se le toca: un pallet a medio camino no se queda sin dueño',
+)
+
+// Lo que solto se lo lleva quien quede en ese anden: `uno` sigue parado ahi.
+await como(uno)
+const recogida = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  recogida.id === asignada.id,
+  'y el que queda en el anden se lleva lo que el otro solto',
+)
+
+// Y al llegar al anden nuevo, le caen las de ahi.
+await tarea('PUTAWAY', stgA.id, posicion)
+await como(dos)
+await db.query(`update task set status = 'DONE' where id = $1`, [empezada.id])
+const yaEnA = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+const deDonde = await one(`select from_location_id from task where id = $1`, [yaEnA.id])
+check(
+  deDonde.from_location_id === stgA.id,
+  'al llegar al anden nuevo le caen las tareas de ahi',
+)
+
 // --- pallet entero de almacen, cajas de picking -------------------------------------------
 
 await como(jefe)

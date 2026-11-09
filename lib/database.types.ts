@@ -2567,6 +2567,17 @@ export type Database = {
         }
         Relationships: []
       }
+      carga_por_anden: {
+        Row: {
+          anden: string | null
+          asignadas: number | null
+          direction: Database["public"]["Enums"]["dock_direction"] | null
+          en_curso: number | null
+          libres: number | null
+          personas: number | null
+        }
+        Relationships: []
+      }
       despacho_progreso: {
         Row: {
           anden: string | null
@@ -3283,22 +3294,10 @@ export type Database = {
       asignar_anden: {
         Args: { p_anden?: string; p_profile_id: string }
         Returns: {
-          dock_door_id: string | null
-          ended_at: string | null
-          equipment_id: string | null
-          flow: string
-          id: string
-          pause_note: string | null
-          paused_at: string | null
-          profile_id: string
-          started_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "shift_assignment"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+          anden: string
+          en_curso: string
+          liberadas: number
+        }[]
       }
       assign_barcode: {
         Args: {
