@@ -63,7 +63,7 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
       </div>
 
       <div className="flex gap-3">
-        <Dato titulo="Pedido" valor={camion.pedido} />
+        <Dato titulo="Lleva" valor={camion.pedido} />
         <Dato titulo="Surtido" valor={camion.surtido} />
         <Dato titulo="Tareas abiertas" valor={camion.pendientes} />
       </div>
