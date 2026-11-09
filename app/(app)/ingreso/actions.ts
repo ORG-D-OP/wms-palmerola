@@ -67,12 +67,6 @@ export async function buscarIngreso(
     return { ok: false, error: `No hay ningún ingreso con el pedido ${parsed.data}.` }
   }
 
-  const { data: cabecera } = await supabase
-    .from('inbound_doc')
-    .select('sin_aviso, nota')
-    .eq('id', doc.id)
-    .single()
-
   const { data: detalle } = await supabase
     .from('inbound_detail')
     .select('pallet_code, sku, name, qty_cases, lot, expiry_date, tipo_caja, received_at')
@@ -83,8 +77,8 @@ export async function buscarIngreso(
     ok: true,
     doc: {
       pedido: doc.pedido,
-      sinAviso: cabecera?.sin_aviso ?? false,
-      nota: cabecera?.nota ?? null,
+      sinAviso: doc.sin_aviso ?? false,
+      nota: doc.nota ?? doc.origin_plant ?? null,
       estado: doc.status ?? 'EXPECTED',
       fecha: doc.planned_at,
       pallets: doc.pallets ?? 0,
@@ -193,7 +187,6 @@ export async function abrirSinAviso(
 export type Producto = {
   sku: string
   name: string
-  exigeVencimiento: boolean
 }
 
 /** Qué producto es el que el chequeador tiene en la mano, antes de preguntarle cuántas cajas. */
@@ -215,7 +208,7 @@ export async function buscarProducto(
 
   return {
     ok: true,
-    producto: { sku: data.sku, name: data.name, exigeVencimiento: data.requires_fefo },
+    producto: { sku: data.sku, name: data.name },
   }
 }
 
@@ -224,8 +217,11 @@ const ReciboCiego = z.object({
   codigo: z.string().trim().min(3).max(48),
   cases: z.coerce.number().positive().max(9999),
   dockLocationId: z.uuid(),
-  lot: z.string().trim().max(40).optional(),
-  expiry: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  // Sin documento, el lote y el vencimiento los pone quien descarga, y son los dos datos
+  // que nadie puede reconstruir después. La matrícula del pallet sí es opcional: muchos no
+  // traen etiqueta legible.
+  lot: z.string().trim().min(1, 'Escribe el lote.').max(40),
+  expiry: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Escribe el vencimiento.'),
   palletCode: z.string().trim().min(4).max(32).optional(),
 })
 

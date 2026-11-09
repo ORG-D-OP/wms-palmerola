@@ -104,8 +104,20 @@ const sinCajas = await falla(
 )
 check(sinCajas?.includes('cuántas cajas'), 'no se recibe un pallet sin decir cuantas cajas trae')
 
+const sinLote = await falla(
+  `select * from recibir_sin_aviso($1, '61244C4', 10, $2, null, '2027-01-31')`,
+  [doc.pedido, anden],
+)
+check(sinLote?.includes('lote'), 'sin documento, el lote es obligatorio: nadie lo reconstruye')
+
+const sinVencimiento = await falla(
+  `select * from recibir_sin_aviso($1, '61244C4', 10, $2, 'L-9')`,
+  [doc.pedido, anden],
+)
+check(sinVencimiento?.includes('FEFO'), 'y el vencimiento también, porque de ahí sale el FEFO')
+
 const faltaCorrugado = await falla(
-  `select * from recibir_sin_aviso($1, 'SIN-CASE', 10, $2)`,
+  `select * from recibir_sin_aviso($1, 'SIN-CASE', 10, $2, 'L-9', '2027-01-31')`,
   [doc.pedido, anden],
 )
 check(
@@ -171,16 +183,26 @@ check(repetida !== null, 'la misma matricula no entra dos veces')
 const { pedido: conDocumento } = await one(
   `insert into inbound_doc (pedido) values ('60213772') returning pedido`,
 )
-const mezclado = await falla(`select * from recibir_sin_aviso($1, '61244C4', 10, $2)`, [
-  conDocumento,
-  anden,
-])
+const mezclado = await falla(
+  `select * from recibir_sin_aviso($1, '61244C4', 10, $2, 'L-9', '2027-01-31')`,
+  [conDocumento, anden],
+)
 check(
   mezclado?.includes('tiene documento'),
   'un ingreso anunciado se recibe contra su lista, no a ciegas',
 )
 
 // --- cerrar el acta ----------------------------------------------------------------------
+
+const enProgreso = await one(
+  `select sin_aviso, nota from inbound_progress where id = $1`,
+  [doc.id],
+)
+check(
+  enProgreso.sin_aviso === true,
+  'la pantalla sabe de una sola consulta que el ingreso es a ciegas',
+)
+check(enProgreso.nota === 'Avisaron por correo', 'y por qué lo abrieron')
 
 const abiertos = await db.query(`select pedido from ingreso_abierto order by pedido`)
 check(
@@ -206,10 +228,10 @@ check(
 const cerrado = await one(`select * from cerrar_ingreso_sin_aviso($1)`, [doc.pedido])
 check(cerrado.status === 'CLOSED', 'el chequeador cierra el acta')
 
-const despues = await falla(`select * from recibir_sin_aviso($1, '61244C4', 10, $2)`, [
-  doc.pedido,
-  anden,
-])
+const despues = await falla(
+  `select * from recibir_sin_aviso($1, '61244C4', 10, $2, 'L-9', '2027-01-31')`,
+  [doc.pedido, anden],
+)
 check(despues?.includes('ya está cerrado'), 'cerrada el acta, no se le agrega nada mas')
 
 const dosVeces = await falla(`select cerrar_ingreso_sin_aviso($1)`, [doc.pedido])
