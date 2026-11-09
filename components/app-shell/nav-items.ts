@@ -18,7 +18,7 @@ const TODOS = [
     href: '/despacho',
     label: 'Despacho',
     icon: 'outbound',
-    permiso: 'despachos:administrar',
+    permiso: 'inventario:mover',
     movil: true,
   },
   { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover', movil: true },
@@ -37,7 +37,6 @@ const TODOS = [
     permiso: 'turno:iniciar',
     movil: false,
   },
-  { href: '/rack', label: 'Racks', icon: 'view_in_ar', permiso: 'inventario:ver', movil: false },
   {
     href: '/carga-inicial',
     label: 'Carga inicial',

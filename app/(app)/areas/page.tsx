@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
 import { BotonCamara } from '@/components/ui/boton-camara'
 import { Cambios } from './cambios'
+import { Plano } from './plano'
 
 export const metadata = { title: 'Áreas · WMS Palmerola' }
 
@@ -97,6 +98,7 @@ export default async function AreasPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg">Cambiar un rango</h2>
+        <Plano seleccionado={filas[0]?.code ?? undefined} />
         <form className="flex gap-2">
           <input
             name="q"
@@ -115,8 +117,8 @@ export default async function AreasPage({
 
         {patron.length === 0 ? (
           <p className="text-sm text-azul/60">
-            Escribe el principio del código: F1 son las 275 de ese bloque, F1-001 la primera
-            columna, R-ABA-L01 el primer carril de abarrotes.
+            O escanea la etiqueta del lugar, o escribe el principio del código: F1 son las 275
+            de ese bloque, F1-001 la primera columna, R-ABA-L01 el primer carril de abarrotes.
           </p>
         ) : patron.length < 3 ? (
           <p className="text-sm text-azul/60">Escribe al menos tres caracteres.</p>

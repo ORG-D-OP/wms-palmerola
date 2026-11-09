@@ -8,7 +8,7 @@ import { BOTON, BOTON_SUAVE } from '@/components/ui/campos'
 import { ESTADO } from '../pedidos/estado'
 import { buscarDespacho, despachar, recargarDespacho, type Camion } from './actions'
 
-export function DespachoForm() {
+export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
   const [camion, setCamion] = useState<Camion | null>(null)
   const [error, setError] = useState('')
   const [pending, empezar] = useTransition()
@@ -87,7 +87,7 @@ export function DespachoForm() {
 
       {despachado ? (
         <Logro>El camión salió. No queda nada por hacer con esta hoja.</Logro>
-      ) : (
+      ) : puedeCerrar ? (
         <button
           type="button"
           disabled={pending || !listo}
@@ -96,12 +96,18 @@ export function DespachoForm() {
         >
           {pending ? 'Despachando...' : 'Marcar camión despachado'}
         </button>
-      )}
+      ) : null}
 
       {!listo && !despachado ? (
         <p className="text-sm text-azul/60">
           Quedan {camion.pendientes} tareas de surtido abiertas. El camión no se puede cerrar
           hasta que terminen.
+        </p>
+      ) : null}
+
+      {listo && !despachado && !puedeCerrar ? (
+        <p className="text-sm text-azul/60">
+          Ya está todo surtido. El camión lo cierra el chequeador con la hoja en la mano.
         </p>
       ) : null}
 

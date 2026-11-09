@@ -14,6 +14,7 @@ export type Turno = {
   desde: string
   pausado: boolean
   motivo: string | null
+  anden: string | null
 }
 
 /**
@@ -55,6 +56,15 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
             <dt className={ETIQUETA}>Alcance</dt>
             <dd className="text-lg">
               {turno.alcance === 0 ? 'Solo piso' : `Hasta el nivel ${turno.alcance}`}
+            </dd>
+          </div>
+          <div className="col-span-2">
+            <dt className={ETIQUETA}>Andén</dt>
+            <dd className="text-lg">{turno.anden ?? 'Toda la bodega'}</dd>
+            <dd className="text-sm text-azul/60">
+              {turno.anden
+                ? 'Sólo te caen tareas de este andén. Lo cambia el jefe de bodega.'
+                : 'Te cae trabajo de cualquier andén.'}
             </dd>
           </div>
         </dl>

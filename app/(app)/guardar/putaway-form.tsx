@@ -3,18 +3,26 @@
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { WarehouseCanvas } from '@/components/warehouse-canvas'
-import { RackElevation } from '@/components/rack-elevation'
-import { nivelesDe } from '@/lib/warehouse/plano'
+import { RackFace } from '@/components/rack-face'
 import { Aviso } from '@/components/ui/feedback'
-import { BOTON } from '@/components/ui/campos'
+import { BOTON, BOTON_SUAVE } from '@/components/ui/campos'
+import { Icon } from '@/components/ui/icon'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
-
 
 type Paso = 'inicio' | 'tomar' | 'llevar' | 'listo'
 
+/**
+ * Guardar un pallet: tomarlo del andén y llevarlo al hueco que el sistema escogió.
+ *
+ * El plano de planta sirve para llegar al rack —es un mapa, dice por dónde ir—, pero desde
+ * arriba seis niveles son un solo cuadro y no dice en cuál dejarlo. Así que el montacarguista
+ * llega al pasillo, toca su rack en el plano y ahí sí aparece la cara del rack con el hueco
+ * marcado. Las dos vistas, cada una para lo que sirve, y en el orden en que se necesitan.
+ */
 export function PutawayForm() {
   const [paso, setPaso] = useState<Paso>('inicio')
   const [job, setJob] = useState<Job | null>(null)
+  const [verCara, setVerCara] = useState(false)
   const [guardadoEn, setGuardadoEn] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [vacio, setVacio] = useState(false)
@@ -28,6 +36,7 @@ export function PutawayForm() {
       if (!res.ok) return setError(res.error)
       if (!res.job) return setVacio(true)
       setJob(res.job)
+      setVerCara(false)
       setPaso('tomar')
     })
   }
@@ -99,16 +108,34 @@ export function PutawayForm() {
             <p className="text-sm text-azul/60">Llévalo a</p>
             <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
-          {job?.toCode ? (
-            <RackElevation code={job.toCode} niveles={nivelesDe(job.toCode)} />
+
+          {verCara && job?.cara ? (
+            <div className="flex flex-col gap-3">
+              <RackFace cara={job.cara} destino={job.toCode ?? undefined} />
+              <button type="button" onClick={() => setVerCara(false)} className={BOTON_SUAVE}>
+                <Icon name="map" />
+                Ver el plano
+              </button>
+            </div>
+          ) : job?.toCode ? (
+            <div className="flex flex-col gap-2">
+              <WarehouseCanvas
+                ocupacion={{}}
+                origen={job.fromCode ?? undefined}
+                destino={job.toCode}
+                onTocar={(t) => {
+                  if (job.cara && job.toCode?.startsWith(t.bloque)) setVerCara(true)
+                }}
+              />
+              {job.cara ? (
+                <p className="text-sm text-azul/60">
+                  Cuando llegues al rack, tócalo en el plano: se abre la cara con el hueco
+                  marcado.
+                </p>
+              ) : null}
+            </div>
           ) : null}
-          {job?.toCode ? (
-            <WarehouseCanvas
-              ocupacion={{}}
-              origen={job.fromCode ?? undefined}
-              destino={job.toCode}
-            />
-          ) : null}
+
           <ScanInput
             label="Escanea la posición donde lo dejaste"
             disabled={pending}

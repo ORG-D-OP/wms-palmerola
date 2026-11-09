@@ -46,7 +46,7 @@ const Codigo = z.string().trim().min(1).max(40)
  * cliente y a la bodega no le dice nada.
  */
 export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('despachos:administrar')
+  await requirePermission('inventario:mover')
 
   const parsed = Codigo.safeParse(codigo)
   if (!parsed.success) return { ok: false, error: 'Código inválido.' }
@@ -62,7 +62,7 @@ export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion
 }
 
 export async function recargarDespacho(id: string): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('despachos:administrar')
+  await requirePermission('inventario:mover')
   const supabase = await createSupabaseServerClient()
   return cargar(supabase, id)
 }

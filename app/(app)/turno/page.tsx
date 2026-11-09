@@ -3,6 +3,7 @@ import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { TurnoForm, type Equipo } from './turno-form'
 import { Flota } from './flota'
+import { Reparto, type Persona } from './reparto'
 
 export const metadata = { title: 'Disponibilidad · WMS Palmerola' }
 
@@ -10,19 +11,33 @@ export default async function TurnoPage() {
   const user = await requirePermission('turno:iniciar')
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: turnos }, { data: equipos }, { data: tipos }] = await Promise.all([
-    supabase
-      .from('shift_assignment')
-      .select('started_at, paused_at, pause_note, equipment(code, equipment_type(name, max_level))')
-      .is('ended_at', null)
-      .eq('profile_id', user.id),
-    supabase
-      .from('equipment')
-      .select('id, code, equipment_type(name, max_level), shift_assignment(ended_at)')
-      .eq('is_active', true)
-      .order('code'),
-    supabase.from('equipment_type').select('code, name, max_level').eq('is_active', true),
-  ])
+  const reparte = can(user.role, 'tareas:reasignar')
+
+  const [{ data: turnos }, { data: equipos }, { data: tipos }, { data: gente }, { data: puertas }] =
+    await Promise.all([
+      supabase
+        .from('shift_assignment')
+        .select(
+          'started_at, paused_at, pause_note, dock_door(code), equipment(code, equipment_type(name, max_level))',
+        )
+        .is('ended_at', null)
+        .eq('profile_id', user.id),
+      supabase
+        .from('equipment')
+        .select('id, code, equipment_type(name, max_level), shift_assignment(ended_at)')
+        .eq('is_active', true)
+        .order('code'),
+      supabase.from('equipment_type').select('code, name, max_level').eq('is_active', true),
+      reparte
+        ? supabase
+            .from('disponibles')
+            .select('id, full_name, role, disponible, pause_note, equipo, anden')
+            .order('full_name')
+        : { data: null },
+      reparte
+        ? supabase.from('dock_door').select('code').eq('is_active', true).order('code')
+        : { data: null },
+    ])
 
   const abierto = turnos?.[0]
   const turno = abierto
@@ -33,6 +48,7 @@ export default async function TurnoPage() {
         desde: abierto.started_at,
         pausado: abierto.paused_at !== null,
         motivo: abierto.pause_note,
+        anden: abierto.dock_door?.code ?? null,
       }
     : null
 
@@ -48,6 +64,23 @@ export default async function TurnoPage() {
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-xl">Mi trabajo</h1>
       <TurnoForm turno={turno} equipos={flota} />
+
+      {reparte ? (
+        <Reparto
+          gente={(gente ?? []).map(
+            (p): Persona => ({
+              id: p.id ?? '',
+              nombre: p.full_name ?? '',
+              rol: p.role ?? 'solo_lectura',
+              disponible: p.disponible ?? false,
+              motivo: p.pause_note,
+              equipo: p.equipo,
+              anden: p.anden,
+            }),
+          )}
+          andenes={(puertas ?? []).map((d) => d.code)}
+        />
+      ) : null}
 
       {can(user.role, 'flota:administrar') ? (
         <Flota

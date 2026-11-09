@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import type { Cara } from '@/components/rack-face'
+import { caraDe } from '@/lib/warehouse/cara'
 
 export type Pick = {
   taskId: string
@@ -14,6 +16,11 @@ export type Pick = {
   expiry: string | null
   fromCode: string | null
   toCode: string | null
+  /** La matrícula del pallet, cuando la tarea es de un pallet concreto. */
+  lpnCode: string | null
+  /** El pallet se va completo: no hay nada que contar ni caja que abrir. */
+  palletEntero: boolean
+  cara: Cara | null
 }
 
 type Fail = { ok: false; error: string }
@@ -34,7 +41,8 @@ export async function claimPick(): Promise<{ ok: true; pick: Pick | null } | Fai
   const { data } = await supabase
     .from('task')
     .select(
-      `id, qty_base, lot, expiry_date,
+      `id, qty_base, lot, expiry_date, lpn_id,
+       lpn(code),
        product(sku, name),
        from_location:location!task_from_location_id_fkey(code),
        to_location:location!task_to_location_id_fkey(code)`,
@@ -44,17 +52,37 @@ export async function claimPick(): Promise<{ ok: true; pick: Pick | null } | Fai
 
   if (!data) return { ok: false, error: 'No se pudo cargar la tarea.' }
 
+  const fromCode = data.from_location?.code ?? null
+  const qty = Number(data.qty_base)
+
+  // Un pallet se va entero cuando la tarea pide todo lo que ese pallet tiene en esa
+  // posición. Eso cambia la pantalla: se confirma con la matrícula y no se cuenta nada.
+  let palletEntero = false
+  if (data.lpn_id && task.from_location_id) {
+    const { data: hay } = await supabase
+      .from('stock')
+      .select('qty_base')
+      .eq('location_id', task.from_location_id)
+      .eq('product_id', task.product_id ?? '')
+      .eq('lpn_id', data.lpn_id)
+      .maybeSingle()
+    palletEntero = hay ? Number(hay.qty_base) === qty : false
+  }
+
   return {
     ok: true,
     pick: {
       taskId: data.id,
       productName: data.product?.name ?? '',
       sku: data.product?.sku ?? '',
-      qty: Number(data.qty_base),
+      qty,
       lot: data.lot,
       expiry: data.expiry_date,
-      fromCode: data.from_location?.code ?? null,
+      fromCode,
       toCode: data.to_location?.code ?? null,
+      lpnCode: data.lpn?.code ?? null,
+      palletEntero,
+      cara: await caraDe(supabase, fromCode),
     },
   }
 }
