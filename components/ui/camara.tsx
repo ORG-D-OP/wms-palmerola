@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { cumpleFormato, FORMATOS_DE_CAMPO, type FormatoDeCampo } from '@/lib/warehouse/codigo'
 import { abrirLector, type Lectura } from '@/lib/warehouse/lector'
 import { Icon } from './icon'
 
@@ -33,9 +34,12 @@ const MOTIVOS: Record<string, string> = {
 export function Camara({
   onLeer,
   onCerrar,
+  formato,
 }: {
   onLeer: (codigo: string) => void
   onCerrar: () => void
+  /** Si se indica, la camara ignora lo que no tenga esa forma y dice por que. */
+  formato?: FormatoDeCampo
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const pista = useRef<MediaStreamTrack | null>(null)
@@ -47,8 +51,11 @@ export function Camara({
   const [encendida, setEncendida] = useState(false)
   const [hayLinterna, setHayLinterna] = useState(false)
 
+  const formatoRef = useRef(formato)
+
   useEffect(() => {
     alLeer.current = onLeer
+    formatoRef.current = formato
   })
 
   // Sin dependencias a proposito: la camara se abre una vez y no se reinicia porque la
@@ -131,7 +138,9 @@ export function Camara({
         }
         if (!vivo) return
 
-        const buena = lecturas.find((lectura) => lectura.confiable)
+        const buena = lecturas.find(
+          (lectura) => lectura.confiable && cumpleFormato(lectura.texto, formatoRef.current),
+        )
         if (buena) {
           // Una sola lectura por apertura, asi que no hay forma de contar dos veces el
           // mismo pallet. En bodega con ruido la vibracion le gana al pitido.
@@ -168,6 +177,8 @@ export function Camara({
       .catch(() => setHayLinterna(false))
   }
 
+  const esperado = formato ? FORMATOS_DE_CAMPO[formato].nombre : null
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="relative flex-1 overflow-hidden">
@@ -181,11 +192,13 @@ export function Camara({
             </span>
           ) : descartada ? (
             <>
-              Leí <span className="tabular-nums">{descartada.texto}</span> y no es un código
-              completo. Acércate un poco más.
+              Leí <span className="tabular-nums">{descartada.texto}</span>
+              {esperado ? <> y eso no es {esperado}.</> : <> y no es un código completo.</>}
             </>
           ) : (
-            <>Centra el código y acerca el teléfono a unos 20 cm</>
+            <>
+              Centra {esperado ?? 'el código'} y acerca el teléfono a unos 20 cm
+            </>
           )}
         </p>
 

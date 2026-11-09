@@ -1,5 +1,11 @@
 import { check } from './lib/boot-db.mjs'
-import { cumpleGs1, digitoGs1, esConfiable, normalizar } from '../lib/warehouse/codigo.ts'
+import {
+  cumpleFormato,
+  cumpleGs1,
+  digitoGs1,
+  esConfiable,
+  normalizar,
+} from '../lib/warehouse/codigo.ts'
 
 /**
  * Lo que separa una lectura buena de una mala.
@@ -38,3 +44,14 @@ check(esConfiable('', 'code_128') === false, 'rechaza una lectura vacia')
 // Los lectores agregan terminadores y, a veces, el identificador de simbologia.
 check(normalizar(' 3916464\r\n') === '3916464', 'quita espacios y salto de linea')
 check(normalizar('39\u000016464').length === 7, 'quita los caracteres de control de en medio')
+
+// --- lo que cada campo acepta de la camara ----------------------------------------------
+
+check(cumpleFormato('60213772', 'pedido'), 'un pedido de ocho digitos pasa')
+check(!cumpleFormato('3916464', 'pedido'), 'el transporte del tabulado no pasa por pedido')
+check(!cumpleFormato('602137720', 'pedido'), 'nueve digitos no son un pedido')
+check(!cumpleFormato('7501234567893', 'pedido'), 'el DUN-14 de una caja tampoco')
+check(!cumpleFormato('ABC12345', 'pedido'), 'ni un texto de ocho caracteres')
+check(cumpleFormato('3916464', 'transporte'), 'el transporte de siete digitos pasa')
+check(!cumpleFormato('7501234567893', 'transporte'), 'un codigo de producto no es un transporte')
+check(cumpleFormato('cualquier cosa', undefined), 'sin formato declarado, el campo acepta todo')

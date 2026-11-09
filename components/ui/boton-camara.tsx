@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useRef, useState } from 'react'
 import { Icon } from './icon'
 import { useHayCamara } from './hay-camara'
+import type { FormatoDeCampo } from '@/lib/warehouse/codigo'
 
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
 
@@ -17,8 +18,20 @@ const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: fa
  * Con `enviar` manda el formulario de una vez: sirve en los buscadores, donde el codigo es
  * lo unico que hace falta. Sin `enviar` solo llena el campo, porque en los formularios que
  * piden algo mas —la cantidad, el anden— mandarlo a medias seria un error.
+ *
+ * Con `formato` el campo solo acepta lo que tenga esa forma. Hace falta cuando en la misma
+ * hoja hay mas de un codigo —el comprobante de carga trae el tabulado y el pedido— y la
+ * camara, al contrario del laser, lee el que encuentre primero.
  */
-export function BotonCamara({ campo, enviar = false }: { campo: string; enviar?: boolean }) {
+export function BotonCamara({
+  campo,
+  enviar = false,
+  formato,
+}: {
+  campo: string
+  enviar?: boolean
+  formato?: FormatoDeCampo
+}) {
   const boton = useRef<HTMLButtonElement>(null)
   const [abierta, setAbierta] = useState(false)
   const hayCamara = useHayCamara()
@@ -46,7 +59,9 @@ export function BotonCamara({ campo, enviar = false }: { campo: string; enviar?:
       >
         <Icon name="photo_camera" />
       </button>
-      {abierta && <Camara onLeer={recibir} onCerrar={() => setAbierta(false)} />}
+      {abierta && (
+        <Camara onLeer={recibir} onCerrar={() => setAbierta(false)} formato={formato} />
+      )}
     </>
   )
 }

@@ -29,6 +29,7 @@ export function DespachoForm() {
           label="Escanea el código de la hoja de despacho"
           disabled={pending}
           onScan={(codigo) => empezar(async () => resolver(await buscarDespacho(codigo)))}
+          formato="transporte"
         />
         <p className="text-sm text-azul/60">
           El código de barras de la hoja es el número de transporte. Si el mismo camión trae

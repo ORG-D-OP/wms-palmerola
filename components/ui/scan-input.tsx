@@ -5,6 +5,7 @@ import { useRef, useState } from 'react'
 import { Icon } from './icon'
 import { CAMPO, ETIQUETA } from './campos'
 import { useHayCamara } from './hay-camara'
+import type { FormatoDeCampo } from '@/lib/warehouse/codigo'
 
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
 
@@ -16,15 +17,21 @@ const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: fa
  * Enter, como cualquier teclado. La camara decodifica y llama la misma funcion. Y el boton
  * del teclado existe porque `inputMode="none"` —necesario para que el teclado del telefono
  * no tape la pantalla cuando hay laser— tambien impide teclear cuando no lo hay.
+ *
+ * `formato` solo limita a la camara: ahi el operario apunta a una hoja con varios codigos
+ * y no elige cual lee. El laser y el teclado quedan libres, que es lo que hace falta
+ * mientras los codigos impresos se esten corrigiendo.
  */
 export function ScanInput({
   label,
   disabled,
   onScan,
+  formato,
 }: {
   label: string
   disabled: boolean
   onScan: (code: string) => void
+  formato?: FormatoDeCampo
 }) {
   const campo = useRef<HTMLInputElement>(null)
   const hayCamara = useHayCamara()
@@ -85,7 +92,9 @@ export function ScanInput({
           )}
         </span>
       </span>
-      {camara && <Camara onLeer={recibirDeCamara} onCerrar={() => setCamara(false)} />}
+      {camara && (
+        <Camara onLeer={recibirDeCamara} onCerrar={() => setCamara(false)} formato={formato} />
+      )}
     </label>
   )
 }
