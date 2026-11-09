@@ -45,8 +45,8 @@ const APARTADA = 'rgba(0, 155, 221, 0.45)'
 
 /**
  * El tono dice qué tan llena está esa posición. En piso es sí o no; en rack, cuántos de
- * sus niveles están ocupados, porque desde arriba los seis niveles son un solo cuadro y
- * la cara con nivel por nivel está en /rack.
+ * sus niveles están ocupados, porque desde arriba los seis niveles son un solo cuadro. La
+ * cara con nivel por nivel sale al llegar al rack, en Guardar y en Surtir.
  */
 function tono(c: Conteo | undefined, niveles: number) {
   if (!c) return LIBRE

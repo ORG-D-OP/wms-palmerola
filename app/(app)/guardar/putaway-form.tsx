@@ -14,10 +14,11 @@ type Paso = 'inicio' | 'tomar' | 'llevar' | 'listo'
 /**
  * Guardar un pallet: tomarlo del andén y llevarlo al hueco que el sistema escogió.
  *
- * El plano de planta sirve para llegar al rack —es un mapa, dice por dónde ir—, pero desde
- * arriba seis niveles son un solo cuadro y no dice en cuál dejarlo. Así que el montacarguista
- * llega al pasillo, toca su rack en el plano y ahí sí aparece la cara del rack con el hueco
- * marcado. Las dos vistas, cada una para lo que sirve, y en el orden en que se necesitan.
+ * Dos vistas, un botón para cambiar entre ellas, porque son dos momentos distintos: el plano
+ * de planta es el camino —un mapa, dice por dónde ir— y la cara del rack es la llegada, que
+ * es lo único que dice en cuál de los seis niveles va, porque desde arriba los seis niveles
+ * son un solo cuadro. El botón y no un toque sobre el plano: en un teléfono esos cuadros son
+ * de dos milímetros.
  */
 export function PutawayForm() {
   const [paso, setPaso] = useState<Paso>('inicio')
@@ -109,29 +110,26 @@ export function PutawayForm() {
             <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
           </div>
 
-          {verCara && job?.cara ? (
+          {job?.toCode ? (
             <div className="flex flex-col gap-3">
-              <RackFace cara={job.cara} destino={job.toCode ?? undefined} />
-              <button type="button" onClick={() => setVerCara(false)} className={BOTON_SUAVE}>
-                <Icon name="map" />
-                Ver el plano
-              </button>
-            </div>
-          ) : job?.toCode ? (
-            <div className="flex flex-col gap-2">
-              <WarehouseCanvas
-                ocupacion={{}}
-                origen={job.fromCode ?? undefined}
-                destino={job.toCode}
-                onTocar={(t) => {
-                  if (job.cara && job.toCode?.startsWith(t.bloque)) setVerCara(true)
-                }}
-              />
+              {verCara && job.cara ? (
+                <RackFace cara={job.cara} destino={job.toCode} />
+              ) : (
+                <WarehouseCanvas
+                  ocupacion={{}}
+                  origen={job.fromCode ?? undefined}
+                  destino={job.toCode}
+                />
+              )}
               {job.cara ? (
-                <p className="text-sm text-azul/60">
-                  Cuando llegues al rack, tócalo en el plano: se abre la cara con el hueco
-                  marcado.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setVerCara(!verCara)}
+                  className={BOTON_SUAVE}
+                >
+                  <Icon name={verCara ? 'map' : 'view_in_ar'} />
+                  {verCara ? 'Ver el camino' : 'Ya llegué: ver la cara del rack'}
+                </button>
               ) : null}
             </div>
           ) : null}

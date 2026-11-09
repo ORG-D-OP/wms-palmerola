@@ -119,28 +119,22 @@ export function PickForm() {
             </p>
           ) : null}
 
-          {verCara && pick?.cara ? (
+          {pick?.fromCode ? (
             <div className="flex flex-col gap-3">
-              <RackFace cara={pick.cara} destino={pick.fromCode ?? undefined} />
-              <button type="button" onClick={() => setVerCara(false)} className={BOTON_SUAVE}>
-                <Icon name="map" />
-                Ver el plano
-              </button>
-            </div>
-          ) : pick?.fromCode ? (
-            <div className="flex flex-col gap-2">
-              <WarehouseCanvas
-                ocupacion={{}}
-                destino={pick.fromCode}
-                onTocar={(t) => {
-                  if (pick.cara && pick.fromCode?.startsWith(t.bloque)) setVerCara(true)
-                }}
-              />
+              {verCara && pick.cara ? (
+                <RackFace cara={pick.cara} destino={pick.fromCode} />
+              ) : (
+                <WarehouseCanvas ocupacion={{}} destino={pick.fromCode} />
+              )}
               {pick.cara ? (
-                <p className="text-sm text-azul/60">
-                  Cuando llegues al rack, tócalo en el plano: se abre la cara con la posición
-                  marcada.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setVerCara(!verCara)}
+                  className={BOTON_SUAVE}
+                >
+                  <Icon name={verCara ? 'map' : 'view_in_ar'} />
+                  {verCara ? 'Ver el camino' : 'Ya llegué: ver la cara del rack'}
+                </button>
               ) : null}
             </div>
           ) : null}

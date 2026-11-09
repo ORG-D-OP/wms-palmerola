@@ -17,7 +17,14 @@ import { mandarACrossdock, opcionesCrossdock, type OpcionCrossdock } from './act
  * Va montado con `key={lpnCode}`: cada pallet es una pregunta nueva, y dejar que React lo
  * vuelva a montar es más barato y más seguro que limpiar el estado a mano.
  */
-export function Crossdock({ lpnCode }: { lpnCode: string }) {
+export function Crossdock({
+  lpnCode,
+  onEsperandoAnden,
+}: {
+  lpnCode: string
+  /** Mientras se espera el escaneo del andén, el pallet siguiente no se puede escanear. */
+  onEsperandoAnden?: (esperando: boolean) => void
+}) {
   const [opciones, setOpciones] = useState<OpcionCrossdock[]>([])
   const [elegido, setElegido] = useState<OpcionCrossdock | null>(null)
   const [hecho, setHecho] = useState<{ anden: string; etiqueta: string } | null>(null)
@@ -35,6 +42,10 @@ export function Crossdock({ lpnCode }: { lpnCode: string }) {
       vigente = false
     }
   }, [lpnCode])
+
+  useEffect(() => {
+    onEsperandoAnden?.(elegido !== null)
+  }, [elegido, onEsperandoAnden])
 
   const pasar = (anden: string) => {
     if (!elegido || !anden.trim()) return

@@ -25,6 +25,7 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
   const [verLista, setVerLista] = useState(false)
   const [abriendoCiego, setAbriendoCiego] = useState(false)
+  const [enCrossdock, setEnCrossdock] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -239,7 +240,13 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
         </div>
       ) : null}
 
-      {ultimo ? <Crossdock key={ultimo.lpnCode} lpnCode={ultimo.lpnCode} /> : null}
+      {ultimo ? (
+        <Crossdock
+          key={ultimo.lpnCode}
+          lpnCode={ultimo.lpnCode}
+          onEsperandoAnden={setEnCrossdock}
+        />
+      ) : null}
 
       {doc.sinAviso ? (
         <>
@@ -255,7 +262,7 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
             Terminé de descargar: cerrar el acta
           </button>
         </>
-      ) : faltan > 0 ? (
+      ) : enCrossdock ? null : faltan > 0 ? (
         <ScanInput
           label="Escanea la etiqueta del pallet"
           disabled={pending}

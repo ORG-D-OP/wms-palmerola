@@ -3,7 +3,7 @@ import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { TurnoForm, type Equipo } from './turno-form'
 import { Flota } from './flota'
-import { Reparto, type Persona } from './reparto'
+import { Reparto, type Carga, type Persona } from './reparto'
 
 export const metadata = { title: 'Disponibilidad · WMS Palmerola' }
 
@@ -35,7 +35,10 @@ export default async function TurnoPage() {
             .order('full_name')
         : { data: null },
       reparte
-        ? supabase.from('dock_door').select('code').eq('is_active', true).order('code')
+        ? supabase
+            .from('carga_por_anden')
+            .select('anden, libres, asignadas, en_curso, personas')
+            .order('anden')
         : { data: null },
     ])
 
@@ -78,7 +81,15 @@ export default async function TurnoPage() {
               anden: p.anden,
             }),
           )}
-          andenes={(puertas ?? []).map((d) => d.code)}
+          carga={(puertas ?? []).map(
+            (c): Carga => ({
+              anden: c.anden ?? '',
+              libres: c.libres ?? 0,
+              asignadas: c.asignadas ?? 0,
+              enCurso: c.en_curso ?? 0,
+              personas: c.personas ?? 0,
+            }),
+          )}
         />
       ) : null}
 
