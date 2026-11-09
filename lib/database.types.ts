@@ -353,9 +353,11 @@ export type Database = {
           goods_issue: string | null
           id: string
           mix: string | null
+          nota: string | null
           origin_plant: string | null
           pedido: string
           planned_at: string | null
+          sin_aviso: boolean
           status: string
           tabulado: string | null
           transporte: string | null
@@ -367,9 +369,11 @@ export type Database = {
           goods_issue?: string | null
           id?: string
           mix?: string | null
+          nota?: string | null
           origin_plant?: string | null
           pedido: string
           planned_at?: string | null
+          sin_aviso?: boolean
           status?: string
           tabulado?: string | null
           transporte?: string | null
@@ -381,9 +385,11 @@ export type Database = {
           goods_issue?: string | null
           id?: string
           mix?: string | null
+          nota?: string | null
           origin_plant?: string | null
           pedido?: string
           planned_at?: string | null
+          sin_aviso?: boolean
           status?: string
           tabulado?: string | null
           transporte?: string | null
@@ -432,6 +438,13 @@ export type Database = {
             columns: ["doc_id"]
             isOneToOne: false
             referencedRelation: "inbound_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_line_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "ingreso_abierto"
             referencedColumns: ["id"]
           },
           {
@@ -511,6 +524,13 @@ export type Database = {
             columns: ["doc_id"]
             isOneToOne: false
             referencedRelation: "inbound_progress"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "ingreso_abierto"
             referencedColumns: ["id"]
           },
           {
@@ -2281,6 +2301,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inbound_pallet_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "ingreso_abierto"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inbound_pallet_received_lpn_id_fkey"
             columns: ["received_lpn_id"]
             isOneToOne: false
@@ -2305,6 +2332,20 @@ export type Database = {
           pedido: string | null
           planned_at: string | null
           recibidos: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      ingreso_abierto: {
+        Row: {
+          cajas: number | null
+          created_at: string | null
+          id: string | null
+          materiales: number | null
+          nota: string | null
+          origin_plant: string | null
+          pallets: number | null
+          pedido: string | null
           status: string | null
         }
         Relationships: []
@@ -2770,6 +2811,31 @@ export type Database = {
       }
     }
     Functions: {
+      abrir_ingreso_sin_aviso: {
+        Args: { p_nota?: string; p_origen?: string }
+        Returns: {
+          created_at: string
+          entrega: string | null
+          goods_issue: string | null
+          id: string
+          mix: string | null
+          nota: string | null
+          origin_plant: string | null
+          pedido: string
+          planned_at: string | null
+          sin_aviso: boolean
+          status: string
+          tabulado: string | null
+          transporte: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inbound_doc"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       alcance_de: { Args: { p_profile_id: string }; Returns: number }
       apply_stock_delta: {
         Args: {
@@ -2843,6 +2909,31 @@ export type Database = {
           to: "inbound_progress"
           isOneToOne: false
           isSetofReturn: true
+        }
+      }
+      cerrar_ingreso_sin_aviso: {
+        Args: { p_pedido: string }
+        Returns: {
+          created_at: string
+          entrega: string | null
+          goods_issue: string | null
+          id: string
+          mix: string | null
+          nota: string | null
+          origin_plant: string | null
+          pedido: string
+          planned_at: string | null
+          sin_aviso: boolean
+          status: string
+          tabulado: string | null
+          transporte: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inbound_doc"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       cerrar_turno: { Args: never; Returns: number }
@@ -3035,6 +3126,16 @@ export type Database = {
         }
         Returns: number
       }
+      producto_para_recibir: {
+        Args: { p_codigo: string }
+        Returns: {
+          case_id: string
+          name: string
+          product_id: string
+          requires_fefo: boolean
+          sku: string
+        }[]
+      }
       reasignar_area: {
         Args: { p_area_code: string; p_location_ids: string[] }
         Returns: number
@@ -3078,6 +3179,27 @@ export type Database = {
           p_max_level?: number
           p_pallet_code: string
           p_pedido: string
+        }
+        Returns: {
+          cases: number
+          lpn_code: string
+          pallets: number
+          product_name: string
+          recibidos: number
+          sku: string
+          to_location_code: string
+        }[]
+      }
+      recibir_sin_aviso: {
+        Args: {
+          p_codigo: string
+          p_dock_location_id: string
+          p_expiry?: string
+          p_lot?: string
+          p_max_level?: number
+          p_pallet_code?: string
+          p_pedido: string
+          p_qty_cases: number
         }
         Returns: {
           cases: number
