@@ -81,7 +81,7 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
                 placeholder="60213772"
                 className={`${CAMPO} tabular-nums flex-1`}
               />
-              <BotonCamara campo="pedido" />
+              <BotonCamara campo="pedido" formato="pedido" />
             </span>
           </label>
           <button type="submit" disabled={pending} className={BOTON}>
