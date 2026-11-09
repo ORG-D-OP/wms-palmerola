@@ -3,7 +3,7 @@ import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { ForbiddenError } from '@/lib/errors'
-import { can, type Permission, type UserRole } from '@/lib/auth/roles'
+import { can, rolDe, type Permission, type UserRole } from '@/lib/auth/roles'
 
 export type SessionUser = {
   id: string
@@ -34,7 +34,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     id: user.id,
     email: user.email ?? null,
     fullName: profile.full_name,
-    role: profile.role,
+    role: rolDe(profile.role),
   }
 })
 
