@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/auth/session'
 import { can, rolDe } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { SwitchTeclado } from '@/components/ui/teclado'
 import { TurnoForm, type Equipo } from './turno-form'
 import { Flota } from './flota'
 import { Reparto, type Carga, type Persona } from './reparto'
@@ -67,6 +68,8 @@ export default async function TurnoPage() {
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-xl">Disponibilidad</h1>
       <TurnoForm turno={turno} equipos={flota} />
+
+      <SwitchTeclado />
 
       {reparte ? (
         <Reparto
