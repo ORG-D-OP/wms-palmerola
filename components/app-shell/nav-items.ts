@@ -51,13 +51,6 @@ const TODOS = [
     permiso: 'inventario:mover',
     movil: false,
   },
-  {
-    href: '/pedidos',
-    label: 'Pedidos',
-    icon: 'receipt_long',
-    permiso: 'pedidos:administrar',
-    movil: false,
-  },
   { href: '/productos', label: 'Productos', icon: 'inventory_2', permiso: null, movil: false },
   {
     href: '/areas',

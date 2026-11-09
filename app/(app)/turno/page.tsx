@@ -1,5 +1,5 @@
 import { requirePermission } from '@/lib/auth/session'
-import { can } from '@/lib/auth/roles'
+import { can, rolDe } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { TurnoForm, type Equipo } from './turno-form'
 import { Flota } from './flota'
@@ -74,7 +74,7 @@ export default async function TurnoPage() {
             (p): Persona => ({
               id: p.id ?? '',
               nombre: p.full_name ?? '',
-              rol: p.role ?? 'solo_lectura',
+              rol: rolDe(p.role),
               disponible: p.disponible ?? false,
               motivo: p.pause_note,
               equipo: p.equipo,

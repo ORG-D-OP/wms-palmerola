@@ -10,7 +10,7 @@ import type { FormatoDeCampo } from '@/lib/warehouse/codigo'
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
 
 /**
- * Cuánto se espera, después de la última tecla, para dar el código por completo.
+ * Cuánto se espera, después del último carácter, para dar el código por completo.
  *
  * Un lector teclea todo el código de corrido; este silencio es el final de la ráfaga. No se
  * mide la velocidad —hay lectores Bluetooth que teclean lento— porque en modo lector nadie
@@ -34,16 +34,23 @@ const armados: symbol[] = []
  * Campo de escaneo. Va fuera de cualquier render: si se declara dentro, React lo
  * recrea en cada actualizacion y el campo pierde el foco.
  *
- * **Listo para el lector sin que nadie haga nada, y sin pedirle Enter.** Dos cosas que no se
- * pueden dar por hechas: que el campo tenga el foco —los navegadores de teléfono ignoran el
- * `autofocus` al cargar la página— y que el lector venga configurado con sufijo Enter, porque
- * muchos salen de fábrica sin él y nadie va a configurar treinta aparatos uno por uno. Así
- * que las teclas se recogen también desde la ventana cuando el campo no tiene el foco, y el
- * código se cierra solo cuando dejan de llegar.
+ * **Es un campo de texto normal y corriente, y eso es a propósito.** Un campo normal con el
+ * foco puesto es lo único que funciona con todos los lectores: el de láser que teclea, el
+ * Bluetooth que teclea despacio y el de los aparatos Android, que no manda teclas sino que
+ * escribe en el campo como si fuera un teclado del sistema. Por eso aquí ya no se le dice
+ * `inputMode="none"` al navegador para esconder el teclado en pantalla —eso deja fuera al
+ * tercero— y por eso el valor no lo maneja React: a un campo controlado el lector le mete el
+ * texto y React se lo quita en el mismo parpadeo, y el operario ve el campo vacío. Lo
+ * escaneado vive en el DOM y se lee de ahí cuando hay que mandarlo.
  *
- * Escribir a mano se pide con el botón del teclado. Ahí el cierre automático se apaga y vale
- * sólo Enter, que es lo único que no se puede mezclar: tecleando despacio, cada pausa daría
- * el código por terminado.
+ * Encima de eso va lo que falta de fábrica: el foco al entrar —los navegadores de teléfono
+ * ignoran el `autofocus` al cargar la página— y el Enter, porque muchos lectores salen sin
+ * sufijo y nadie va a configurar treinta aparatos uno por uno. Cuando el texto deja de
+ * llegar, el código se da por terminado y se manda solo.
+ *
+ * Escribir a mano se pide con el botón del teclado: ahí el cierre automático se apaga y vale
+ * sólo Enter, que es lo único que no se puede mezclar, porque tecleando despacio cada pausa
+ * daría el código por terminado.
  *
  * `formato` solo limita a la camara: ahi el operario apunta a una hoja con varios codigos
  * y no elige cual lee. El laser y el teclado quedan libres, que es lo que hace falta
@@ -64,29 +71,21 @@ export function ScanInput({
   const espera = useRef(0)
   const hayCamara = useHayCamara()
   const [camara, setCamara] = useState(false)
-  const [teclado, setTeclado] = useState(false)
-  const [valor, setValor] = useState('')
+  const [aMano, setAMano] = useState(false)
 
-  // El valor tambien en un ref: el cierre automatico corre desde un reloj, fuera de React, y
-  // ahi no hay forma de leer el estado de la ultima vuelta.
-  const valorRef = useRef('')
   const alEscanear = useRef(onScan)
   useEffect(() => {
-    valorRef.current = valor
     alEscanear.current = onScan
   })
 
-  const escribir = useCallback((texto: string) => {
-    valorRef.current = texto
-    setValor(texto)
-  }, [])
-
   const soltar = useCallback(() => {
     window.clearTimeout(espera.current)
-    const codigo = valorRef.current.trim()
-    escribir('')
+    const caja = campo.current
+    if (!caja) return
+    const codigo = caja.value.trim()
+    caja.value = ''
     if (codigo.length >= LARGO_MINIMO) alEscanear.current(codigo)
-  }, [escribir])
+  }, [])
 
   /** Reinicia la cuenta para cerrar el código. Sólo en modo lector. */
   const programar = useCallback(() => {
@@ -94,10 +93,10 @@ export function ScanInput({
     espera.current = window.setTimeout(soltar, MS_PARA_CERRAR)
   }, [soltar])
 
-  // El foco se intenta al montar y se recupera con cualquier toque en la pantalla, que es la
+  // El foco se pide al entrar y se recupera con cualquier toque en la pantalla, que es la
   // única forma de que los navegadores de teléfono lo concedan.
   useEffect(() => {
-    if (teclado || camara || disabled) return
+    if (camara || disabled) return
 
     const enfocar = () => campo.current?.focus({ preventScroll: true })
     enfocar()
@@ -110,11 +109,12 @@ export function ScanInput({
 
     window.addEventListener('pointerdown', alTocar)
     return () => window.removeEventListener('pointerdown', alTocar)
-  }, [teclado, camara, disabled])
+  }, [camara, disabled])
 
-  // Cuando el campo no tiene el foco, el lector teclea al vacío: estas teclas se recogen aquí.
+  // Y si aun así el foco se fue a otro lado, el lector teclea al vacío: esas teclas se
+  // recogen aquí y se escriben en el campo, para que el operario vea lo que escaneó.
   useEffect(() => {
-    if (teclado || camara || disabled) return
+    if (aMano || camara || disabled) return
 
     const turno = Symbol('escaneo')
     armados.push(turno)
@@ -122,10 +122,8 @@ export function ScanInput({
     const alTeclear = (e: KeyboardEvent) => {
       if (armados[armados.length - 1] !== turno) return
       if (document.activeElement === campo.current) return
-      const dentroDeOtroCampo = (e.target as HTMLElement | null)?.closest(
-        'input, textarea, select, [contenteditable]',
-      )
-      if (dentroDeOtroCampo) return
+      if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]'))
+        return
 
       if (CIERRES.includes(e.key)) {
         e.preventDefault()
@@ -134,7 +132,9 @@ export function ScanInput({
       }
       if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return
 
-      escribir(valorRef.current + e.key)
+      const caja = campo.current
+      if (!caja) return
+      caja.value += e.key
       programar()
     }
 
@@ -143,19 +143,32 @@ export function ScanInput({
       window.removeEventListener('keydown', alTeclear)
       armados.splice(armados.indexOf(turno), 1)
     }
-  }, [teclado, camara, disabled, programar, soltar, escribir])
+  }, [aMano, camara, disabled, programar, soltar])
 
   useEffect(() => () => window.clearTimeout(espera.current), [])
 
+  /** Sin foco el lector escribe en el vacío, así que se recupera salvo que el operario se
+   * haya ido a propósito a otro control de la pantalla. */
+  function recuperarFoco() {
+    if (aMano || camara || disabled) return
+    window.setTimeout(() => {
+      const activo = document.activeElement
+      if (activo instanceof HTMLElement && activo.closest('button, a, select, input, textarea')) {
+        return
+      }
+      campo.current?.focus({ preventScroll: true })
+    }, 0)
+  }
+
   function escribirAMano() {
     window.clearTimeout(espera.current)
-    setTeclado(true)
+    setAMano(true)
     requestAnimationFrame(() => campo.current?.focus())
   }
 
   function recibirDeCamara(codigo: string) {
     setCamara(false)
-    escribir('')
+    if (campo.current) campo.current.value = ''
     onScan(codigo)
   }
 
@@ -167,16 +180,18 @@ export function ScanInput({
         <input
           ref={campo}
           autoFocus
-          value={valor}
           disabled={disabled}
-          inputMode={teclado ? 'text' : 'none'}
           autoComplete="off"
-          placeholder={teclado ? '' : 'Listo, escanea'}
-          className={`${CAMPO} pl-12 tabular-nums ${teclado ? 'pr-16' : 'pr-24'}`}
-          onChange={(e) => {
-            escribir(e.target.value)
-            if (!teclado) programar()
+          autoCorrect="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          enterKeyHint="search"
+          placeholder={aMano ? '' : 'Listo, escanea'}
+          className={`${CAMPO} pl-12 tabular-nums ${aMano ? 'pr-16' : 'pr-24'}`}
+          onChange={() => {
+            if (!aMano) programar()
           }}
+          onBlur={recuperarFoco}
           onKeyDown={(e) => {
             if (!CIERRES.includes(e.key)) return
             e.preventDefault()
@@ -184,7 +199,7 @@ export function ScanInput({
           }}
         />
         <span className="absolute right-2 flex items-center gap-1">
-          {!teclado && (
+          {!aMano && (
             <button
               type="button"
               onClick={escribirAMano}

@@ -5,7 +5,7 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE } from '@/components/ui/campos'
-import { ESTADO } from '../pedidos/estado'
+import { ESTADO } from './estado'
 import { buscarDespacho, despachar, recargarDespacho, type Camion } from './actions'
 
 export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
@@ -33,7 +33,8 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
         />
         <p className="text-sm text-azul/60">
           El código de barras de la hoja es el número de transporte. Si el mismo camión trae
-          varias hojas, se abren todas juntas: no importa cuál tengas en la mano.
+          varias hojas, se abren todas juntas: no importa cuál tengas en la mano. Al
+          escanearla se reparte el surtido entre los que estén en el andén.
         </p>
         {error ? <Aviso>{error}</Aviso> : null}
       </div>

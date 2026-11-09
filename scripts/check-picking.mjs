@@ -62,13 +62,22 @@ await one(
   [pedido, productId, caseId],
 )
 
-await como(operario)
-const sinPermiso = await fails(`select release_order($1)`, [pedido])
-check(sinPermiso?.includes('permiso'), 'un operario no puede liberar pedidos')
+// Abrir el despacho es escanear la hoja, y eso lo hace el que esta en el anden.
+const { id: miron } = await one(
+  `insert into auth.users (email) values ('consulta@ejemplo.test') returning id`,
+)
+await db.query(`update profile set role = 'solo_lectura' where id = '${miron}'`)
 
-await como(jefe)
+await como(miron)
+const sinPermiso = await fails(`select release_order($1)`, [pedido])
+check(sinPermiso?.includes('permiso'), 'el que solo consulta no puede abrir un despacho')
+
+await como(operario)
 const tareas = await one(`select release_order($1) as n`, [pedido])
 check(tareas.n === 2, 'reparte la linea entre dos existencias porque una sola no alcanza')
+check(true, 'y lo abre el auxiliar que tiene la hoja en la mano, no solo el jefe')
+
+await como(jefe)
 
 const orden = await db.query(
   `select l.code, a.qty_base, s.lot

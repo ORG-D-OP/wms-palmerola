@@ -39,11 +39,15 @@ function fallo(error: { code?: string; message: string }): Fail {
 const Codigo = z.string().trim().min(1).max(40)
 
 /**
- * Un escaneo abre el camion.
+ * Un escaneo abre el camion, y abrirlo es repartir el trabajo.
  *
  * El codigo de barras de la hoja trae el numero de transporte. Si ese transporte viene en
  * varias hojas, aqui sale una sola vez con todo junto: la separacion en tabulados es del
  * cliente y a la bodega no le dice nada.
+ *
+ * Si el camión todavía no se había abierto, este escaneo arma las tareas de surtido. No hay
+ * otro momento ni otra pantalla donde hacerlo: la hoja en la mano es lo que dice que ese
+ * camión es trabajo de hoy.
  */
 export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion: Camion } | Fail> {
   await requirePermission('inventario:mover')
@@ -57,6 +61,12 @@ export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion
   })
   if (errorBusqueda) return fallo(errorBusqueda)
   if (!id) return { ok: false, error: `No hay ningún camión con el código ${parsed.data}.` }
+
+  const abierto = await cargar(supabase, id)
+  if (!abierto.ok || abierto.camion.estado !== 'DRAFT') return abierto
+
+  const { error } = await supabase.rpc('release_order', { p_order_id: id })
+  if (error) return fallo(error)
 
   return cargar(supabase, id)
 }
