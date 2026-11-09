@@ -89,6 +89,7 @@ const tarea = await one(`select min_level, flow from task where id = $1`, [rec.t
 check(tarea.min_level >= 1, `la tarea nace sabiendo a que nivel hay que subir (${tarea.min_level})`)
 check(tarea.flow === 'INBOUND', 'la tarea de guardado es del lado del ingreso')
 
+await one(`select iniciar_turno()`)
 const aPieNoAlcanza = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(
   aPieNoAlcanza?.id === undefined || aPieNoAlcanza?.id === null,
@@ -121,5 +122,44 @@ check(porFlujo?.de_mi_flujo === false, 'la cola tambien explica el flujo')
 
 const cerradas = await one(`select cerrar_turno() as n`)
 check(cerradas.n === 1, 'cerrar turno cierra el que estaba abierto')
+
+
+// --- disponible o no, sin cerrar el dia -------------------------------------------------
+
+await como(conEquipo)
+await one(`select cerrar_turno()`)
+await one(`select iniciar_turno('MC-01', 'BOTH')`)
+await db.query(
+  `update task set status = 'READY', assigned_to = null, assigned_at = null, started_at = null
+   where id = $1`,
+  [rec.task_id],
+)
+
+const pausa = await one(`select * from pausar_turno('Me hablaron de la oficina')`)
+check(pausa.paused_at !== null, 'marcarse no disponible no cierra el turno')
+check(pausa.pause_note === 'Me hablaron de la oficina', 'y queda por que')
+
+const enPausa = await fails(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(enPausa?.includes('no disponible'), 'a quien no esta disponible no le caen tareas')
+
+const dosVeces = await fails(`select pausar_turno()`)
+check(dosVeces !== null, 'no se pausa dos veces')
+
+const comoEstoy = await one(`select paused_at, equipo from mi_trabajo where profile_id = $1`, [
+  conEquipo,
+])
+check(comoEstoy.equipo === 'MC-01', 'y no se pierde el equipo asignado, que era el punto')
+
+const vuelve = await one(`select * from reanudar_turno()`)
+check(vuelve.paused_at === null, 'reanudar lo devuelve a la cola')
+
+const otraVez = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(otraVez?.id === rec.task_id, 'y la tarea le vuelve a tocar')
+
+const nadaQueReanudar = await fails(`select reanudar_turno()`)
+check(nadaQueReanudar !== null, 'reanudar sin estar pausado no hace nada callado')
+
+const quienHay = await db.query(`select * from disponibles where id = $1`, [conEquipo])
+check(quienHay.rows[0]?.disponible === true, 'el jefe puede ver quien esta en la bodega')
 
 await db.close()

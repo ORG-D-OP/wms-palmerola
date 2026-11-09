@@ -105,6 +105,7 @@ check(
 )
 
 await como(operario)
+await one(`select iniciar_turno()`)
 const tarea = await one(`select * from claim_next_task(array['PICK']::task_type[])`)
 check(tarea.type === 'PICK', 'el surtidor recibe una tarea de surtido')
 

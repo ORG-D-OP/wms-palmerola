@@ -27,6 +27,7 @@ const r = await one(
   `select * from receive_pallet('PAL-9001', $1, $2, 144, $3, 'L2601', '2027-04-24', 'rec-1')`,
   [productId, caseId, anden],
 )
+await one(`select iniciar_turno()`)
 const tarea = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(tarea.id === r.task_id, 'el montacarguista recibe la tarea que dejo la recepcion')
 

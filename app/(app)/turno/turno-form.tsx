@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
-import { cerrarTurno, iniciarTurno } from './actions'
+import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno } from './actions'
 
 export type Equipo = { id: string; code: string; tipo: string; alcance: number; libre: boolean }
 
@@ -11,16 +11,22 @@ export type Turno = {
   equipo: string | null
   tipo: string | null
   alcance: number
-  flujo: string
   desde: string
+  pausado: boolean
+  motivo: string | null
 }
 
-const FLUJOS = [
-  { valor: 'BOTH', etiqueta: 'Los dos' },
-  { valor: 'INBOUND', etiqueta: 'Ingreso' },
-  { valor: 'OUTBOUND', etiqueta: 'Despacho' },
-] as const
-
+/**
+ * Entrar a trabajo y marcarse no disponible.
+ *
+ * No hay turnos con hora de entrada: lo que esto registra es quién está ahora mismo para
+ * recibir tarea. Y no se escoge el lado de la operación —eso lo reparte el jefe de bodega
+ * por andén—, sólo el equipo, porque el equipo es lo que define hasta qué nivel del rack
+ * llegan las tareas.
+ *
+ * La pausa existe para cuando le hablan a alguien para otra cosa: sale de la cola sin
+ * perder el equipo que tiene asignado.
+ */
 export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Equipo[] }) {
   const [estado, accion, pending] = useActionState(iniciarTurno, null)
 
@@ -32,7 +38,13 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
 
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
-        <Logro>Turno abierto desde las {hora}.</Logro>
+        {turno.pausado ? (
+          <p className="rounded-xl bg-celeste/15 p-3">
+            No disponible{turno.motivo ? `: ${turno.motivo}` : ''}. No te van a caer tareas.
+          </p>
+        ) : (
+          <Logro>Estás disponible desde las {hora}.</Logro>
+        )}
 
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
@@ -45,17 +57,29 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
               {turno.alcance === 0 ? 'Solo piso' : `Hasta el nivel ${turno.alcance}`}
             </dd>
           </div>
-          <div>
-            <dt className={ETIQUETA}>Le toca</dt>
-            <dd className="text-lg">
-              {FLUJOS.find((f) => f.valor === turno.flujo)?.etiqueta ?? turno.flujo}
-            </dd>
-          </div>
         </dl>
+
+        {turno.pausado ? (
+          <form action={reanudarTurno}>
+            <button type="submit" className={BOTON}>
+              Ya estoy disponible
+            </button>
+          </form>
+        ) : (
+          <form action={pausarTurno} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className={ETIQUETA}>¿Por qué? (opcional)</span>
+              <input name="motivo" placeholder="Me llamaron de la oficina" className={CAMPO} />
+            </label>
+            <button type="submit" className={BOTON_SUAVE}>
+              No estoy disponible
+            </button>
+          </form>
+        )}
 
         <form action={cerrarTurno}>
           <button type="submit" className={BOTON_SUAVE}>
-            Cerrar turno
+            Salir
           </button>
         </form>
       </div>
@@ -67,8 +91,8 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
   return (
     <form action={accion} className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
       <p className="text-sm text-azul/70">
-        Sin turno abierto solo se pueden tomar tareas de piso. El equipo define hasta qué
-        nivel del rack te llegan tareas.
+        Mientras no entres a trabajo no te caen tareas. El equipo define hasta qué nivel del
+        rack te llegan.
       </p>
 
       <label className="flex flex-col gap-1.5">
@@ -95,29 +119,8 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
         </p>
       ) : null}
 
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className={ETIQUETA}>Qué te toca hoy</legend>
-        <div className="flex gap-2">
-          {FLUJOS.map((f, i) => (
-            <label
-              key={f.valor}
-              className="flex h-14 flex-1 items-center justify-center gap-2 rounded-xl border border-borde has-checked:border-azul has-checked:bg-azul-08"
-            >
-              <input
-                type="radio"
-                name="flujo"
-                value={f.valor}
-                defaultChecked={i === 0}
-                className="accent-azul"
-              />
-              <span>{f.etiqueta}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
       <button type="submit" disabled={pending} className={BOTON}>
-        {pending ? 'Abriendo...' : 'Iniciar turno'}
+        {pending ? 'Entrando...' : 'Entrar a trabajo'}
       </button>
 
       {estado && !estado.ok ? <Aviso>{estado.error}</Aviso> : null}

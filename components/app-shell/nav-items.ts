@@ -30,7 +30,13 @@ const TODOS = [
     movil: true,
   },
   { href: '/inventario', label: 'Buscar', icon: 'search', permiso: 'inventario:ver', movil: true },
-  { href: '/turno', label: 'Turno', icon: 'badge', permiso: 'turno:iniciar', movil: false },
+  {
+    href: '/turno',
+    label: 'Disponibilidad',
+    icon: 'badge',
+    permiso: 'turno:iniciar',
+    movil: false,
+  },
   { href: '/rack', label: 'Racks', icon: 'view_in_ar', permiso: 'inventario:ver', movil: false },
   {
     href: '/recibo',
