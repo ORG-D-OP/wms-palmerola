@@ -3314,6 +3314,34 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      carga_inicial_de: {
+        Args: { p_codigo: string }
+        Returns: {
+          cajas: number
+          en_picking: boolean
+          lote: string
+          posicion: string
+          vence: string
+        }[]
+      }
+      cargar_inicial: {
+        Args: {
+          p_codigo: string
+          p_expiry: string
+          p_lot: string
+          p_pallet_code?: string
+          p_posicion: string
+          p_qty_cases: number
+        }
+        Returns: {
+          aviso: string
+          cases: number
+          matricula: string
+          posicion: string
+          product_name: string
+          sku: string
+        }[]
+      }
       cerrar_ingreso_sin_aviso: {
         Args: { p_pedido: string }
         Returns: {
@@ -3787,6 +3815,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      sugerir_posicion_inicial: {
+        Args: { p_codigo: string; p_expiry?: string }
+        Returns: {
+          code: string
+          es_picking: boolean
+          location_id: string
+        }[]
       }
       suggest_putaway_location: {
         Args: {
