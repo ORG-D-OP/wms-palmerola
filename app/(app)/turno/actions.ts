@@ -16,27 +16,61 @@ function fallo(error: { code?: string; message: string }): Fail {
 
 const Turno = z.object({
   equipo: z.string().trim().max(20).optional(),
-  flujo: z.enum(['INBOUND', 'OUTBOUND', 'BOTH']),
 })
 
 export async function iniciarTurno(_prev: unknown, datos: FormData) {
   await requirePermission('turno:iniciar')
 
-  const parsed = Turno.safeParse({
-    equipo: datos.get('equipo') || undefined,
-    flujo: datos.get('flujo'),
-  })
-  if (!parsed.success) return { ok: false as const, error: 'Revisa el equipo y el flujo.' }
+  const parsed = Turno.safeParse({ equipo: datos.get('equipo') || undefined })
+  if (!parsed.success) return { ok: false as const, error: 'Revisa el equipo.' }
 
   const supabase = await createSupabaseServerClient()
+  // El lado de la operación ya no se escoge: lo reparte el jefe de bodega por andén, así que
+  // todo el mundo entra a los dos lados hasta que esa asignación exista.
   const { error } = await supabase.rpc('iniciar_turno', {
     p_equipment_code: parsed.data.equipo || undefined,
-    p_flow: parsed.data.flujo,
   })
 
   if (error) return fallo(error)
   revalidatePath('/turno')
+  revalidatePath('/')
   return { ok: true as const }
+}
+
+/** Entrar sin equipo, que es el caso de casi todos. Es el botón de la pantalla de inicio. */
+export async function entrarATrabajo() {
+  await requirePermission('turno:iniciar')
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('iniciar_turno', {})
+
+  if (error) return fallo(error)
+  revalidatePath('/')
+  revalidatePath('/turno')
+  return { ok: true as const }
+}
+
+export async function pausarTurno(datos: FormData) {
+  await requirePermission('turno:iniciar')
+
+  const motivo = z.string().trim().max(200).safeParse(datos.get('motivo') ?? '')
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('pausar_turno', {
+    p_motivo: motivo.success && motivo.data ? motivo.data : undefined,
+  })
+
+  if (error) throw new Error(fallo(error).error)
+  revalidatePath('/turno')
+  revalidatePath('/')
+}
+
+export async function reanudarTurno() {
+  await requirePermission('turno:iniciar')
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('reanudar_turno')
+  if (error) throw new Error(fallo(error).error)
+  revalidatePath('/turno')
+  revalidatePath('/')
 }
 
 /** Accion de formulario simple: no hay nada que decidir, o cierra o revienta. */
@@ -46,6 +80,7 @@ export async function cerrarTurno() {
   const { error } = await supabase.rpc('cerrar_turno')
   if (error) throw new Error(fallo(error).error)
   revalidatePath('/turno')
+  revalidatePath('/')
 }
 
 const Equipo = z.object({

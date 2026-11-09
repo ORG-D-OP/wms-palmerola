@@ -1817,6 +1817,8 @@ export type Database = {
           equipment_id: string | null
           flow: string
           id: string
+          pause_note: string | null
+          paused_at: string | null
           profile_id: string
           started_at: string
         }
@@ -1825,6 +1827,8 @@ export type Database = {
           equipment_id?: string | null
           flow?: string
           id?: string
+          pause_note?: string | null
+          paused_at?: string | null
           profile_id: string
           started_at?: string
         }
@@ -1833,6 +1837,8 @@ export type Database = {
           equipment_id?: string | null
           flow?: string
           id?: string
+          pause_note?: string | null
+          paused_at?: string | null
           profile_id?: string
           started_at?: string
         }
@@ -1842,6 +1848,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
             referencedColumns: ["id"]
           },
           {
@@ -2561,6 +2574,18 @@ export type Database = {
         }
         Relationships: []
       }
+      disponibles: {
+        Row: {
+          disponible: boolean | null
+          equipo: string | null
+          full_name: string | null
+          id: string | null
+          pause_note: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          started_at: string | null
+        }
+        Relationships: []
+      }
       estiba_vs_capacidad: {
         Row: {
           estiba_mas_pesada_kg: number | null
@@ -2680,6 +2705,34 @@ export type Database = {
           zone_kind: Database["public"]["Enums"]["zone_type"] | null
         }
         Relationships: []
+      }
+      mi_trabajo: {
+        Row: {
+          alcance: number | null
+          equipo: string | null
+          flow: string | null
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string | null
+          started_at: string | null
+          tipo_equipo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posicion_detalle: {
         Row: {
@@ -3464,6 +3517,8 @@ export type Database = {
           equipment_id: string | null
           flow: string
           id: string
+          pause_note: string | null
+          paused_at: string | null
           profile_id: string
           started_at: string
         }
@@ -3482,6 +3537,25 @@ export type Database = {
           level: Database["public"]["Enums"]["packaging_code"]
           lpn_id: string
         }[]
+      }
+      pausar_turno: {
+        Args: { p_motivo?: string }
+        Returns: {
+          ended_at: string | null
+          equipment_id: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       posiciones_como: { Args: { p_patron: string }; Returns: string[] }
       post_movement: {
@@ -3513,6 +3587,25 @@ export type Database = {
           requires_fefo: boolean
           sku: string
         }[]
+      }
+      reanudar_turno: {
+        Args: never
+        Returns: {
+          ended_at: string | null
+          equipment_id: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       reasignar_area: {
         Args: { p_area_code: string; p_location_ids: string[] }

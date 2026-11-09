@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { TurnoForm, type Equipo } from './turno-form'
 import { Flota } from './flota'
 
-export const metadata = { title: 'Turno · WMS Palmerola' }
+export const metadata = { title: 'Disponibilidad · WMS Palmerola' }
 
 export default async function TurnoPage() {
   const user = await requirePermission('turno:iniciar')
@@ -13,7 +13,7 @@ export default async function TurnoPage() {
   const [{ data: turnos }, { data: equipos }, { data: tipos }] = await Promise.all([
     supabase
       .from('shift_assignment')
-      .select('started_at, flow, equipment(code, equipment_type(name, max_level))')
+      .select('started_at, paused_at, pause_note, equipment(code, equipment_type(name, max_level))')
       .is('ended_at', null)
       .eq('profile_id', user.id),
     supabase
@@ -30,8 +30,9 @@ export default async function TurnoPage() {
         equipo: abierto.equipment?.code ?? null,
         tipo: abierto.equipment?.equipment_type?.name ?? null,
         alcance: abierto.equipment?.equipment_type?.max_level ?? 0,
-        flujo: abierto.flow,
         desde: abierto.started_at,
+        pausado: abierto.paused_at !== null,
+        motivo: abierto.pause_note,
       }
     : null
 
@@ -45,7 +46,7 @@ export default async function TurnoPage() {
 
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
-      <h1 className="text-xl">Mi turno</h1>
+      <h1 className="text-xl">Mi trabajo</h1>
       <TurnoForm turno={turno} equipos={flota} />
 
       {can(user.role, 'flota:administrar') ? (

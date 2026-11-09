@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Ocupacion } from '@/components/warehouse-canvas'
 import { WarehouseView } from '@/components/warehouse-view'
 import { Icon } from '@/components/ui/icon'
+import { Trabajo, type Trabajo as EstadoTrabajo } from './trabajo'
 
 /** Con la bodega llena son 5,581 códigos cortos; con la bodega vacía, ninguno. */
 const TOPE_POSICIONES = 6000
@@ -48,9 +49,29 @@ async function getDatos() {
   }
 }
 
+/** Si está disponible o no. Es lo primero de la pantalla porque sin eso no le cae trabajo. */
+async function getTrabajo(profileId: string): Promise<EstadoTrabajo | null> {
+  const supabase = await createSupabaseServerClient()
+  const { data } = await supabase
+    .from('mi_trabajo')
+    .select('equipo, paused_at, pause_note')
+    .eq('profile_id', profileId)
+    .maybeSingle()
+
+  if (!data) return null
+  return {
+    equipo: data.equipo,
+    pausado: data.paused_at !== null,
+    motivo: data.pause_note,
+  }
+}
+
 export default async function DashboardPage() {
   const user = await requireUser()
-  const { ocupacion, totales, areas, productos, tareas } = await getDatos()
+  const [{ ocupacion, totales, areas, productos, tareas }, trabajo] = await Promise.all([
+    getDatos(),
+    getTrabajo(user.id),
+  ])
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
@@ -67,6 +88,8 @@ export default async function DashboardPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-2xl">Hola, {user.fullName.split(' ')[0]}</h1>
+
+      <Trabajo trabajo={trabajo} />
 
       {disponibles.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 md:max-w-xl md:grid-cols-4">

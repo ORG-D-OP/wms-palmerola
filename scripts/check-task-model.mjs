@@ -36,12 +36,20 @@ const sinSesion = await fails(`select claim_next_task()`)
 check(sinSesion?.includes('sesión'), 'sin sesion no se puede tomar trabajo')
 
 await comoOperario(operario)
+const sinEntrar = await fails(`select claim_next_task()`)
+check(
+  sinEntrar?.includes('Entra a trabajo'),
+  'y sin entrar a trabajo tampoco: entrar es lo que te pone en la cola',
+)
+
+await one(`select iniciar_turno()`)
 const primera = await one(`select * from claim_next_task()`)
 check(primera.priority === 500, 'la cola entrega primero la de mayor prioridad')
 check(primera.assigned_to === operario, 'la tarea queda a nombre de quien la pidio')
 check(primera.status === 'ASSIGNED', 'la tarea pasa a asignada')
 
 await comoOperario(otro)
+await one(`select iniciar_turno()`)
 const segunda = await one(`select * from claim_next_task()`)
 check(segunda.id !== primera.id, 'otra persona recibe una tarea distinta, nunca la misma')
 
