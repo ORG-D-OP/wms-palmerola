@@ -6,8 +6,11 @@ import { BotonCamara } from '@/components/ui/boton-camara'
 import { Aviso } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { SinAviso } from './sin-aviso'
 import {
+  abrirSinAviso,
   buscarIngreso,
+  cerrarSinAviso,
   recibirPallet,
   type Documento,
   type Recibido,
@@ -20,8 +23,41 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
   const [doc, setDoc] = useState<Documento | null>(null)
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
   const [verLista, setVerLista] = useState(false)
+  const [abriendoCiego, setAbriendoCiego] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  const cargar = (pedido: string) =>
+    startTransition(async () => {
+      const res = await buscarIngreso(pedido)
+      if (!res.ok) return setError(res.error)
+      setDoc(res.doc)
+      setUltimo(null)
+    })
+
+  const abrirCiego = (datos: FormData) => {
+    setError(null)
+    startTransition(async () => {
+      const res = await abrirSinAviso({
+        origen: String(datos.get('origen') ?? ''),
+        nota: String(datos.get('nota') ?? ''),
+      })
+      if (!res.ok) return setError(res.error)
+      setAbriendoCiego(false)
+      cargar(res.pedido)
+    })
+  }
+
+  const cerrarActa = () => {
+    if (!doc) return
+    setError(null)
+    startTransition(async () => {
+      const res = await cerrarSinAviso(doc.pedido)
+      if (!res.ok) return setError(res.error)
+      setDoc(null)
+      setUltimo(null)
+    })
+  }
 
   const abrir = (datos: FormData) => {
     setError(null)
@@ -94,6 +130,45 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
           por camión; después solo se escanean las etiquetas de los pallets.
         </p>
 
+        <div className="border-t border-borde pt-5">
+          {abriendoCiego ? (
+            <form action={abrirCiego} className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className={ETIQUETA}>¿De dónde viene?</span>
+                <input name="origen" autoFocus placeholder="Planta Choloma" className={CAMPO} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className={ETIQUETA}>Nota (opcional)</span>
+                <input name="nota" placeholder="Avisaron por correo" className={CAMPO} />
+              </label>
+              <button type="submit" disabled={pending} className={BOTON}>
+                {pending ? 'Abriendo...' : 'Empezar a descargar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbriendoCiego(false)}
+                className={BOTON_SUAVE}
+              >
+                Cancelar
+              </button>
+            </form>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setAbriendoCiego(true)}
+                className={BOTON_SUAVE}
+              >
+                Llegó un camión sin aviso
+              </button>
+              <p className="mt-2 text-sm text-azul/60">
+                Cuando no hay hoja ni pedido. Se abre el ingreso, se recibe lo que baje, y al
+                cerrarlo queda el acta de lo que entró de verdad.
+              </p>
+            </>
+          )}
+        </div>
+
         {error ? <Aviso>{error}</Aviso> : null}
       </div>
     )
@@ -106,7 +181,7 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
     <div className="flex flex-col gap-5">
       <div className="rounded-2xl bg-azul-08 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm text-azul/60">Pedido</p>
+          <p className="text-sm text-azul/60">{doc.sinAviso ? 'Ingreso sin aviso' : 'Pedido'}</p>
           <button
             type="button"
             onClick={() => {
@@ -120,21 +195,33 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
           </button>
         </div>
         <p className="text-2xl tabular-nums">{doc.pedido}</p>
-        <p className="mt-2 text-sm">
-          {doc.recibidos} de {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
-          {doc.cajas.toLocaleString('es-HN')} cajas
-        </p>
-        <div
-          className="mt-2 h-2 overflow-hidden rounded-full bg-white"
-          role="progressbar"
-          aria-valuenow={doc.recibidos}
-          aria-valuemax={doc.pallets}
-        >
-          <div
-            className="h-full bg-[var(--verde)] transition-[width]"
-            style={{ width: `${doc.pallets ? (doc.recibidos / doc.pallets) * 100 : 0}%` }}
-          />
-        </div>
+        {doc.sinAviso ? (
+          <>
+            <p className="mt-2 text-sm">
+              {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
+              {doc.cajas.toLocaleString('es-HN')} cajas
+            </p>
+            {doc.nota ? <p className="mt-1 text-sm text-azul/60">{doc.nota}</p> : null}
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-sm">
+              {doc.recibidos} de {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
+              {doc.cajas.toLocaleString('es-HN')} cajas
+            </p>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-white"
+              role="progressbar"
+              aria-valuenow={doc.recibidos}
+              aria-valuemax={doc.pallets}
+            >
+              <div
+                className="h-full bg-[var(--verde)] transition-[width]"
+                style={{ width: `${doc.pallets ? (doc.recibidos / doc.pallets) * 100 : 0}%` }}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {ultimo ? (
@@ -151,7 +238,21 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
         </div>
       ) : null}
 
-      {faltan > 0 ? (
+      {doc.sinAviso ? (
+        <>
+          <SinAviso
+            pedido={doc.pedido}
+            dockLocationId={dockId}
+            onRecibido={(recibido) => {
+              setUltimo(recibido)
+              cargar(doc.pedido)
+            }}
+          />
+          <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
+            Terminé de descargar: cerrar el acta
+          </button>
+        </>
+      ) : faltan > 0 ? (
         <ScanInput
           label="Escanea la etiqueta del pallet"
           disabled={pending}
