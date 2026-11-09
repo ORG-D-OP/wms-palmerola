@@ -6,6 +6,7 @@ import { BotonCamara } from '@/components/ui/boton-camara'
 import { Aviso } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { Crossdock } from './crossdock'
 import { SinAviso } from './sin-aviso'
 import {
   abrirSinAviso,
@@ -237,6 +238,8 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
           </div>
         </div>
       ) : null}
+
+      {ultimo ? <Crossdock key={ultimo.lpnCode} lpnCode={ultimo.lpnCode} /> : null}
 
       {doc.sinAviso ? (
         <>

@@ -889,6 +889,140 @@ export type Database = {
           },
         ]
       }
+      order_crossdock: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          from_location_id: string
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          order_line_id: string
+          product_id: string
+          qty_base: number
+          to_location_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          from_location_id: string
+          id?: string
+          lot?: string | null
+          lpn_id?: string | null
+          order_line_id: string
+          product_id: string
+          qty_base: number
+          to_location_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          from_location_id?: string
+          id?: string
+          lot?: string | null
+          lpn_id?: string | null
+          order_line_id?: string
+          product_id?: string
+          qty_base?: number
+          to_location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_crossdock_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "order_line"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_line: {
         Row: {
           id: string
@@ -2245,6 +2379,7 @@ export type Database = {
         Row: {
           anden: string | null
           code: string | null
+          crossdock: number | null
           customer: string | null
           entregas: string[] | null
           id: string | null
@@ -3024,6 +3159,23 @@ export type Database = {
           location_code: string
         }[]
       }
+      crossdock: {
+        Args: { p_anden?: string; p_lpn_code: string; p_order_id: string }
+        Returns: {
+          anden: string
+          cajas: number
+          etiqueta: string
+        }[]
+      }
+      crossdock_posible: {
+        Args: { p_lpn_code: string }
+        Returns: {
+          anden: string
+          etiqueta: string
+          faltan_cajas: number
+          order_id: string
+        }[]
+      }
       current_role_name: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -3069,6 +3221,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      falta_para_despacho: {
+        Args: { p_product_id: string }
+        Returns: {
+          anden: string
+          etiqueta: string
+          falta: number
+          order_id: string
+        }[]
       }
       flujo_de: { Args: { p_profile_id: string }; Returns: string }
       generate_zone_locations: {

@@ -281,3 +281,74 @@ export async function cerrarSinAviso(pedido: string): Promise<{ ok: true } | Fai
 
   return { ok: true }
 }
+
+// ---------------------------------------------------------------------------------------
+// El producto que no llega a guardarse
+// ---------------------------------------------------------------------------------------
+
+export type OpcionCrossdock = {
+  orderId: string
+  etiqueta: string
+  anden: string
+  faltanCajas: number
+}
+
+const Matricula = z.string().trim().min(4).max(32)
+
+/**
+ * A qué camión abierto le cabe entero este pallet. Si no hay ninguno, la opción no se le
+ * muestra al operario: el crossdock es la excepción, no una pregunta de cada pallet.
+ */
+export async function opcionesCrossdock(
+  lpnCode: string,
+): Promise<{ ok: true; opciones: OpcionCrossdock[] } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = Matricula.safeParse(lpnCode)
+  if (!parsed.success) return { ok: true, opciones: [] }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.rpc('crossdock_posible', { p_lpn_code: parsed.data })
+  if (error) return fallo(error)
+
+  return {
+    ok: true,
+    opciones: (data ?? []).map((o) => ({
+      orderId: o.order_id,
+      etiqueta: o.etiqueta,
+      anden: o.anden,
+      faltanCajas: Number(o.faltan_cajas),
+    })),
+  }
+}
+
+const Paso = z.object({
+  lpnCode: Matricula,
+  orderId: z.uuid(),
+  anden: z.string().trim().min(3).max(20),
+})
+
+export async function mandarACrossdock(
+  datos: z.input<typeof Paso>,
+): Promise<{ ok: true; anden: string; cajas: number; etiqueta: string } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = Paso.safeParse(datos)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Revisa los datos.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .rpc('crossdock', {
+      p_lpn_code: parsed.data.lpnCode,
+      p_order_id: parsed.data.orderId,
+      p_anden: parsed.data.anden,
+    })
+    .single()
+
+  if (error) return fallo(error)
+  if (!data) return { ok: false, error: 'No se pudo mandar el pallet al andén.' }
+
+  return { ok: true, anden: data.anden, cajas: Number(data.cajas), etiqueta: data.etiqueta }
+}
