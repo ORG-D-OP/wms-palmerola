@@ -2657,10 +2657,13 @@ export type Database = {
           cajas: number | null
           id: string | null
           materiales: number | null
+          nota: string | null
+          origin_plant: string | null
           pallets: number | null
           pedido: string | null
           planned_at: string | null
           recibidos: number | null
+          sin_aviso: boolean | null
           status: string | null
         }
         Relationships: []
@@ -3295,10 +3298,13 @@ export type Database = {
           cajas: number | null
           id: string | null
           materiales: number | null
+          nota: string | null
+          origin_plant: string | null
           pallets: number | null
           pedido: string | null
           planned_at: string | null
           recibidos: number | null
+          sin_aviso: boolean | null
           status: string | null
         }[]
         SetofOptions: {

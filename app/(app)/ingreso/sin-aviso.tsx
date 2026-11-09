@@ -68,12 +68,13 @@ export function SinAviso({
     return (
       <div className="flex flex-col gap-3">
         <ScanInput
-          label="Escanea una caja del pallet"
+          label="Escanea una caja o escribe el SKU"
           disabled={pending}
           onScan={identificar}
         />
         <p className="text-sm text-azul/60">
-          Si el código no aparece o lo comparten dos productos, escribe el SKU con el teclado.
+          Escanear es el atajo, no el requisito: con el botón del teclado se escribe el SKU.
+          Hace falta si el código no está en el maestro o si lo comparten dos productos.
         </p>
         {error ? <Aviso>{error}</Aviso> : null}
       </div>
@@ -108,18 +109,11 @@ export function SinAviso({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
           <span className={ETIQUETA}>Lote</span>
-          <input name="lot" className={CAMPO} />
+          <input name="lot" required className={CAMPO} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={ETIQUETA}>
-            Vencimiento{producto.exigeVencimiento ? '' : ' (si lo trae)'}
-          </span>
-          <input
-            name="expiry"
-            type="date"
-            required={producto.exigeVencimiento}
-            className={CAMPO}
-          />
+          <span className={ETIQUETA}>Vencimiento</span>
+          <input name="expiry" type="date" required className={CAMPO} />
         </label>
       </div>
 
@@ -136,8 +130,9 @@ export function SinAviso({
       </button>
 
       <p className="text-sm text-azul/60">
-        Sin etiqueta también se recibe: el sistema le pone matrícula y el pallet queda
-        identificado por dónde se guarde.
+        La etiqueta es lo único opcional. Sin ella el sistema le pone matrícula propia y el
+        pallet queda identificado por dónde se guarde. El lote y el vencimiento no: sin
+        documento, nadie los puede reconstruir después.
       </p>
 
       {error ? <Aviso>{error}</Aviso> : null}
