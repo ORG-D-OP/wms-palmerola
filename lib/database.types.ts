@@ -765,6 +765,13 @@ export type Database = {
             referencedRelation: "posicion_detalle"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "location_area_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
         ]
       }
       location_tag: {
@@ -806,6 +813,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_tag_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
           {
@@ -952,6 +966,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "order_crossdock_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "order_crossdock_lpn_id_fkey"
             columns: ["lpn_id"]
             isOneToOne: false
@@ -1019,6 +1040,13 @@ export type Database = {
             columns: ["to_location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
         ]
@@ -1617,6 +1645,112 @@ export type Database = {
         }
         Relationships: []
       }
+      returnable_count: {
+        Row: {
+          location_id: string
+          qty: number
+          updated_at: string
+        }
+        Insert: {
+          location_id: string
+          qty?: number
+          updated_at?: string
+        }
+        Update: {
+          location_id?: string
+          qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returnable_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "returnable_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returnable_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returnable_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      returnable_movement: {
+        Row: {
+          actor_id: string | null
+          delta: number
+          id: number
+          location_id: string
+          note: string | null
+          occurred_at: string
+          qty_after: number
+        }
+        Insert: {
+          actor_id?: string | null
+          delta: number
+          id?: never
+          location_id: string
+          note?: string | null
+          occurred_at?: string
+          qty_after: number
+        }
+        Update: {
+          actor_id?: string | null
+          delta?: number
+          id?: never
+          location_id?: string
+          note?: string | null
+          occurred_at?: string
+          qty_after?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returnable_movement_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "returnable_movement_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returnable_movement_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returnable_movement_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order: {
         Row: {
           code: string
@@ -1797,6 +1931,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_lpn_id_fkey"
             columns: ["lpn_id"]
             isOneToOne: false
@@ -1937,6 +2078,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_movement_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_movement_lpn_id_fkey"
             columns: ["lpn_id"]
             isOneToOne: false
@@ -2011,6 +2159,13 @@ export type Database = {
             columns: ["to_location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
         ]
@@ -2135,6 +2290,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "task_lpn_id_fkey"
             columns: ["lpn_id"]
             isOneToOne: false
@@ -2202,6 +2364,13 @@ export type Database = {
             columns: ["to_location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
           {
@@ -2663,6 +2832,25 @@ export type Database = {
           },
         ]
       }
+      retornables: {
+        Row: {
+          cantidad: number | null
+          code: string | null
+          id: string | null
+          updated_at: string | null
+          usage_code: string | null
+          uso: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_usage_code_fkey"
+            columns: ["usage_code"]
+            isOneToOne: false
+            referencedRelation: "location_usage"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       stock_available: {
         Row: {
           expiry_date: string | null
@@ -2720,6 +2908,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
           {
@@ -2835,6 +3030,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "task_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -2881,6 +3083,13 @@ export type Database = {
             columns: ["to_location_id"]
             isOneToOne: false
             referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
             referencedColumns: ["id"]
           },
         ]
@@ -3157,6 +3366,14 @@ export type Database = {
         Returns: {
           era_la_sugerida: boolean
           location_code: string
+        }[]
+      }
+      contar_retornable: {
+        Args: { p_delta: number; p_note?: string; p_posicion: string }
+        Returns: {
+          posicion: string
+          quedan: number
+          uso: string
         }[]
       }
       crossdock: {

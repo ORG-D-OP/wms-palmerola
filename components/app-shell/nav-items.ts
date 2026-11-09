@@ -40,6 +40,13 @@ const TODOS = [
     movil: false,
   },
   {
+    href: '/retornables',
+    label: 'Retornables',
+    icon: 'recycling',
+    permiso: 'inventario:mover',
+    movil: false,
+  },
+  {
     href: '/pedidos',
     label: 'Pedidos',
     icon: 'receipt_long',
