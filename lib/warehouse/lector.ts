@@ -4,16 +4,21 @@ export type Lectura = { texto: string; formato: string; confiable: boolean }
 export type Lector = {
   /** Cual de los dos motores quedo. Se muestra en pantalla: si algo no lee, importa saberlo. */
   motor: string
-  leer: (imagen: ImageData) => Promise<Lectura[]>
+  leer: (video: HTMLVideoElement) => Promise<Lectura[]>
 }
 
-type Crudo = (imagen: ImageData) => Promise<{ texto: string; formato: string }[]>
+type Crudo = (video: HTMLVideoElement) => Promise<{ texto: string; formato: string }[]>
 
-type Detector = { detect(imagen: ImageData): Promise<{ rawValue: string; format: string }[]> }
+type Detector = {
+  detect(fuente: CanvasImageSource): Promise<{ rawValue: string; format: string }[]>
+}
 type ApiDetector = {
   new (opciones: { formats: string[] }): Detector
   getSupportedFormats(): Promise<string[]>
 }
+
+/** Mas ancho que esto zxing se arrastra y el telefono se calienta sin leer mejor. */
+const ANCHO_MAXIMO = 1280
 
 /**
  * Dos motores para el mismo trabajo.
@@ -23,8 +28,12 @@ type ApiDetector = {
  * el que se leyeron los tabulados, que pesa casi un mega y por eso se baja solo cuando
  * alguien abre la camara. Quien escanea con laser no descarga ninguno de los dos.
  *
- * Las lecturas salen todas, con su marca de confiable: una que no cuadra tambien dice
- * algo, y callarla deja al operario mirando una pantalla que no reacciona.
+ * Cada motor saca los pixeles a su manera y por eso recibe el video entero: al nativo se le
+ * pasa el elemento tal cual, que es el camino que Chrome tiene bien probado; copiarlo antes
+ * a un `ImageData` le hacia devolver cero lecturas sin dar ningun error.
+ *
+ * Las lecturas salen todas, con su marca de confiable: una que no cuadra tambien dice algo,
+ * y callarla deja al operario mirando una pantalla que no reacciona.
  */
 export async function abrirLector(): Promise<Lector> {
   const nativo = await intentarNativo()
@@ -33,8 +42,8 @@ export async function abrirLector(): Promise<Lector> {
 
   return {
     motor,
-    leer: async (imagen) =>
-      (await decodificar(imagen)).map((lectura) => {
+    leer: async (video) =>
+      (await decodificar(video)).map((lectura) => {
         const texto = normalizar(lectura.texto)
         return { texto, formato: lectura.formato, confiable: esConfiable(texto, lectura.formato) }
       }),
@@ -52,8 +61,8 @@ async function intentarNativo(): Promise<Crudo | null> {
   if (formats.length === 0) return null
 
   const detector = new api({ formats })
-  return async (imagen) =>
-    (await detector.detect(imagen)).map((codigo) => ({
+  return async (video) =>
+    (await detector.detect(video)).map((codigo) => ({
       texto: codigo.rawValue,
       formato: codigo.format,
     }))
@@ -67,9 +76,18 @@ async function cargarZxing(): Promise<Crudo> {
   // justo en el anden. Lo copia a `public/` el script `copiar-wasm`.
   prepareZXingModule({ overrides: { locateFile: (archivo: string) => `/${archivo}` } })
 
-  return async (imagen) =>
-    (
-      await readBarcodes(imagen, {
+  const lienzo = document.createElement('canvas')
+  const pincel = lienzo.getContext('2d', { willReadFrequently: true })
+
+  return async (video) => {
+    if (!pincel || !video.videoWidth) return []
+    const escala = Math.min(1, ANCHO_MAXIMO / video.videoWidth)
+    lienzo.width = Math.round(video.videoWidth * escala)
+    lienzo.height = Math.round(video.videoHeight * escala)
+    pincel.drawImage(video, 0, 0, lienzo.width, lienzo.height)
+
+    return (
+      await readBarcodes(pincel.getImageData(0, 0, lienzo.width, lienzo.height), {
         formats: [...FORMATOS_ZXING],
         tryHarder: true,
         tryRotate: true,
@@ -79,4 +97,5 @@ async function cargarZxing(): Promise<Crudo> {
     )
       .filter((resultado) => resultado.isValid)
       .map((resultado) => ({ texto: resultado.text, formato: resultado.format }))
+  }
 }
