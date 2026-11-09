@@ -94,7 +94,7 @@ check(antes.entregas.length === 2, 'y los documentos de la hoja, para cruzar con
 
 const sinLiberar = await falla(`select despachar($1)`, [camion])
 check(
-  sinLiberar?.includes('no se ha liberado'),
+  sinLiberar?.includes('no se ha abierto'),
   'un borrador no sale: sin tareas, la cuenta de pendientes da cero y pasaria de largo',
 )
 
@@ -131,3 +131,144 @@ check(salido.shipped_at !== null, 'y queda la hora de salida')
 
 const dosVeces = await falla(`select despachar($1)`, [camion])
 check(dosVeces?.includes('ya salió'), 'un camion no sale dos veces')
+
+
+// --- la hoja es una lista de chequeo ----------------------------------------------------
+
+await como(jefe)
+await one(
+  `insert into barcode (packaging_level_id, code, symbology, is_primary)
+   values ($1, '17802225689141', 'GTIN14', true)`,
+  [caja],
+)
+
+const { id: otro } = await one(
+  `insert into product (sku, name, base_uom) values ('P-2', 'Jugo', 'ST') returning id`,
+)
+const { id: cajaOtro } = await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 12)
+   returning id`,
+  [otro],
+)
+await one(
+  `insert into barcode (packaging_level_id, code, symbology, is_primary)
+   values ($1, '17802225689158', 'GTIN14', true)`,
+  [cajaOtro],
+)
+
+const { id: anden2 } = await one(`select id from dock_door where code = 'AND-S-04'`)
+const { id: segundo } = await one(
+  `insert into sales_order (code, customer, dock_door_id, transporte)
+   values ('PED-010', 'Pricesmart', $1, '3916470') returning id`,
+  [anden2],
+)
+// Una linea con existencia y otra sin nada: el camion tiene que abrirse igual.
+await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, $3, 24)`,
+  [segundo, producto, caja],
+)
+await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 2, $2, $3, 60)`,
+  [segundo, otro, cajaOtro],
+)
+
+const abierto = await one(`select release_order($1) as n`, [segundo])
+check(abierto.n >= 1, 'el camion se abre aunque una linea no tenga existencia')
+const estado2 = await one(`select status from sales_order where id = $1`, [segundo])
+check(estado2.status === 'RELEASED', 'y queda abierto, no en borrador')
+
+const faltante = await one(
+  `select l.qty_base - coalesce(sum(a.qty_base), 0) as falta
+   from order_line l left join allocation a on a.order_line_id = l.id
+   where l.order_id = $1 and l.line_no = 2 group by l.qty_base`,
+  [segundo],
+)
+check(Number(faltante.falta) === 60, 'la linea sin existencia queda entera por apartar: eso es el rojo')
+
+// --- chequear escaneando ----------------------------------------------------------------
+
+await como(operario)
+const marcada = await one(`select * from verificar_linea($1, '17802225689141')`, [segundo])
+check(marcada.linea === 1, 'el auxiliar marca la linea escaneando la caja que sube')
+check(marcada.ya_estaba === false, 'y la primera vez no estaba marcada')
+
+const repetida = await one(`select * from verificar_linea($1, '17802225689141')`, [segundo])
+check(repetida.ya_estaba === true, 'escanear dos veces lo mismo avisa, no rompe')
+
+const sellada = await one(
+  `select count(*)::int as n from order_line where order_id = $1 and checked_at is not null`,
+  [segundo],
+)
+check(sellada.n === 1, 'y la marca queda en la linea, no en la pantalla')
+
+const desconocido = await falla(`select verificar_linea($1, '99999999999999')`, [segundo])
+check(desconocido?.includes('No conozco'), 'un codigo que no existe lo dice')
+
+const { id: ajeno } = await one(
+  `insert into product (sku, name, base_uom) values ('P-3', 'Aceite', 'ST') returning id`,
+)
+const { id: cajaAjena } = await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 6)
+   returning id`,
+  [ajeno],
+)
+await one(
+  `insert into barcode (packaging_level_id, code, symbology, is_primary)
+   values ($1, '17802225689165', 'GTIN14', true)`,
+  [cajaAjena],
+)
+const noVa = await falla(`select verificar_linea($1, '17802225689165')`, [segundo])
+check(noVa?.includes('no va en este camión'), 'y un producto que no va en el camion, tambien')
+
+// --- cerrar sin todo --------------------------------------------------------------------
+
+await como(jefe)
+const sinRazon = await falla(`select despachar($1, true, null)`, [segundo])
+check(sinRazon?.includes('por qué'), 'cerrar un camion incompleto pide una razon')
+
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id in (
+     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
+     where l.order_id = $1
+   )`,
+  [segundo],
+)
+const enCurso = await falla(`select despachar($1, true, 'el cliente lo recibe asi')`, [segundo])
+check(
+  enCurso?.includes('surtiendo'),
+  'y no se cierra mientras alguien anda con un pallet de ese camion',
+)
+
+await db.query(
+  `update task set status = 'READY', assigned_to = null where id in (
+     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
+     where l.order_id = $1
+   )`,
+  [segundo],
+)
+const apartadoAntes = await one(
+  `select sum(qty_allocated) as n from stock where product_id = $1`,
+  [producto],
+)
+check(Number(apartadoAntes.n) > 0, 'antes de cerrar, lo del camion esta apartado')
+
+await one(`select despachar($1, true, 'no habia producto y el cliente lo recibe asi')`, [segundo])
+const cerrado = await one(`select status, ship_note from sales_order where id = $1`, [segundo])
+check(cerrado.status === 'SHIPPED', 'el camion sale incompleto cuando se decide que salga')
+check(cerrado.ship_note?.includes('no habia producto'), 'y la razon queda escrita en la hoja')
+
+const apartadoDespues = await one(
+  `select coalesce(sum(qty_allocated), 0) as n from stock where product_id = $1`,
+  [producto],
+)
+check(
+  Number(apartadoAntes.n) - Number(apartadoDespues.n) === 24,
+  'lo que quedo sin surtir se suelta: no se queda apartado para un camion que ya se fue',
+)
+
+const canceladas = await one(
+  `select count(*)::int as n from task where type = 'PICK' and status = 'CANCELLED'`,
+)
+check(canceladas.n > 0, 'y sus tareas quedan canceladas, no vivas para siempre')

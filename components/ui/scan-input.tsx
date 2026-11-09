@@ -31,6 +31,17 @@ const CIERRES = ['Enter', 'Tab']
 const armados: symbol[] = []
 
 /**
+ * Si en este aparato el lector manda teclas de verdad.
+ *
+ * Se sabe cuando pasa, no antes: si el código llegó tecla por tecla, hay un lector físico
+ * conectado y las teclas se oyen igual sin que el campo tenga el foco. A partir de ahí el
+ * campo deja de pedir el foco y el teclado en pantalla no vuelve a salir, que es media
+ * pantalla de vuelta en un teléfono. Si el lector resulta ser de los que escriben en el
+ * campo como un teclado del sistema, esto nunca se enciende y el foco se cuida como siempre.
+ */
+let lectorFisico = false
+
+/**
  * Campo de escaneo. Va fuera de cualquier render: si se declara dentro, React lo
  * recrea en cada actualizacion y el campo pierde el foco.
  *
@@ -69,6 +80,7 @@ export function ScanInput({
 }) {
   const campo = useRef<HTMLInputElement>(null)
   const espera = useRef(0)
+  const vioTeclas = useRef(false)
   const hayCamara = useHayCamara()
   const [camara, setCamara] = useState(false)
   const [aMano, setAMano] = useState(false)
@@ -83,8 +95,18 @@ export function ScanInput({
     const caja = campo.current
     if (!caja) return
     const codigo = caja.value.trim()
+    const conTeclas = vioTeclas.current
     caja.value = ''
-    if (codigo.length >= LARGO_MINIMO) alEscanear.current(codigo)
+    vioTeclas.current = false
+    if (codigo.length < LARGO_MINIMO) return
+
+    // El código llegó tecleado: hay lector físico, así que se baja el teclado de la pantalla
+    // y no se vuelve a pedir el foco. Las teclas se siguen oyendo igual.
+    if (conTeclas) {
+      lectorFisico = true
+      caja.blur()
+    }
+    alEscanear.current(codigo)
   }, [])
 
   /** Reinicia la cuenta para cerrar el código. Sólo en modo lector. */
@@ -96,7 +118,7 @@ export function ScanInput({
   // El foco se pide al entrar y se recupera con cualquier toque en la pantalla, que es la
   // única forma de que los navegadores de teléfono lo concedan.
   useEffect(() => {
-    if (camara || disabled) return
+    if (camara || disabled || lectorFisico) return
 
     const enfocar = () => campo.current?.focus({ preventScroll: true })
     enfocar()
@@ -134,6 +156,7 @@ export function ScanInput({
 
       const caja = campo.current
       if (!caja) return
+      vioTeclas.current = true
       caja.value += e.key
       programar()
     }
@@ -150,7 +173,7 @@ export function ScanInput({
   /** Sin foco el lector escribe en el vacío, así que se recupera salvo que el operario se
    * haya ido a propósito a otro control de la pantalla. */
   function recuperarFoco() {
-    if (aMano || camara || disabled) return
+    if (aMano || camara || disabled || lectorFisico) return
     window.setTimeout(() => {
       const activo = document.activeElement
       if (activo instanceof HTMLElement && activo.closest('button, a, select, input, textarea')) {
@@ -162,6 +185,7 @@ export function ScanInput({
 
   function escribirAMano() {
     window.clearTimeout(espera.current)
+    vioTeclas.current = false
     setAMano(true)
     requestAnimationFrame(() => campo.current?.focus())
   }
@@ -179,7 +203,7 @@ export function ScanInput({
         <Icon name="barcode_scanner" className="pointer-events-none absolute left-3 text-azul/40" />
         <input
           ref={campo}
-          autoFocus
+          autoFocus={!lectorFisico}
           disabled={disabled}
           autoComplete="off"
           autoCorrect="off"
@@ -193,6 +217,7 @@ export function ScanInput({
           }}
           onBlur={recuperarFoco}
           onKeyDown={(e) => {
+            if (e.key.length === 1) vioTeclas.current = true
             if (!CIERRES.includes(e.key)) return
             e.preventDefault()
             soltar()
