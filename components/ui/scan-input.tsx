@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from './icon'
 import { CAMPO, ETIQUETA } from './campos'
 import { useHayCamara } from './hay-camara'
+import { useTecladoOculto } from './teclado'
 import type { FormatoDeCampo } from '@/lib/warehouse/codigo'
 
 const Camara = dynamic(() => import('./camara').then((m) => m.Camara), { ssr: false })
@@ -84,6 +85,7 @@ export function ScanInput({
   const hayCamara = useHayCamara()
   const [camara, setCamara] = useState(false)
   const [aMano, setAMano] = useState(false)
+  const sinTeclado = useTecladoOculto()
 
   const alEscanear = useRef(onScan)
   useEffect(() => {
@@ -205,6 +207,7 @@ export function ScanInput({
           ref={campo}
           autoFocus={!lectorFisico}
           disabled={disabled}
+          inputMode={!aMano && sinTeclado ? 'none' : undefined}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="characters"
