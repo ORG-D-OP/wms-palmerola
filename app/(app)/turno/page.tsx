@@ -65,7 +65,7 @@ export default async function TurnoPage() {
 
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
-      <h1 className="text-xl">Mi trabajo</h1>
+      <h1 className="text-xl">Disponibilidad</h1>
       <TurnoForm turno={turno} equipos={flota} />
 
       {reparte ? (

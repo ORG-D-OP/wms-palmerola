@@ -1,8 +1,6 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { Icon } from '@/components/ui/icon'
-import { CAMPO } from '@/components/ui/campos'
-import { BotonCamara } from '@/components/ui/boton-camara'
+import { Buscador } from './buscador'
 
 export const metadata = { title: 'Inventario · WMS Palmerola' }
 
@@ -31,24 +29,9 @@ export default async function InventarioPage({
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-8">
-      <h1 className="text-xl">Inventario</h1>
+      <h1 className="text-xl">Buscar en el inventario</h1>
 
-      <form className="flex gap-2">
-        <input
-          name="q"
-          defaultValue={q}
-          autoFocus
-          placeholder="SKU, DUN-14, pallet o posición"
-          className={`${CAMPO} flex-1`}
-        />
-        <BotonCamara campo="q" enviar />
-        <button
-          aria-label="Buscar"
-          className="flex h-14 items-center rounded-xl bg-azul px-4 text-white"
-        >
-          <Icon name="search" />
-        </button>
-      </form>
+      <Buscador />
 
       {!q.trim() ? (
         <p className="text-sm text-azul/60">
@@ -62,7 +45,7 @@ export default async function InventarioPage({
       ) : (
         <>
           <p className="text-sm text-azul/60">
-            {filas.length} {filas.length === 1 ? 'renglón' : 'renglones'} ·{' '}
+            «{q.trim()}» · {filas.length} {filas.length === 1 ? 'renglón' : 'renglones'} ·{' '}
             {totalUnidades.toLocaleString('es-HN')} unidades
           </p>
 

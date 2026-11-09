@@ -93,3 +93,17 @@ export function navMovil(role: UserRole): NavItem[] {
     .map(({ href, label, icon }) => ({ href, label, icon }))
     .slice(0, 5)
 }
+
+/**
+ * Los atajos del tablero: las pantallas donde se trabaja con las manos.
+ *
+ * Son las mismas de la barra del teléfono —menos el tablero, que no se enlaza a sí mismo—
+ * porque la lista de pantallas de trabajo es una sola y no tiene por qué estar escrita dos
+ * veces. En el teléfono, las que ya están en la barra se esconden: la misma fila de enlaces
+ * dos veces en una pantalla no ayuda a nadie, y se come lo que sólo da el tablero.
+ */
+export function atajos(role: UserRole): NavItem[] {
+  return TODOS.filter((i) => i.href !== '/' && i.movil && permitido(role, i.permiso)).map(
+    ({ href, label, icon }) => ({ href, label, icon }),
+  )
+}
