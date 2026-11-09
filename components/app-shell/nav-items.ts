@@ -39,8 +39,8 @@ const TODOS = [
   },
   { href: '/rack', label: 'Racks', icon: 'view_in_ar', permiso: 'inventario:ver', movil: false },
   {
-    href: '/recibo',
-    label: 'Recibo manual',
+    href: '/carga-inicial',
+    label: 'Carga inicial',
     icon: 'move_to_inbox',
     permiso: 'inventario:mover',
     movil: false,
