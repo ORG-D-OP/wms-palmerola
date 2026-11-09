@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { hora } from '@/lib/warehouse/hora'
 import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno } from './actions'
 
 export type Equipo = { id: string; code: string; tipo: string; alcance: number; libre: boolean }
@@ -32,11 +33,6 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
   const [estado, accion, pending] = useActionState(iniciarTurno, null)
 
   if (turno) {
-    const hora = new Date(turno.desde).toLocaleTimeString('es-HN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
         {turno.pausado ? (
@@ -44,7 +40,7 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
             No disponible{turno.motivo ? `: ${turno.motivo}` : ''}. No te van a caer tareas.
           </p>
         ) : (
-          <Logro>Estás disponible desde las {hora}.</Logro>
+          <Logro>Estás disponible desde las {hora(turno.desde)}.</Logro>
         )}
 
         <dl className="grid grid-cols-2 gap-3 text-sm">

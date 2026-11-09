@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
+import { atajos, navMovil } from '@/components/app-shell/nav-items'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Ocupacion as Estados } from '@/components/warehouse-canvas'
 import { Icon } from '@/components/ui/icon'
@@ -75,15 +76,8 @@ export default async function DashboardPage() {
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
-  const accesos = [
-    { href: '/ingreso', label: 'Ingreso', icon: 'local_shipping', permiso: 'inventario:mover' },
-    { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover' },
-    { href: '/surtir', label: 'Surtir', icon: 'shopping_basket', permiso: 'surtido:ejecutar' },
-    { href: '/despacho', label: 'Despacho', icon: 'outbound', permiso: 'inventario:mover' },
-    { href: '/inventario', label: 'Buscar', icon: 'search', permiso: 'inventario:ver' },
-  ] as const
-
-  const disponibles = accesos.filter((a) => can(user.role, a.permiso))
+  const accesos = atajos(user.role)
+  const enLaBarra = new Set(navMovil(user.role).map((i) => i.href))
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
@@ -91,13 +85,15 @@ export default async function DashboardPage() {
 
       <Trabajo trabajo={trabajo} />
 
-      {disponibles.length > 0 ? (
+      {accesos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 md:max-w-xl md:grid-cols-4">
-          {disponibles.map((a) => (
+          {accesos.map((a) => (
             <Link
               key={a.href}
               href={a.href}
-              className="flex flex-col gap-2 rounded-2xl bg-azul p-4 text-white transition-opacity hover:opacity-90"
+              className={`flex-col gap-2 rounded-2xl bg-azul p-4 text-white transition-opacity hover:opacity-90 ${
+                enLaBarra.has(a.href) ? 'hidden md:flex' : 'flex'
+              }`}
             >
               <Icon name={a.icon} />
               <span className="text-lg">{a.label}</span>

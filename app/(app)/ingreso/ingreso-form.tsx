@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
-import { BotonCamara } from '@/components/ui/boton-camara'
 import { Aviso } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
@@ -61,16 +60,6 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
     })
   }
 
-  const abrir = (datos: FormData) => {
-    setError(null)
-    startTransition(async () => {
-      const res = await buscarIngreso(String(datos.get('pedido') ?? ''))
-      if (!res.ok) return setError(res.error)
-      setDoc(res.doc)
-      setUltimo(null)
-    })
-  }
-
   const escanearPallet = (code: string) => {
     if (!doc || !code.trim()) return
     setError(null)
@@ -108,28 +97,19 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
           </select>
         </label>
 
-        <form action={abrir} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className={ETIQUETA}>Pedido del comprobante de carga</span>
-            <span className="flex gap-2">
-              <input
-                name="pedido"
-                autoFocus
-                inputMode="numeric"
-                placeholder="60213772"
-                className={`${CAMPO} tabular-nums flex-1`}
-              />
-              <BotonCamara campo="pedido" formato="pedido" />
-            </span>
-          </label>
-          <button type="submit" disabled={pending} className={BOTON}>
-            {pending ? 'Buscando...' : 'Abrir ingreso'}
-          </button>
-        </form>
+        <ScanInput
+          label="Pedido del comprobante de carga"
+          disabled={pending}
+          onScan={(codigo) => {
+            setError(null)
+            cargar(codigo)
+          }}
+          formato="pedido"
+        />
 
         <p className="text-sm text-azul/60">
-          Son los ocho dígitos de la página que trae la lista de productos. Se teclea una vez
-          por camión; después solo se escanean las etiquetas de los pallets.
+          Son los ocho dígitos de la página que trae la lista de productos. Se abre una vez por
+          camión; después solo se escanean las etiquetas de los pallets.
         </p>
 
         <div className="border-t border-borde pt-5">
