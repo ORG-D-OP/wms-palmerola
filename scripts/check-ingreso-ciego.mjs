@@ -132,6 +132,14 @@ check(
 )
 check(sinEtiqueta.recibidos === 2, 'y el acta va en dos')
 
+const procedencia = await one(`select source from lpn where code = $1`, [sinEtiqueta.lpn_code])
+check(
+  procedencia.source === 'PROVISIONAL',
+  'y esa matricula queda marcada como provisional, no como venida de planta',
+)
+const dePlanta = await one(`select source from lpn where code = 'PAL-NEST-001'`)
+check(dePlanta.source === 'NEST', 'mientras la etiqueta de planta sigue siendo de planta')
+
 const estado = await one(`select status from inbound_doc where id = $1`, [doc.id])
 check(estado.status === 'RECEIVING', 'con el primer pallet el ingreso pasa a RECEIVING')
 

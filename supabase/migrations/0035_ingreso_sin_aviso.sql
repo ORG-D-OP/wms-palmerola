@@ -137,6 +137,7 @@ declare
   v_res record;
   v_cuenta record;
   v_linea smallint;
+  v_propia boolean;
 begin
   if auth.uid() is null then
     raise exception 'Hace falta una sesión para recibir';
@@ -164,7 +165,8 @@ begin
   end if;
 
   v_matricula := nullif(trim(coalesce(p_pallet_code, '')), '');
-  if v_matricula is null then
+  v_propia := v_matricula is null;
+  if v_propia then
     v_matricula := 'WMS-' || lpad(nextval('matricula_wms_seq')::text, 8, '0');
   end if;
 
@@ -172,6 +174,12 @@ begin
     v_matricula, v_prod.product_id, v_prod.case_id, p_qty_cases, p_dock_location_id,
     nullif(trim(coalesce(p_lot, '')), ''), p_expiry, null, p_max_level
   );
+
+  -- `receive_pallet` marca toda matrícula como venida de planta. Cuando la inventamos aquí
+  -- eso no es cierto, y el catálogo ya tiene la palabra para decirlo.
+  if v_propia then
+    update lpn set source = 'PROVISIONAL' where id = v_res.lpn_id;
+  end if;
 
   select coalesce(max(line_no), 0) + 1 into v_linea from inbound_line where doc_id = v_doc.id;
 
