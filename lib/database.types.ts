@@ -1053,6 +1053,8 @@ export type Database = {
       }
       order_line: {
         Row: {
+          checked_at: string | null
+          checked_by: string | null
           id: string
           line_no: number
           order_id: string
@@ -1061,6 +1063,8 @@ export type Database = {
           qty_base: number
         }
         Insert: {
+          checked_at?: string | null
+          checked_by?: string | null
           id?: string
           line_no: number
           order_id: string
@@ -1069,6 +1073,8 @@ export type Database = {
           qty_base: number
         }
         Update: {
+          checked_at?: string | null
+          checked_by?: string | null
           id?: string
           line_no?: number
           order_id?: string
@@ -1077,6 +1083,20 @@ export type Database = {
           qty_base?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "order_line_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_line_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_line_order_id_fkey"
             columns: ["order_id"]
@@ -1761,6 +1781,7 @@ export type Database = {
           entregas: string[] | null
           id: string
           released_at: string | null
+          ship_note: string | null
           shipped_at: string | null
           status: Database["public"]["Enums"]["order_status"]
           transporte: string | null
@@ -1775,6 +1796,7 @@ export type Database = {
           entregas?: string[] | null
           id?: string
           released_at?: string | null
+          ship_note?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           transporte?: string | null
@@ -1789,6 +1811,7 @@ export type Database = {
           entregas?: string[] | null
           id?: string
           released_at?: string | null
+          ship_note?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           transporte?: string | null
@@ -3524,7 +3547,10 @@ export type Database = {
           sueltas: number
         }[]
       }
-      despachar: { Args: { p_order_id: string }; Returns: undefined }
+      despachar: {
+        Args: { p_forzar?: boolean; p_nota?: string; p_order_id: string }
+        Returns: undefined
+      }
       existencia_de: {
         Args: { p_texto: string }
         Returns: {
@@ -3869,6 +3895,15 @@ export type Database = {
         Returns: string
       }
       unidades_por: { Args: { p_packaging_level_id: string }; Returns: number }
+      verificar_linea: {
+        Args: { p_codigo: string; p_order_id: string }
+        Returns: {
+          linea: number
+          nombre: string
+          sku: string
+          ya_estaba: boolean
+        }[]
+      }
       verify_ledger: {
         Args: never
         Returns: {

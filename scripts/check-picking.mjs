@@ -107,10 +107,20 @@ await one(
    returning id`,
   [pedido2, productId],
 )
-const sinStock = await fails(`select release_order($1)`, [pedido2])
+await one(`select release_order($1) as n`, [pedido2])
+
+const corto = await one(
+  `select o.status, coalesce(sum(a.qty_base), 0) as apartado
+   from sales_order o
+   join order_line l on l.order_id = o.id
+   left join allocation a on a.order_line_id = l.id
+   where o.id = $1 group by o.status`,
+  [pedido2],
+)
+check(corto.status === 'RELEASED', 'el camion se abre igual: una linea corta no para las otras')
 check(
-  sinStock?.includes('Falta existencia'),
-  'un segundo pedido no puede contar con lo ya apartado',
+  Number(corto.apartado) < 50,
+  'pero no puede contar con lo ya apartado: la linea queda corta, que es lo que se ve en rojo',
 )
 
 await como(operario)

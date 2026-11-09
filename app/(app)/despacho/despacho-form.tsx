@@ -4,13 +4,34 @@ import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
-import { BOTON, BOTON_SUAVE } from '@/components/ui/campos'
+import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { ESTADO } from './estado'
-import { buscarDespacho, despachar, recargarDespacho, type Camion } from './actions'
+import {
+  buscarDespacho,
+  chequear,
+  despachar,
+  recargarDespacho,
+  type Camion,
+  type Linea,
+} from './actions'
 
+/**
+ * Despachar un camión: la hoja, convertida en lista de chequeo.
+ *
+ * El escaneo del tabulado abre el camión y reparte el surtido. A partir de ahí la pantalla
+ * es la hoja: todas las líneas con su cantidad, y el chequeador va escaneando lo que sube.
+ * Lo escaneado queda en verde; lo que no alcanzó la bodega queda señalado como faltante
+ * desde el primer momento, sin esperar a que alguien lo descubra en el andén.
+ *
+ * El camión se puede cerrar incompleto, porque un camión que tiene que salir sale, pero eso
+ * pide una razón: un faltante que nadie escribió es un descuadre que aparece la semana que
+ * viene sin dueño.
+ */
 export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
   const [camion, setCamion] = useState<Camion | null>(null)
+  const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
+  const [cerrandoCorto, setCerrandoCorto] = useState(false)
   const [pending, empezar] = useTransition()
 
   function resolver(respuesta: Awaited<ReturnType<typeof buscarDespacho>>) {
@@ -41,8 +62,32 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
     )
   }
 
-  const listo = camion.pendientes === 0
   const despachado = camion.estado === 'SHIPPED'
+  const chequeadas = camion.detalle.filter((l) => l.chequeada).length
+  const faltantes = camion.detalle.filter((l) => l.apartado < l.pedido)
+  const completo = chequeadas === camion.detalle.length && camion.pendientes === 0
+
+  const marcar = (codigo: string) =>
+    empezar(async () => {
+      const res = await chequear(camion.id, codigo)
+      if (!res.ok) {
+        setAviso('')
+        return setError(res.error)
+      }
+      setCamion(res.camion)
+      setAviso(res.aviso)
+      setError('')
+    })
+
+  const cerrar = (nota?: string) =>
+    empezar(async () => {
+      const res = await despachar(camion.id, nota)
+      if (!res.ok) return setError(res.error)
+      setCamion(res.camion)
+      setCerrandoCorto(false)
+      setAviso('')
+      setError('')
+    })
 
   return (
     <div className="flex flex-col gap-5">
@@ -62,53 +107,92 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
         ) : null}
       </div>
 
-      <div className="flex gap-3">
-        <Dato titulo="Lleva" valor={camion.pedido} />
-        <Dato titulo="Surtido" valor={camion.surtido} />
-        <Dato titulo="Tareas abiertas" valor={camion.pendientes} />
-      </div>
+      {despachado ? (
+        <Logro>El camión salió. No queda nada por hacer con esta hoja.</Logro>
+      ) : (
+        <>
+          <ScanInput
+            label="Escanea lo que va subiendo al camión"
+            disabled={pending}
+            onScan={marcar}
+          />
+          {aviso ? <Logro>{aviso}</Logro> : null}
+        </>
+      )}
+
+      <p className="text-sm text-azul/60">
+        {chequeadas} de {camion.detalle.length} líneas chequeadas
+        {faltantes.length > 0 ? ` · ${faltantes.length} sin producto suficiente` : ''}
+      </p>
 
       <ul className="flex flex-col divide-y divide-borde">
         {camion.detalle.map((l) => (
-          <li key={l.lineNo} className="flex items-center gap-3 py-3">
-            <Icon
-              name={l.surtido >= l.pedido ? 'check_circle' : 'radio_button_unchecked'}
-              className={l.surtido >= l.pedido ? 'text-azul' : 'text-azul/30'}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate">{l.name}</span>
-              <span className="block text-sm text-azul/60">{l.sku}</span>
-            </span>
-            <span className="shrink-0 tabular-nums">
-              {l.surtido} / {l.pedido}
-            </span>
-          </li>
+          <Renglon key={l.lineNo} linea={l} />
         ))}
       </ul>
 
-      {despachado ? (
-        <Logro>El camión salió. No queda nada por hacer con esta hoja.</Logro>
-      ) : puedeCerrar ? (
-        <button
-          type="button"
-          disabled={pending || !listo}
-          onClick={() => empezar(async () => resolver(await despachar(camion.id)))}
-          className={BOTON}
-        >
-          {pending ? 'Despachando...' : 'Marcar camión despachado'}
-        </button>
+      {!despachado && puedeCerrar ? (
+        cerrandoCorto ? (
+          <form
+            action={(datos) => cerrar(String(datos.get('nota') ?? ''))}
+            className="flex flex-col gap-3 rounded-2xl border border-borde p-4"
+          >
+            <label className="flex flex-col gap-1.5">
+              <span className={ETIQUETA}>¿Por qué sale sin todo?</span>
+              <input
+                name="nota"
+                required
+                maxLength={200}
+                autoFocus
+                placeholder="No había producto y el cliente lo recibe así"
+                className={CAMPO}
+              />
+            </label>
+            <p className="text-sm text-azul/60">
+              Lo que quedó apartado y sin surtir se suelta para otro camión, y la razón queda
+              guardada en la hoja.
+            </p>
+            <button type="submit" disabled={pending} className={BOTON}>
+              {pending ? 'Cerrando...' : 'Cerrar el camión así'}
+            </button>
+            <button type="button" onClick={() => setCerrandoCorto(false)} className={BOTON_SUAVE}>
+              Mejor no
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              disabled={pending || !completo}
+              onClick={() => cerrar()}
+              className={BOTON}
+            >
+              {pending ? 'Despachando...' : 'Marcar camión despachado'}
+            </button>
+            {!completo ? (
+              <>
+                <p className="text-sm text-azul/60">
+                  {camion.pendientes > 0
+                    ? `Quedan ${camion.pendientes} tareas de surtido abiertas.`
+                    : 'Falta chequear líneas.'}{' '}
+                  El camión se cierra cuando esté todo arriba.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCerrandoCorto(true)}
+                  className={BOTON_SUAVE}
+                >
+                  Cerrarlo igual, sin todo
+                </button>
+              </>
+            ) : null}
+          </div>
+        )
       ) : null}
 
-      {!listo && !despachado ? (
+      {!despachado && !puedeCerrar && completo ? (
         <p className="text-sm text-azul/60">
-          Quedan {camion.pendientes} tareas de surtido abiertas. El camión no se puede cerrar
-          hasta que terminen.
-        </p>
-      ) : null}
-
-      {listo && !despachado && !puedeCerrar ? (
-        <p className="text-sm text-azul/60">
-          Ya está todo surtido. El camión lo cierra el chequeador con la hoja en la mano.
+          Ya está todo arriba. El camión lo cierra el chequeador con la hoja en la mano.
         </p>
       ) : null}
 
@@ -127,6 +211,7 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
           onClick={() => {
             setCamion(null)
             setError('')
+            setAviso('')
           }}
           className={BOTON_SUAVE}
         >
@@ -140,11 +225,39 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
   )
 }
 
-function Dato({ titulo, valor }: { titulo: string; valor: number }) {
+/**
+ * Una línea de la hoja. Tres estados y se distinguen de un vistazo desde un metro: chequeada
+ * en verde, corta de producto en rojo, y pendiente en gris.
+ */
+function Renglon({ linea }: { linea: Linea }) {
+  const corta = linea.apartado < linea.pedido
+  const falta = linea.pedido - linea.apartado
+
   return (
-    <div className="flex flex-1 flex-col gap-1 rounded-2xl border border-borde p-3">
-      <span className="text-sm text-azul/70">{titulo}</span>
-      <span className="text-xl tabular-nums">{valor.toLocaleString('es-HN')}</span>
-    </div>
+    <li
+      className={`-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 ${
+        linea.chequeada ? 'bg-[var(--verde)]/20' : ''
+      }`}
+    >
+      <Icon
+        name={linea.chequeada ? 'check_circle' : corta ? 'error' : 'radio_button_unchecked'}
+        className={linea.chequeada ? 'text-azul' : corta ? 'text-rojo' : 'text-azul/30'}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{linea.name}</span>
+        <span className="block text-sm text-azul/60">
+          {linea.sku}
+          {corta ? (
+            <span className="text-rojo"> · faltan {falta.toLocaleString('es-HN')} en bodega</span>
+          ) : null}
+        </span>
+      </span>
+      <span className="shrink-0 text-right tabular-nums">
+        <span className="block">{linea.pedido.toLocaleString('es-HN')}</span>
+        <span className="block text-xs text-azul/60">
+          {linea.surtido.toLocaleString('es-HN')} surtidas
+        </span>
+      </span>
+    </li>
   )
 }
