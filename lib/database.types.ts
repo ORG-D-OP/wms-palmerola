@@ -1813,6 +1813,7 @@ export type Database = {
       }
       shift_assignment: {
         Row: {
+          dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
           flow: string
@@ -1823,6 +1824,7 @@ export type Database = {
           started_at: string
         }
         Insert: {
+          dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
           flow?: string
@@ -1833,6 +1835,7 @@ export type Database = {
           started_at?: string
         }
         Update: {
+          dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
           flow?: string
@@ -1843,6 +1846,13 @@ export type Database = {
           started_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shift_assignment_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "dock_door"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shift_assignment_equipment_id_fkey"
             columns: ["equipment_id"]
@@ -2576,6 +2586,8 @@ export type Database = {
       }
       disponibles: {
         Row: {
+          anden: string | null
+          anden_lado: Database["public"]["Enums"]["dock_direction"] | null
           disponible: boolean | null
           equipo: string | null
           full_name: string | null
@@ -2712,6 +2724,7 @@ export type Database = {
       mi_trabajo: {
         Row: {
           alcance: number | null
+          anden: string | null
           equipo: string | null
           flow: string | null
           pause_note: string | null
@@ -3267,6 +3280,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      asignar_anden: {
+        Args: { p_anden?: string; p_profile_id: string }
+        Returns: {
+          dock_door_id: string | null
+          ended_at: string | null
+          equipment_id: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       assign_barcode: {
         Args: {
           p_code: string
@@ -3547,6 +3580,7 @@ export type Database = {
       iniciar_turno: {
         Args: { p_equipment_code?: string; p_flow?: string }
         Returns: {
+          dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
           flow: string
@@ -3575,6 +3609,7 @@ export type Database = {
       pausar_turno: {
         Args: { p_motivo?: string }
         Returns: {
+          dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
           flow: string
@@ -3625,6 +3660,7 @@ export type Database = {
       reanudar_turno: {
         Args: never
         Returns: {
+          dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
           flow: string

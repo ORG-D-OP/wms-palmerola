@@ -190,14 +190,51 @@ function guiado(ctx: CanvasRenderingContext2D, v: Vista, origen?: string, destin
   ctx.restore()
 }
 
+export type Toque = {
+  bloque: string
+  celda: string
+  /**
+   * Un código con el que empiezan las posiciones de verdad que hay ahí debajo.
+   *
+   * En piso el cuadro es una posición y su código sirve tal cual. En rack no: desde arriba
+   * los seis niveles son un solo cuadro, y el nivel va en medio del código
+   * (`R-ABA-L01-N3-05`), así que el cuadro no es prefijo de nada. Lo que sí es prefijo es el
+   * carril, que además es como se habla de la bodega.
+   */
+  prefijo: string
+}
+
+/** Qué celda de la planta está debajo de un punto, en metros de la nave. */
+function celdaEn(x: number, y: number): Toque | null {
+  for (const b of BLOQUES) {
+    if (b.tipo === 'preparacion') continue
+    const f = FRANJAS[b.franja]
+    if (x < b.x || x > b.x + b.ancho || y < f.y || y > f.y + f.alto) continue
+    for (const c of b.celdas) {
+      if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
+        return {
+          bloque: b.code,
+          celda: c.code,
+          prefijo: b.tipo === 'rack' ? c.code.replace(/-\d+$/, '') : c.code,
+        }
+      }
+    }
+    return { bloque: b.code, celda: b.code, prefijo: b.code }
+  }
+  return null
+}
+
 export function WarehouseCanvas({
   ocupacion,
   origen,
   destino,
+  onTocar,
 }: {
   ocupacion: Ocupacion
   origen?: string
   destino?: string
+  /** Un toque sobre la planta, con el bloque y la celda que agarró. */
+  onTocar?: (toque: Toque) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const estaticoRef = useRef<HTMLCanvasElement | null>(null)
@@ -206,6 +243,8 @@ export function WarehouseCanvas({
   const minRef = useRef(1)
   const punterosRef = useRef(new Map<number, { x: number; y: number }>())
   const pinchRef = useRef<number | null>(null)
+  // Un toque es un puntero que bajo y subio casi en el mismo sitio; mas que eso es arrastre.
+  const toqueRef = useRef<{ x: number; y: number; movido: boolean } | null>(null)
 
   const pintar = useCallback(() => {
     const canvas = canvasRef.current
@@ -332,12 +371,16 @@ export function WarehouseCanvas({
           e.currentTarget.setPointerCapture(e.pointerId)
           punterosRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
           pinchRef.current = distancia()
+          toqueRef.current = { x: e.clientX, y: e.clientY, movido: false }
         }}
         onPointerMove={(e) => {
           const previos = punterosRef.current
           if (!previos.has(e.pointerId)) return
           const anterior = previos.get(e.pointerId)!
           previos.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+          const t = toqueRef.current
+          if (t && Math.hypot(e.clientX - t.x, e.clientY - t.y) > 6) t.movido = true
 
           if (previos.size >= 2) {
             const ahora = distancia()
@@ -362,10 +405,22 @@ export function WarehouseCanvas({
         onPointerUp={(e) => {
           punterosRef.current.delete(e.pointerId)
           pinchRef.current = null
+
+          const t = toqueRef.current
+          toqueRef.current = null
+          if (!onTocar || !t || t.movido) return
+          const r = e.currentTarget.getBoundingClientRect()
+          const v = vistaRef.current
+          const toque = celdaEn(
+            (e.clientX - r.left - v.x) / v.escala,
+            (e.clientY - r.top - v.y) / v.escala,
+          )
+          if (toque) onTocar(toque)
         }}
         onPointerCancel={(e) => {
           punterosRef.current.delete(e.pointerId)
           pinchRef.current = null
+          toqueRef.current = null
         }}
       />
 

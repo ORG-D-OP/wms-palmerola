@@ -119,3 +119,21 @@ export async function cambiarEstadoEquipo(datos: FormData) {
   if (error) throw new Error(fallo(error).error)
   revalidatePath('/turno')
 }
+
+/** El jefe de bodega para a alguien en un andén, o lo suelta para toda la bodega. */
+export async function asignarAnden(datos: FormData) {
+  await requirePermission('tareas:reasignar')
+
+  const persona = z.uuid().safeParse(datos.get('persona'))
+  if (!persona.success) throw new Error('Persona inválida.')
+  const anden = z.string().trim().max(12).safeParse(datos.get('anden') ?? '')
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('asignar_anden', {
+    p_profile_id: persona.data,
+    p_anden: anden.success && anden.data ? anden.data : undefined,
+  })
+
+  if (error) throw new Error(fallo(error).error)
+  revalidatePath('/turno')
+}

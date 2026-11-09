@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import type { Cara } from '@/components/rack-face'
+import { caraDe } from '@/lib/warehouse/cara'
 
 export type Job = {
   taskId: string
@@ -14,6 +16,8 @@ export type Job = {
   lot: string | null
   fromCode: string | null
   toCode: string | null
+  /** La cara del rack al que va, cuando va a un rack. En piso no hay nada que levantar. */
+  cara: Cara | null
 }
 
 type Fail = { ok: false; error: string }
@@ -46,6 +50,8 @@ export async function claimPutaway(): Promise<{ ok: true; job: Job | null } | Fa
 
   if (!data) return { ok: false, error: 'No se pudo cargar la tarea.' }
 
+  const toCode = data.to_location?.code ?? null
+
   return {
     ok: true,
     job: {
@@ -56,7 +62,8 @@ export async function claimPutaway(): Promise<{ ok: true; job: Job | null } | Fa
       qty: Number(data.qty_base),
       lot: data.lot,
       fromCode: data.from_location?.code ?? null,
-      toCode: data.to_location?.code ?? null,
+      toCode,
+      cara: await caraDe(supabase, toCode),
     },
   }
 }
