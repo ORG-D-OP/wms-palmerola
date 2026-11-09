@@ -14,6 +14,13 @@ const TODOS = [
     permiso: 'inventario:mover',
     movil: true,
   },
+  {
+    href: '/despacho',
+    label: 'Despacho',
+    icon: 'outbound',
+    permiso: 'despachos:administrar',
+    movil: true,
+  },
   { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover', movil: true },
   {
     href: '/surtir',

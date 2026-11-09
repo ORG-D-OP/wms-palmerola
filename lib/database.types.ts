@@ -899,6 +899,13 @@ export type Database = {
             foreignKeyName: "order_line_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "despacho_progreso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_line_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "sales_order"
             referencedColumns: ["id"]
           },
@@ -1463,10 +1470,12 @@ export type Database = {
           created_by: string | null
           customer: string | null
           dock_door_id: string | null
+          entregas: string[] | null
           id: string
           released_at: string | null
           shipped_at: string | null
           status: Database["public"]["Enums"]["order_status"]
+          transporte: string | null
           wave_id: string | null
         }
         Insert: {
@@ -1475,10 +1484,12 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           dock_door_id?: string | null
+          entregas?: string[] | null
           id?: string
           released_at?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          transporte?: string | null
           wave_id?: string | null
         }
         Update: {
@@ -1487,10 +1498,12 @@ export type Database = {
           created_by?: string | null
           customer?: string | null
           dock_door_id?: string | null
+          entregas?: string[] | null
           id?: string
           released_at?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          transporte?: string | null
           wave_id?: string | null
         }
         Relationships: [
@@ -2208,6 +2221,22 @@ export type Database = {
         }
         Relationships: []
       }
+      despacho_progreso: {
+        Row: {
+          anden: string | null
+          code: string | null
+          customer: string | null
+          entregas: string[] | null
+          id: string | null
+          lineas: number | null
+          pedido: number | null
+          pendientes: number | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          surtido: number | null
+          transporte: string | null
+        }
+        Relationships: []
+      }
       estiba_vs_capacidad: {
         Row: {
           estiba_mas_pesada_kg: number | null
@@ -2796,6 +2825,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      buscar_despacho: { Args: { p_codigo: string }; Returns: string }
       buscar_ingreso: {
         Args: { p_pedido: string }
         Returns: {
@@ -2915,6 +2945,7 @@ export type Database = {
           sueltas: number
         }[]
       }
+      despachar: { Args: { p_order_id: string }; Returns: undefined }
       existencia_de: {
         Args: { p_texto: string }
         Returns: {
