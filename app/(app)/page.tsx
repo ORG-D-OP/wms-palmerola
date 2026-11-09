@@ -58,6 +58,7 @@ export default async function DashboardPage() {
     { href: '/ingreso', label: 'Ingreso', icon: 'local_shipping', permiso: 'inventario:mover' },
     { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover' },
     { href: '/surtir', label: 'Surtir', icon: 'shopping_basket', permiso: 'surtido:ejecutar' },
+    { href: '/despacho', label: 'Despacho', icon: 'outbound', permiso: 'despachos:administrar' },
     { href: '/inventario', label: 'Buscar', icon: 'search', permiso: 'inventario:ver' },
   ] as const
 

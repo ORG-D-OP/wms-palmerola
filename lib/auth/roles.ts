@@ -41,6 +41,7 @@ const PERMISSIONS = {
   'conteo:ejecutar': ['chequeador', 'inventarios', 'supervisor', 'admin'],
   'turno:iniciar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'ingresos:administrar': ['chequeador', 'supervisor', 'admin'],
+  'despachos:administrar': ['chequeador', 'supervisor', 'admin'],
   'pedidos:administrar': ['supervisor', 'admin'],
   'areas:administrar': ['supervisor', 'admin'],
   'flota:administrar': ['supervisor', 'admin'],
