@@ -42,6 +42,7 @@ export function Camara({
   const alLeer = useRef(onLeer)
   const [error, setError] = useState('')
   const [motor, setMotor] = useState('')
+  const [cuadros, setCuadros] = useState(0)
   const [descartada, setDescartada] = useState<Lectura | null>(null)
   const [encendida, setEncendida] = useState(false)
   const [hayLinterna, setHayLinterna] = useState(false)
@@ -109,27 +110,15 @@ export function Camara({
       if (!vivo) return
       setMotor(lector.motor)
 
-      const lienzo = document.createElement('canvas')
-      const pincel = lienzo.getContext('2d', { willReadFrequently: true })
-      if (!pincel) {
-        setError('Este navegador no puede procesar el video de la cámara.')
-        return
-      }
-
       const mirar = async (): Promise<void> => {
         if (!vivo) return
-        const ancho = elemento.videoWidth
-        const alto = elemento.videoHeight
-        if (!ancho || !alto) return programar(false, () => void mirar())
-
-        lienzo.width = ancho
-        lienzo.height = alto
-        pincel.drawImage(elemento, 0, 0, ancho, alto)
+        if (!elemento.videoWidth) return programar(false, () => void mirar())
 
         let lecturas: Lectura[] = []
         try {
-          lecturas = await lector.leer(pincel.getImageData(0, 0, ancho, alto))
+          lecturas = await lector.leer(elemento)
           fallos = 0
+          setCuadros((n) => n + 1)
         } catch {
           // Un tropiezo del decodificador no puede matar el bucle. Sin esto la camara se
           // queda abierta, encendida, y no vuelve a leer nunca: parece que no pasa nada.
@@ -201,8 +190,8 @@ export function Camara({
         </p>
 
         {motor && !error ? (
-          <p className="absolute inset-x-4 top-4 text-center text-xs text-white/40">
-            Leyendo con {motor}
+          <p className="absolute inset-x-4 top-4 text-center text-xs text-white/40 tabular-nums">
+            Leyendo con {motor} · {cuadros} cuadros
           </p>
         ) : null}
       </div>
