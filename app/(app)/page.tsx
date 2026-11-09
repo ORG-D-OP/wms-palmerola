@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Ocupacion } from '@/components/warehouse-canvas'
-import { WarehouseView } from '@/components/warehouse-view'
+import type { Ocupacion as Estados } from '@/components/warehouse-canvas'
 import { Icon } from '@/components/ui/icon'
+import { Ocupacion } from './ocupacion'
 import { Trabajo, type Trabajo as EstadoTrabajo } from './trabajo'
 
 /** Con la bodega llena son 5,581 códigos cortos; con la bodega vacía, ninguno. */
@@ -33,7 +33,7 @@ async function getDatos() {
 
   const ocupacion = Object.fromEntries(
     (estados.data ?? []).map((p) => [p.code ?? '', p.estado ?? 'OCUPADA']),
-  ) as Ocupacion
+  ) as Estados
 
   const totales = (zonas.data ?? []).reduce(
     (acc, z) => ({ ocupadas: acc.ocupadas + (z.ocupadas ?? 0), total: acc.total + (z.total ?? 0) }),
@@ -124,15 +124,7 @@ export default async function DashboardPage() {
         ))}
       </dl>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg">Ocupación del almacén</h2>
-        <p className="text-sm text-azul/60">
-          Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles y el tono
-          dice cuántos están ocupados; los niveles uno por uno se ven en la cara del rack, que
-          sale en Guardar y Surtir cuando llegas al rack al que vas.
-        </p>
-        <WarehouseView ocupacion={ocupacion} permite3D={can(user.role, 'kpi:ver')} />
-      </section>
+      <Ocupacion estados={ocupacion} permite3D={can(user.role, 'kpi:ver')} />
 
       {areas.length > 0 ? (
         <section className="flex flex-col gap-2">
