@@ -8,6 +8,8 @@ import { readXlsx } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/maestro.xlsx'
 const HOJA = process.argv[3] ?? 'Hoja1'
+/** La hoja donde el maestro apunta los codigos que la empresa usa y SAP todavia no tiene. */
+const HOJA_NUEVOS = process.argv[4] ?? 'Hoja2'
 const LOTE = 500
 const ORIGEN = 'Maestro de materiales WMS'
 
@@ -303,6 +305,54 @@ for (const f of filas) {
 }
 await porLotes(estibas, (lote) => upsert('pallet_config', lote, 'product_id,pallet_type_code'))
 console.log(`estibas: ${estibas.length}`)
+
+// Los que SAP todavia no tiene --------------------------------------------------------------
+
+// La segunda hoja lista codigos que la empresa ya usa y el maestro de materiales no trae.
+// Van al sistema igual, con el nombre y nada mas, porque el dia que llegue el camion el
+// producto tiene que existir para poder recibirlo. Sin estiba y sin codigo: eso se completa
+// en Productos, escaneando la caja.
+const porVenir = readXlsx(ARCHIVO, HOJA_NUEVOS)
+  .map((r) => ({ sku: limpio(r[0]), nombre: limpio(r[1]) }))
+  .filter((f) => /^\d/.test(f.sku) && f.nombre && !idPorSku.has(f.sku))
+
+if (porVenir.length > 0) {
+  const nuevos = await upsert(
+    'product',
+    porVenir.map((f) => ({
+      sku: f.sku,
+      base_code: f.sku.slice(0, 5),
+      variant: f.sku.slice(5) || null,
+      name: f.nombre,
+      units_label: f.nombre.match(/(\d+\s*[´'’]?s)$/i)?.[1] ?? null,
+      base_uom: 'ST',
+      status: 'active',
+      requires_fefo: true,
+      external_source: `${ORIGEN} (${HOJA_NUEVOS})`,
+    })),
+    'sku',
+    true,
+  )
+  const idNuevo = new Map(nuevos.map((p) => [p.sku, p.id]))
+
+  await upsert(
+    'packaging_level',
+    porVenir.flatMap((f) => [
+      { product_id: idNuevo.get(f.sku), code: 'UNIT', qty_base_units: 1, is_pick_unit: true, is_receipt_unit: false },
+      {
+        product_id: idNuevo.get(f.sku),
+        code: 'CASE',
+        qty_base_units: unidadesPorCaja(f.nombre) ?? 1,
+        is_pick_unit: false,
+        is_receipt_unit: true,
+      },
+    ]),
+    'product_id,code',
+  )
+
+  console.log(`\n${porVenir.length} que SAP no trae, dados de alta sin codigo ni estiba:`)
+  for (const f of porVenir) console.log(`  ${f.sku}  ${f.nombre}`)
+}
 
 // Lo que hay que mirar ---------------------------------------------------------------------
 

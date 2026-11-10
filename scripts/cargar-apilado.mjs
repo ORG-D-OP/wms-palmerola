@@ -10,20 +10,21 @@ import { hojasDe, readXlsx } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/almacenaje-en-piso.xlsx'
 const LOTE = 100
+const ORIGEN = 'Lista de apilado en piso'
 
 /** Las columnas de la lista, por indice. Las dos hojas traen la misma forma. */
 const COL = { sku: 0, nombre: 1, cajasPorPallet: 2, dobleNivel: 3, tercerNivel: 4 }
 
 const env = loadEnv(['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SECRET_KEY'])
 
-const rest = async (path, body, metodo) => {
+const rest = async (path, body, metodo, prefer = 'return=minimal') => {
   const res = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${path}`, {
     method: metodo ?? (body ? 'POST' : 'GET'),
     headers: {
       apikey: env.SUPABASE_SECRET_KEY,
       Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
+      Prefer: prefer,
     },
     body: body ? JSON.stringify(body) : undefined,
   })
@@ -32,12 +33,23 @@ const rest = async (path, body, metodo) => {
   return text ? JSON.parse(text) : []
 }
 
+const upsert = (tabla, filas, conflicto, devolver = false) =>
+  rest(
+    `${tabla}?on_conflict=${conflicto}`,
+    filas,
+    'POST',
+    `resolution=merge-duplicates,return=${devolver ? 'representation' : 'minimal'}`,
+  )
+
 const limpio = (v) => String(v ?? '').replace(/\s+/g, ' ').trim()
 const entero = (v) => {
   const n = parseInt(String(v).replace(/[^\d-]/g, ''), 10)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 const marcado = (v) => limpio(v) === '1' || /^(true|si|x)$/i.test(limpio(v))
+
+/** Cuantas unidades trae la caja. Va al final del nombre: «24s», «180s», «30´s». */
+const unidadesPorCaja = (nombre) => entero(limpio(nombre).match(/(\d+)\s*(?:[´'’]?s)?$/i)?.[1]) ?? 1
 
 // ----------------------------------------------------------------------------------------
 
@@ -70,10 +82,60 @@ for (let i = 0; i < lista.length; i += LOTE) {
 }
 const idPorSku = new Map(productos.map((p) => [p.sku, p.id]))
 
+// La bodega apila productos que el maestro todavia no trae. Se dan de alta con lo poco que
+// hay —nombre, unidades por caja y la estiba—, sin codigo de barras ni medidas, para que la
+// regla ya este puesta el dia que llegue el primer camion. Quedan marcados como incompletos
+// en Productos, que es donde alguien les asigna el codigo escaneando la caja.
 const sinProducto = lista.filter((l) => !idPorSku.has(l.sku))
 if (sinProducto.length > 0) {
-  console.log(`\n${sinProducto.length} no estan en el catalogo y se quedan fuera:`)
+  const nuevos = await upsert(
+    'product',
+    sinProducto.map((f) => ({
+      sku: f.sku,
+      base_code: f.sku.slice(0, 5),
+      variant: f.sku.slice(5) || null,
+      name: f.nombre,
+      units_label: f.nombre.match(/(\d+\s*[´'’]?s)$/i)?.[1] ?? null,
+      base_uom: 'ST',
+      status: 'active',
+      requires_fefo: true,
+      external_source: ORIGEN,
+    })),
+    'sku',
+    true,
+  )
+  for (const p of nuevos) idPorSku.set(p.sku, p.id)
+  productos.push(...nuevos.map((p) => ({ id: p.id, sku: p.sku })))
+
+  await upsert(
+    'packaging_level',
+    sinProducto.flatMap((f) => [
+      { product_id: idPorSku.get(f.sku), code: 'UNIT', qty_base_units: 1, is_pick_unit: true, is_receipt_unit: false },
+      {
+        product_id: idPorSku.get(f.sku),
+        code: 'CASE',
+        qty_base_units: unidadesPorCaja(f.nombre),
+        is_pick_unit: false,
+        is_receipt_unit: true,
+      },
+    ]),
+    'product_id,code',
+  )
+
+  await upsert(
+    'pallet_config',
+    sinProducto.map((f) => ({
+      product_id: idPorSku.get(f.sku),
+      pallet_type_code: 'STD',
+      cases_per_pallet: f.cajas,
+      is_default: true,
+    })),
+    'product_id,pallet_type_code',
+  )
+
+  console.log(`\n${sinProducto.length} no estaban en el catalogo y se dieron de alta:`)
   for (const f of sinProducto) console.log(`  ${f.sku}  ${f.nombre}  (${f.hoja})`)
+  console.log('  les falta codigo de barras y medidas de caja.')
 }
 
 // Todos a un nivel, y despues sube la lista. Dos pasadas, para que quitar un producto de la
