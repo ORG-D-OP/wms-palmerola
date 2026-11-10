@@ -120,3 +120,10 @@ export function readXlsx(archivo, hoja) {
   }
   return filas
 }
+
+/** Los nombres de las hojas, en el orden del libro. */
+export function hojasDe(archivo) {
+  const buf = readFileSync(archivo)
+  const libro = extraer(buf, indice(buf).get('xl/workbook.xml'))
+  return [...libro.matchAll(/<sheet[^>]*name="([^"]*)"/g)].map((m) => texto(m[1]))
+}

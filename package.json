@@ -16,7 +16,7 @@
     "db:check": "node scripts/check-migrations.mjs",
     "db:push": "supabase db push",
     "db:apply": "node scripts/db-apply.mjs",
-    "db:test": "node scripts/check-product-model.mjs && node scripts/check-inventory-model.mjs && node scripts/check-task-model.mjs && node scripts/check-receiving.mjs && node scripts/check-putaway.mjs && node scripts/check-picking.mjs && node scripts/check-areas.mjs && node scripts/check-turno.mjs && node scripts/check-ingreso.mjs && node scripts/check-plano.mjs && node scripts/check-despacho.mjs && node scripts/check-codigo.mjs && node scripts/check-ingreso-ciego.mjs && node scripts/check-crossdock.mjs && node scripts/check-retornables.mjs && node scripts/check-carga-inicial.mjs && node scripts/check-anden-pallet.mjs"
+    "db:test": "node scripts/check-product-model.mjs && node scripts/check-inventory-model.mjs && node scripts/check-task-model.mjs && node scripts/check-receiving.mjs && node scripts/check-putaway.mjs && node scripts/check-picking.mjs && node scripts/check-areas.mjs && node scripts/check-turno.mjs && node scripts/check-ingreso.mjs && node scripts/check-plano.mjs && node scripts/check-despacho.mjs && node scripts/check-codigo.mjs && node scripts/check-ingreso-ciego.mjs && node scripts/check-crossdock.mjs && node scripts/check-retornables.mjs && node scripts/check-carga-inicial.mjs && node scripts/check-anden-pallet.mjs && node scripts/check-apilado.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
