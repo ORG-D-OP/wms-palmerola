@@ -217,12 +217,13 @@ const ReciboCiego = z.object({
   codigo: z.string().trim().min(3).max(48),
   cases: z.coerce.number().positive().max(9999),
   dockLocationId: z.uuid(),
-  // Sin documento, el lote y el vencimiento los pone quien descarga, y son los dos datos
-  // que nadie puede reconstruir después. La matrícula del pallet sí es opcional: muchos no
-  // traen etiqueta legible.
-  lot: z.string().trim().min(1, 'Escribe el lote.').max(40),
+  // Lo único que nadie puede reconstruir después es el vencimiento, y de ahí sale el FEFO.
+  // El lote y la etiqueta del pallet van vacíos cuando no vienen impresos: un lote inventado
+  // miente en una trazabilidad que después se usa de verdad, y muchos pallets llegan sin
+  // etiqueta Nest legible.
+  lot: z.string().trim().max(40).optional(),
   expiry: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Escribe el vencimiento.'),
-  palletCode: z.string().trim().min(4).max(32).optional(),
+  palletCode: z.union([z.literal(''), z.string().trim().min(4).max(32)]).optional(),
 })
 
 export async function recibirSinAviso(

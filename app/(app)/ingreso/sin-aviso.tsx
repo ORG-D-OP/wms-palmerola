@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
-import { BotonCamara } from '@/components/ui/boton-camara'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { buscarProducto, recibirSinAviso, type Producto, type Recibido } from './actions'
@@ -11,9 +10,13 @@ import { buscarProducto, recibirSinAviso, type Producto, type Recibido } from '.
  * Recibir un camión que nadie anunció.
  *
  * Al revés del ingreso normal: ahí la hoja dice qué trae cada pallet y el operario sólo
- * confirma escaneando. Aquí no hay hoja, así que el dato lo pone quien está descargando, y
- * el orden importa —primero qué es, después cuánto— porque saber el producto es lo que
- * permite al sistema decir si hace falta el vencimiento.
+ * confirma escaneando. Aquí no hay hoja, así que el dato lo pone quien está descargando.
+ *
+ * Se escanea en el orden en que las cosas aparecen enfrente: primero la etiqueta del pallet,
+ * que dice cuál es este bulto, y después una caja, que dice qué producto trae. Las dos
+ * pueden faltar —el pallet llega sin etiqueta Nest, la caja trae un código que no está en el
+ * maestro— y por eso ninguna detiene la descarga: lo que no puede faltar es el producto, que
+ * entonces se escribe, y el vencimiento, de donde sale el FEFO.
  */
 export function SinAviso({
   pedido,
@@ -24,10 +27,18 @@ export function SinAviso({
   dockLocationId: string
   onRecibido: (recibido: Recibido) => void
 }) {
+  const [pallet, setPallet] = useState<string | null>(null)
+  const [palletListo, setPalletListo] = useState(false)
   const [producto, setProducto] = useState<Producto | null>(null)
   const [codigo, setCodigo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, empezar] = useTransition()
+
+  const tomarPallet = (texto: string) => {
+    setPallet(texto.trim())
+    setPalletListo(true)
+    setError(null)
+  }
 
   const identificar = (texto: string) => {
     if (!texto.trim()) return
@@ -41,6 +52,8 @@ export function SinAviso({
   }
 
   const limpiar = () => {
+    setPallet(null)
+    setPalletListo(false)
     setProducto(null)
     setCodigo('')
     setError(null)
@@ -56,7 +69,7 @@ export function SinAviso({
         dockLocationId,
         lot: String(datos.get('lot') ?? ''),
         expiry: String(datos.get('expiry') ?? ''),
-        palletCode: String(datos.get('palletCode') ?? ''),
+        palletCode: pallet ?? '',
       })
       if (!res.ok) return setError(res.error)
       onRecibido(res.recibido)
@@ -64,9 +77,44 @@ export function SinAviso({
     })
   }
 
+  if (!palletListo) {
+    return (
+      <div className="flex flex-col gap-3">
+        <ScanInput label="Escanea la etiqueta del pallet" disabled={pending} onScan={tomarPallet} />
+        <button type="button" onClick={() => setPalletListo(true)} className={BOTON_SUAVE}>
+          No trae etiqueta
+        </button>
+        <p className="text-sm text-azul/60">
+          Sin etiqueta el sistema le pone matrícula propia, y entonces el pallet se encuentra
+          por dónde quedó guardado, no escaneándolo.
+        </p>
+        {error ? <Aviso>{error}</Aviso> : null}
+      </div>
+    )
+  }
+
+  const resumenPallet = (
+    <div className="flex items-center justify-between rounded-2xl border border-borde p-4">
+      <div>
+        <p className={ETIQUETA}>Pallet</p>
+        <p className={pallet ? 'tabular-nums' : 'text-azul/60'}>
+          {pallet ?? 'Sin etiqueta: matrícula propia'}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={limpiar}
+        className="text-sm underline underline-offset-4"
+      >
+        Cambiar
+      </button>
+    </div>
+  )
+
   if (!producto) {
     return (
       <div className="flex flex-col gap-3">
+        {resumenPallet}
         <ScanInput
           label="Escanea una caja o escribe el SKU"
           disabled={pending}
@@ -83,12 +131,17 @@ export function SinAviso({
 
   return (
     <form action={recibir} className="flex flex-col gap-4">
+      {resumenPallet}
+
       <div className="rounded-2xl border border-borde p-4">
         <p className="text-sm text-azul/60">{producto.sku}</p>
         <p>{producto.name}</p>
         <button
           type="button"
-          onClick={limpiar}
+          onClick={() => {
+            setProducto(null)
+            setCodigo('')
+          }}
           className="mt-1 text-sm underline underline-offset-4"
         >
           No es este
@@ -108,31 +161,23 @@ export function SinAviso({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className={ETIQUETA}>Lote</span>
-          <input name="lot" required className={CAMPO} />
-        </label>
-        <label className="flex flex-col gap-1.5">
           <span className={ETIQUETA}>Vencimiento</span>
           <input name="expiry" type="date" required className={CAMPO} />
         </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Lote, si viene impreso</span>
+          <input name="lot" className={CAMPO} />
+        </label>
       </div>
-
-      <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Etiqueta del pallet (si trae una legible)</span>
-        <span className="flex gap-2">
-          <input name="palletCode" className={`${CAMPO} flex-1`} />
-          <BotonCamara campo="palletCode" />
-        </span>
-      </label>
 
       <button type="submit" disabled={pending} className={BOTON}>
         {pending ? 'Recibiendo...' : 'Recibir pallet'}
       </button>
 
       <p className="text-sm text-azul/60">
-        La etiqueta es lo único opcional. Sin ella el sistema le pone matrícula propia y el
-        pallet queda identificado por dónde se guarde. El lote y el vencimiento no: sin
-        documento, nadie los puede reconstruir después.
+        El vencimiento es lo único que no puede quedar vacío: de ahí sale el FEFO y nadie lo
+        reconstruye después. El lote va en blanco si el pallet no lo trae impreso, porque un
+        lote inventado miente en la trazabilidad.
       </p>
 
       {error ? <Aviso>{error}</Aviso> : null}
