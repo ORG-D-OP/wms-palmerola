@@ -104,12 +104,6 @@ const sinCajas = await falla(
 )
 check(sinCajas?.includes('cuántas cajas'), 'no se recibe un pallet sin decir cuantas cajas trae')
 
-const sinLote = await falla(
-  `select * from recibir_sin_aviso($1, '61244C4', 10, $2, null, '2027-01-31')`,
-  [doc.pedido, anden],
-)
-check(sinLote?.includes('lote'), 'sin documento, el lote es obligatorio: nadie lo reconstruye')
-
 const sinVencimiento = await falla(
   `select * from recibir_sin_aviso($1, '61244C4', 10, $2, 'L-9')`,
   [doc.pedido, anden],
@@ -135,7 +129,7 @@ check(Number(conEtiqueta.cases) === 40, 'con las cajas que el chequeador contó'
 check(conEtiqueta.recibidos === 1 && conEtiqueta.pallets === 1, 'el acta va en un pallet')
 
 const sinEtiqueta = await one(
-  `select * from recibir_sin_aviso($1, '61244C4', 36, $2, 'L-78', '2027-02-28')`,
+  `select * from recibir_sin_aviso($1, '61244C4', 36, $2, null, '2027-02-28')`,
   [doc.pedido, anden],
 )
 check(
@@ -151,6 +145,11 @@ check(
 )
 const dePlanta = await one(`select source from lpn where code = 'PAL-NEST-001'`)
 check(dePlanta.source === 'NEST', 'mientras la etiqueta de planta sigue siendo de planta')
+
+const loteVacio = await one(`select lot from inbound_pallet where pallet_code = $1`, [
+  sinEtiqueta.lpn_code,
+])
+check(loteVacio.lot === null, 'el lote va vacio cuando no viene impreso, no inventado')
 
 const estado = await one(`select status from inbound_doc where id = $1`, [doc.id])
 check(estado.status === 'RECEIVING', 'con el primer pallet el ingreso pasa a RECEIVING')
