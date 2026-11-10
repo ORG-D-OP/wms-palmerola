@@ -16,7 +16,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       `id, sku, name, base_uom, requires_fefo, shelf_life_days, external_barcode_hint,
        packaging_level(code, qty_base_units, length_mm, width_mm, height_mm, gross_weight_g,
                        barcode(code, is_primary, verified_at)),
-       pallet_config(cases_per_pallet, pallet_type_code)`,
+       pallet_config(cases_per_pallet, pallet_type_code, max_stack)`,
     )
     .eq('id', id)
     .single()
@@ -25,6 +25,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
   const caja = producto.packaging_level.find((p) => p.code === 'CASE')
   const codigos = producto.packaging_level.flatMap((p) => p.barcode)
+  const niveles = producto.pallet_config[0]?.max_stack ?? 1
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
@@ -46,6 +47,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           ],
           ['Peso de caja', caja?.gross_weight_g ? `${(caja.gross_weight_g / 1000).toFixed(2)} kg` : 'sin dato'],
           ['Cajas por pallet', producto.pallet_config[0]?.cases_per_pallet ?? 'sin dato'],
+          ['Apilado en piso', niveles > 1 ? `${niveles} pallets, uno sobre otro` : 'un solo pallet'],
           ['Vida de anaquel', producto.shelf_life_days ? `${producto.shelf_life_days} días` : 'sin dato'],
           ['Vencimiento', producto.requires_fefo ? 'obligatorio' : 'no exigido'],
         ].map(([k, v]) => (

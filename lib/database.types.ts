@@ -2572,6 +2572,15 @@ export type Database = {
       }
     }
     Views: {
+      apilado_en_piso: {
+        Row: {
+          cases_per_pallet: number | null
+          name: string | null
+          niveles: number | null
+          sku: string | null
+        }
+        Relationships: []
+      }
       area_occupancy: {
         Row: {
           code: string | null
@@ -3630,6 +3639,10 @@ export type Database = {
           level: Database["public"]["Enums"]["packaging_code"]
           lpn_id: string
         }[]
+      }
+      pallets_que_caben: {
+        Args: { p_location_id: string; p_product_id: string }
+        Returns: number
       }
       pausar_turno: {
         Args: { p_motivo?: string }
