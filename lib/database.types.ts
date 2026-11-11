@@ -258,6 +258,27 @@ export type Database = {
         }
         Relationships: []
       }
+      codigo_registro: {
+        Row: {
+          codigo: string
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          codigo: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          codigo?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       dock_door: {
         Row: {
           code: string
@@ -1595,6 +1616,8 @@ export type Database = {
       }
       profile: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           employee_code: string | null
           full_name: string
@@ -1604,6 +1627,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           employee_code?: string | null
           full_name: string
@@ -1613,6 +1638,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           employee_code?: string | null
           full_name?: string
@@ -3304,6 +3331,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      aprobar_persona: {
+        Args: { p_id: string; p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          employee_code: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profile"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       area_de: {
         Args: { p_location_id: string }
         Returns: {
@@ -3376,6 +3423,27 @@ export type Database = {
           to: "inbound_progress"
           isOneToOne: false
           isSetofReturn: true
+        }
+      }
+      cambiar_codigo_registro: { Args: { p_codigo: string }; Returns: string }
+      cambiar_rol: {
+        Args: { p_id: string; p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          employee_code: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profile"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       carga_inicial_de: {
@@ -3548,6 +3616,26 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      dar_de_baja: {
+        Args: { p_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          employee_code: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profile"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       desglose: {
         Args: { p_product_id: string; p_qty: number }
         Returns: {
@@ -3631,6 +3719,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      listar_personal: {
+        Args: never
+        Returns: {
+          approved_at: string
+          created_at: string
+          email: string
+          employee_code: string
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
       lpn_contenido: {
         Args: { p_lpn_id: string }
         Returns: {
@@ -3640,6 +3741,7 @@ export type Database = {
           lpn_id: string
         }[]
       }
+      manda_sobre_personal: { Args: never; Returns: boolean }
       pallets_que_caben: {
         Args: { p_location_id: string; p_product_id: string }
         Returns: number
@@ -3694,6 +3796,26 @@ export type Database = {
           requires_fefo: boolean
           sku: string
         }[]
+      }
+      reactivar_persona: {
+        Args: { p_id: string }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          employee_code: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profile"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       reanudar_turno: {
         Args: never
@@ -3751,6 +3873,7 @@ export type Database = {
           to_location_id: string
         }[]
       }
+      rechazar_registro: { Args: { p_id: string }; Returns: undefined }
       recibir_del_documento: {
         Args: {
           p_barcode?: string
@@ -3791,6 +3914,10 @@ export type Database = {
         }[]
       }
       release_order: { Args: { p_order_id: string }; Returns: number }
+      rol_asignable: {
+        Args: { p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
       start_pick: {
         Args: { p_location_code: string; p_task_id: string }
         Returns: {

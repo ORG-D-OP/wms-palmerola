@@ -97,7 +97,7 @@ check(dosPick !== null, 'un producto no puede tener dos unidades de picking')
 const { id: quien } = await one(
   `insert into auth.users (email) values ('admin@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'admin' where id = '${quien}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'admin' where id = '${quien}'`)
 await db.query(`select set_config('request.jwt.claim.sub', '${quien}', false)`)
 
 const asignado = await one(`select * from assign_barcode($1, '7501234567890')`, [gemeloId])
@@ -111,7 +111,7 @@ check(
   'un codigo de otro producto se rechaza nombrando cual',
 )
 
-await db.query(`update profile set role = 'auxiliar' where id = '${quien}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id = '${quien}'`)
 const sinPermiso = await db
   .query(`select * from assign_barcode($1, '7509999999999')`, [productId])
   .then(() => null, (e) => e.message)

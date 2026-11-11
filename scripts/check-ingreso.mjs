@@ -20,7 +20,7 @@ const fails = async (sql, params) =>
 const { id: auxiliar } = await one(
   `insert into auth.users (email) values ('aux@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'auxiliar' where id = '${auxiliar}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id = '${auxiliar}'`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 // Dos variantes del mismo producto base, con el mismo DUN-14: es el caso real.

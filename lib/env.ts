@@ -26,3 +26,16 @@ export function serverEnv() {
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
   })
 }
+
+/**
+ * La llave secreta va aparte, y no dentro de `serverEnv`, a proposito.
+ *
+ * `serverEnv()` lo llama el proxy en cada peticion. Si la llave fuera obligatoria ahi y
+ * faltara en el despliegue, no se caeria el registro: se caeria el sitio entero. Aqui lo
+ * unico que se rompe es la pantalla que de verdad la necesita.
+ */
+const adminSchema = z.object({ SUPABASE_SECRET_KEY: z.string().min(1) })
+
+export function adminEnv() {
+  return adminSchema.parse({ SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY })
+}

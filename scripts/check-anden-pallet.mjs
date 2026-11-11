@@ -23,8 +23,8 @@ const { id: uno } = await one(
 const { id: dos } = await one(
   `insert into auth.users (email) values ('aux-anden-2@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'supervisor' where id = '${jefe}'`)
-await db.query(`update profile set role = 'auxiliar' where id in ('${uno}', '${dos}')`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'supervisor' where id = '${jefe}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id in ('${uno}', '${dos}')`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 await como(jefe)

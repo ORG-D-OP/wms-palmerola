@@ -13,7 +13,7 @@ const one = async (sql, params) => (await db.query(sql, params)).rows[0]
 const { id: jefe } = await one(
   `insert into auth.users (email) values ('jefe@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'supervisor' where id = '${jefe}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'supervisor' where id = '${jefe}'`)
 await db.query(`select set_config('request.jwt.claim.sub', '${jefe}', false)`)
 
 const producto = async (sku, niveles) => {

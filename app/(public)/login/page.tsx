@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/auth/session'
 import { Aviso } from '@/components/ui/feedback'
@@ -30,6 +31,9 @@ export default async function LoginPage({
           <Aviso>El enlace ya se usó o venció. Pide uno nuevo a tu administrador.</Aviso>
         ) : null}
         <LoginForm />
+        <Link href="/registro" className="text-center text-sm underline underline-offset-4">
+          Soy nuevo: crear mi cuenta
+        </Link>
       </section>
     </main>
   )
