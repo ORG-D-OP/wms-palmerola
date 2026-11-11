@@ -41,6 +41,9 @@ export function RegistroForm() {
       <label className="flex flex-col gap-1.5">
         <span className={ETIQUETA}>Correo</span>
         <input name="email" type="email" autoComplete="username" required className={CAMPO} />
+        <span className="text-sm text-azul/60">
+          El que le diste al jefe de bodega. Si no está dado de alta no vas a poder registrarte.
+        </span>
       </label>
 
       <label className="flex flex-col gap-1.5">
@@ -56,12 +59,6 @@ export function RegistroForm() {
         <span className="text-sm text-azul/60">
           Al menos 12 caracteres, con mayúscula, minúscula y número.
         </span>
-      </label>
-
-      <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Código de bodega</span>
-        <input name="codigo" autoCapitalize="characters" required className={CAMPO} />
-        <span className="text-sm text-azul/60">Te lo da el jefe de bodega.</span>
       </label>
 
       {state.error ? <Aviso>{state.error}</Aviso> : null}

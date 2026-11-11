@@ -48,3 +48,6 @@ yarn-error.log*
 
 # lo copia scripts/copiar-wasm.mjs antes de dev y build
 /public/zxing_reader.wasm
+
+.vercel
+.env*

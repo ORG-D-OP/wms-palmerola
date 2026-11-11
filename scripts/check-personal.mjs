@@ -3,7 +3,7 @@ import { bootDb, check } from './lib/boot-db.mjs'
 /**
  * Quien entra a la bodega. Lo que aqui se fija: que una cuenta recien registrada no vea nada
  * hasta que el jefe la acepte, que supervision pueda aceptar, sacar y devolver gente sin poder
- * fabricarse administradores, y que el codigo de bodega no lo cambie cualquiera.
+ * fabricarse administradores, y que solo los correos dados de alta puedan registrarse.
  */
 const db = await bootDb()
 const one = async (sql, params) => (await db.query(sql, params)).rows[0]
@@ -135,17 +135,50 @@ check(miPropioRol?.includes('a ti mismo'), 'nadie se cambia el rol a si mismo')
 const cambiado = await one(`select * from cambiar_rol($1, 'montacargista')`, [nuevo])
 check(cambiado.role === 'montacargista', 'el jefe si le cambia el rol a su gente')
 
-// --- el codigo de bodega ------------------------------------------------------------------
+// --- la lista de correos ------------------------------------------------------------------
 
-const codigo = await one(`select codigo from codigo_registro`)
-check(codigo.codigo.length === 8, 'el codigo nace aleatorio, no escrito en la migracion')
+await como(jefe)
 
-const nuevoCodigo = await one(`select cambiar_codigo_registro('bodega2026') as c`)
-check(nuevoCodigo.c === 'BODEGA2026', 'el jefe lo cambia, y se guarda en mayusculas')
+const altas = await one(
+  `select autorizar_correos(array['Nuevo@Dinant.com', ' otro@gmail.com ', 'nuevo@dinant.com']) as n`,
+)
+check(altas.n === 2, 'da de alta varios de un jalon y el repetido no cuenta dos veces')
 
-const corto = await falla(`select cambiar_codigo_registro('abc')`)
-check(corto?.includes('6 caracteres'), 'uno de tres letras no se acepta')
+const guardado = await todos(`select email from correo_autorizado where nota is null order by email`)
+check(
+  guardado.some((c) => c.email === 'nuevo@dinant.com'),
+  'el correo se guarda en minusculas y sin espacios',
+)
+
+const basura = await falla(`select autorizar_correos(array['no-es-un-correo'])`)
+check(/correo nuevo/i.test(basura ?? ''), 'algo que no es correo no entra a la lista')
+
+await one(`select autorizar_correos(array['jefe@ejemplo.test'])`)
+const enLista = await todos(`select * from listar_correos()`)
+check(
+  enLista.find((c) => c.email === 'jefe@ejemplo.test')?.ya_registrado === true,
+  'un correo que ya tiene cuenta sale marcado como usado',
+)
+check(
+  enLista.find((c) => c.email === 'otro@gmail.com')?.ya_registrado === false,
+  'y uno recien dado de alta sale como pendiente de registrarse',
+)
+
+const quitado = await one(`select quitar_correo(' Otro@Gmail.com ') as e`)
+check(quitado.e === 'otro@gmail.com', 'se quita sin importar como lo escriban')
+
+const noEsta = await falla(`select quitar_correo('nadie@ejemplo.test')`)
+check(noEsta?.includes('no esta en la lista') || noEsta?.includes('no está en la lista'),
+  'quitar uno que no esta avisa en vez de callarse')
 
 await como(auxiliar)
-const auxCambia = await falla(`select cambiar_codigo_registro('loquesea')`)
-check(auxCambia?.includes('permiso'), 'y un auxiliar no lo puede cambiar')
+const auxAutoriza = await falla(`select autorizar_correos(array['colado@gmail.com'])`)
+check(auxAutoriza?.includes('permiso'), 'un auxiliar no da de alta correos')
+
+const auxLee = await falla(`select * from listar_correos()`)
+check(auxLee?.includes('permiso'), 'ni ve la lista')
+
+const auxQuita = await falla(`select quitar_correo('nuevo@dinant.com')`)
+check(auxQuita?.includes('permiso'), 'ni quita a nadie de ella')
+
+await db.close()

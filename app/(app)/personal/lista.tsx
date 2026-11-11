@@ -4,7 +4,15 @@ import { useState, useTransition } from 'react'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { ROLES, ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
-import { aceptar, devolver, ponerCodigo, ponerRol, rechazar, sacar } from './actions'
+import {
+  aceptar,
+  autorizarCorreos,
+  devolver,
+  ponerRol,
+  quitarCorreo,
+  rechazar,
+  sacar,
+} from './actions'
 
 export type Persona = {
   id: string
@@ -15,6 +23,13 @@ export type Persona = {
   activa: boolean
   aceptada: boolean
   registrada: string
+}
+
+export type Correo = {
+  email: string
+  nota: string | null
+  created_at: string
+  ya_registrado: boolean
 }
 
 const ASIGNABLES = ROLES.filter((r) => r !== 'solo_lectura')
@@ -38,12 +53,12 @@ export function Lista({
   pendientes,
   dentro,
   fuera,
-  codigo,
+  correos,
 }: {
   pendientes: Persona[]
   dentro: Persona[]
   fuera: Persona[]
-  codigo: string
+  correos: Correo[]
 }) {
   const [error, setError] = useState<string | null>(null)
   const [elegido, setElegido] = useState<Record<string, string>>({})
@@ -167,58 +182,114 @@ export function Lista({
         </section>
       ) : null}
 
-      <Codigo actual={codigo} onError={setError} />
+      <Correos lista={correos} onError={setError} />
     </div>
   )
 }
 
-function Codigo({
-  actual,
+/**
+ * La puerta del registro. Sólo quien está aquí puede crear cuenta, y estar aquí no es estar
+ * dentro: la cuenta igual nace apagada esperando que alguien la acepte arriba.
+ */
+function Correos({
+  lista,
   onError,
 }: {
-  actual: string
+  lista: Correo[]
   onError: (e: string | null) => void
 }) {
   const [abierto, setAbierto] = useState(false)
   const [pending, empezar] = useTransition()
 
+  const sinUsar = lista.filter((c) => !c.ya_registrado)
+
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-borde p-4">
-      <h2 className="text-lg">Código de bodega</h2>
-      <p className="text-sm text-azul/60">
-        Es lo que le das a alguien para que pueda crear su cuenta. Cámbialo cuando se corra la voz.
-      </p>
-      <p className="font-mono text-2xl tracking-widest">{actual}</p>
+    <section className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
+      <div>
+        <h2 className="text-lg">Correos con permiso de registrarse ({lista.length})</h2>
+        <p className="text-sm text-azul/60">
+          Da de alta el correo de cada persona, sea de Dinant o personal. Quien no esté aquí no
+          puede crear cuenta.
+        </p>
+      </div>
 
       {abierto ? (
         <form
           action={(datos) => {
             onError(null)
             empezar(async () => {
-              const res = await ponerCodigo(String(datos.get('codigo') ?? ''))
+              const res = await autorizarCorreos(
+                String(datos.get('correos') ?? ''),
+                String(datos.get('nota') ?? ''),
+              )
               if (!res.ok) onError(res.error)
               else setAbierto(false)
             })
           }}
           className="flex flex-col gap-3"
         >
-          <input
-            name="codigo"
-            autoFocus
-            autoCapitalize="characters"
-            minLength={6}
-            required
-            className={CAMPO}
-          />
-          <button type="submit" disabled={pending} className={BOTON}>
-            {pending ? 'Guardando...' : 'Guardar el código nuevo'}
-          </button>
+          <label className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Correos</span>
+            <textarea
+              name="correos"
+              rows={5}
+              autoFocus
+              required
+              placeholder="uno@dinant.com, otro@gmail.com"
+              className={CAMPO}
+            />
+            <span className="text-sm text-azul/60">
+              Pega los que quieras: uno por línea o separados por comas.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Nota, si te sirve</span>
+            <input name="nota" placeholder="Cuadrilla de la noche" className={CAMPO} />
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="submit" disabled={pending} className={BOTON}>
+              {pending ? 'Dando de alta...' : 'Dar de alta'}
+            </button>
+            <button type="button" onClick={() => setAbierto(false)} className={BOTON_SUAVE}>
+              Cancelar
+            </button>
+          </div>
         </form>
       ) : (
         <button type="button" onClick={() => setAbierto(true)} className={BOTON_SUAVE}>
-          Cambiarlo
+          Dar de alta correos
         </button>
       )}
+
+      {sinUsar.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <p className={ETIQUETA}>Todavía no se han registrado ({sinUsar.length})</p>
+          <ul className="flex flex-col divide-y divide-borde">
+            {sinUsar.map((c) => (
+              <li key={c.email} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {c.email}
+                  {c.nota ? <span className="text-azul/60"> · {c.nota}</span> : null}
+                </span>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    onError(null)
+                    empezar(async () => {
+                      const res = await quitarCorreo(c.email)
+                      if (!res.ok) onError(res.error)
+                    })
+                  }}
+                  className="text-sm underline underline-offset-4"
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -258,24 +258,24 @@ export type Database = {
         }
         Relationships: []
       }
-      codigo_registro: {
+      correo_autorizado: {
         Row: {
-          codigo: string
-          id: boolean
-          updated_at: string
-          updated_by: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          nota: string | null
         }
         Insert: {
-          codigo: string
-          id?: boolean
-          updated_at?: string
-          updated_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          nota?: string | null
         }
         Update: {
-          codigo?: string
-          id?: boolean
-          updated_at?: string
-          updated_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          nota?: string | null
         }
         Relationships: []
       }
@@ -3402,6 +3402,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      autorizar_correos: {
+        Args: { p_emails: string[]; p_nota?: string }
+        Returns: number
+      }
       buscar_despacho: { Args: { p_codigo: string }; Returns: string }
       buscar_ingreso: {
         Args: { p_pedido: string }
@@ -3425,7 +3429,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      cambiar_codigo_registro: { Args: { p_codigo: string }; Returns: string }
       cambiar_rol: {
         Args: { p_id: string; p_role: Database["public"]["Enums"]["user_role"] }
         Returns: {
@@ -3719,6 +3722,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      listar_correos: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          nota: string
+          ya_registrado: boolean
+        }[]
+      }
       listar_personal: {
         Args: never
         Returns: {
@@ -3797,6 +3809,7 @@ export type Database = {
           sku: string
         }[]
       }
+      quitar_correo: { Args: { p_email: string }; Returns: string }
       reactivar_persona: {
         Args: { p_id: string }
         Returns: {

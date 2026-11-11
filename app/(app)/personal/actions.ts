@@ -57,11 +57,31 @@ export async function ponerRol(id: string, rol: string): Promise<Resultado> {
   return llamar('cambiar_rol', { p_id: persona.data, p_role: papel.data })
 }
 
-export async function ponerCodigo(codigo: string): Promise<Resultado> {
-  const parsed = z.string().trim().min(6, 'El código necesita al menos 6 caracteres.').max(40)
-    .safeParse(codigo)
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Código inválido.' }
+/**
+ * El jefe llega con la lista entera, así que acepta lo que sea: un correo por línea, comas o
+ * punto y coma. Partirlo aquí le ahorra veinte envíos del formulario.
+ */
+export async function autorizarCorreos(texto: string, nota: string): Promise<Resultado> {
+  const correos = [...new Set(
+    texto.split(/[\s,;]+/).map((c) => c.trim().toLowerCase()).filter(Boolean),
+  )]
+
+  const malos = correos.filter((c) => !z.email().safeParse(c).success)
+  if (malos.length > 0) {
+    return { ok: false, error: `Esto no parece un correo: ${malos.slice(0, 3).join(', ')}` }
   }
-  return llamar('cambiar_codigo_registro', { p_codigo: parsed.data })
+  if (correos.length === 0) {
+    return { ok: false, error: 'Escribe al menos un correo.' }
+  }
+
+  return llamar('autorizar_correos', {
+    p_emails: correos,
+    p_nota: nota.trim() || null,
+  })
+}
+
+export async function quitarCorreo(email: string): Promise<Resultado> {
+  const parsed = z.email().safeParse(email.trim().toLowerCase())
+  if (!parsed.success) return { ok: false, error: 'Correo inválido.' }
+  return llamar('quitar_correo', { p_email: parsed.data })
 }

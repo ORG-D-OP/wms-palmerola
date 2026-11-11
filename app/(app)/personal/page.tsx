@@ -2,7 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { rolDe } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Aviso } from '@/components/ui/feedback'
-import { Lista, type Persona } from './lista'
+import { Lista, type Correo, type Persona } from './lista'
 
 export const metadata = { title: 'Personal · WMS Palmerola' }
 
@@ -10,9 +10,9 @@ export default async function PersonalPage() {
   await requirePermission('personal:administrar')
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: filas, error }, { data: bodega }] = await Promise.all([
+  const [{ data: filas, error }, { data: correos }] = await Promise.all([
     supabase.rpc('listar_personal'),
-    supabase.from('codigo_registro').select('codigo').single(),
+    supabase.rpc('listar_correos'),
   ])
 
   if (error) {
@@ -47,7 +47,7 @@ export default async function PersonalPage() {
         pendientes={gente.filter((p) => !p.aceptada)}
         dentro={gente.filter((p) => p.aceptada && p.activa)}
         fuera={gente.filter((p) => p.aceptada && !p.activa)}
-        codigo={bodega?.codigo ?? 'sin código'}
+        correos={(correos ?? []) as Correo[]}
       />
     </main>
   )
