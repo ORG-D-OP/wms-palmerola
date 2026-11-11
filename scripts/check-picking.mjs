@@ -38,6 +38,12 @@ const [viejo, nuevo] = (
 ).rows
 
 await como(jefe)
+
+// Las dos posiciones del pasillo F1 se declaran area de picking: lo que se guarda ahi son
+// unidades sueltas sin pallet, y del area almacen solo salen pallets completos (0051).
+await db.query(`select reasignar_area_por_codigo('F1-001-%', 'PICKING')`)
+await db.query(`select reasignar_area_por_codigo('F1-002-%', 'PICKING')`)
+
 // Dos lotes: uno vence antes y debe salir primero.
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 50::numeric, null, $2::uuid, null,
