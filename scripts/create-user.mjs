@@ -56,7 +56,11 @@ if (!link.ok || !link.json?.hashed_token) {
 const profile = await call(
   `/rest/v1/profile?id=eq.${link.json.id}`,
   'PATCH',
-  yaExistia ? { role } : { full_name: fullName, role },
+  // El disparador deja apagada a toda cuenta nueva, porque lo normal es que se registre
+  // sola y espere al jefe. Un alta hecha por un administrador ya viene aceptada.
+  yaExistia
+    ? { role, is_active: true, approved_at: new Date().toISOString() }
+    : { full_name: fullName, role, is_active: true, approved_at: new Date().toISOString() },
 )
 
 if (!profile.ok || !profile.json?.[0]) {

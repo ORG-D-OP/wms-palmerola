@@ -51,6 +51,7 @@ const PERMISSIONS = {
   'flota:administrar': ['supervisor', 'admin'],
   'tareas:reasignar': ['supervisor', 'admin'],
   'kpi:ver': ['supervisor', 'admin', 'solo_lectura'],
+  'personal:administrar': ['supervisor', 'admin'],
   'maestros:editar': ['admin'],
   'usuarios:administrar': ['admin'],
 } satisfies Record<string, readonly UserRole[]>

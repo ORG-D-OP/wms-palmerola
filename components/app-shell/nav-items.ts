@@ -53,6 +53,13 @@ const TODOS = [
   },
   { href: '/productos', label: 'Productos', icon: 'inventory_2', permiso: null, movil: false },
   {
+    href: '/personal',
+    label: 'Personal',
+    icon: 'badge',
+    permiso: 'personal:administrar',
+    movil: false,
+  },
+  {
     href: '/areas',
     label: 'Áreas',
     icon: 'dashboard_customize',

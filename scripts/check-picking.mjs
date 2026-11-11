@@ -14,8 +14,8 @@ const { id: jefe } = await one(
 const { id: operario } = await one(
   `insert into auth.users (email) values ('surtidor@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'supervisor' where id = '${jefe}'`)
-await db.query(`update profile set role = 'auxiliar' where id = '${operario}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'supervisor' where id = '${jefe}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id = '${operario}'`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 const { id: productId } = await one(
@@ -66,7 +66,7 @@ await one(
 const { id: miron } = await one(
   `insert into auth.users (email) values ('consulta@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'solo_lectura' where id = '${miron}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'solo_lectura' where id = '${miron}'`)
 
 await como(miron)
 const sinPermiso = await fails(`select release_order($1)`, [pedido])

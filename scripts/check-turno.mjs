@@ -22,9 +22,9 @@ const { id: conEquipo } = await one(
 const { id: aPie } = await one(
   `insert into auth.users (email) values ('aux@ejemplo.test') returning id`,
 )
-await db.query(`update profile set role = 'supervisor' where id = '${jefe}'`)
-await db.query(`update profile set role = 'montacargista' where id = '${conEquipo}'`)
-await db.query(`update profile set role = 'auxiliar' where id = '${aPie}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'supervisor' where id = '${jefe}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'montacargista' where id = '${conEquipo}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id = '${aPie}'`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 const alcanceRack = await one(`select max_level from equipment_type where code = 'MONTACARGA_RACK'`)

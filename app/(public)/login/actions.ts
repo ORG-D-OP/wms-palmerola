@@ -22,13 +22,19 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   const { data: profile } = await supabase
     .from('profile')
-    .select('is_active')
+    .select('is_active, approved_at')
     .eq('id', data.user.id)
     .single()
 
+  // Esperando y dado de baja no son lo mismo, y a quien esta del otro lado le importa saber
+  // cual de los dos le toco.
   if (!profile?.is_active) {
     await supabase.auth.signOut()
-    return { error: 'Tu usuario está desactivado. Habla con tu supervisor.' }
+    return {
+      error: profile && profile.approved_at === null
+        ? 'Tu cuenta está esperando a que el jefe de bodega la acepte.'
+        : 'Tu usuario está desactivado. Habla con tu supervisor.',
+    }
   }
 
   redirect('/')
