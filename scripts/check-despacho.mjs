@@ -34,6 +34,10 @@ const { id: caja } = await one(
    returning id`,
   [producto],
 )
+// La primera columna de F1 se declara area de picking, que es de donde salen las cajas y las
+// unidades sueltas. Del almacen solo salen pallets completos, asi que una linea que no llena
+// pallet tiene que encontrar producto aqui o queda como faltante.
+await one(`select reasignar_area_por_codigo('F1-001-%', 'PICKING') as n`)
 const { id: posicion } = await one(`select id from location where code = 'F1-001-01'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 100::numeric, null, $2::uuid)`,
@@ -272,3 +276,163 @@ const canceladas = await one(
   `select count(*)::int as n from task where type = 'PICK' and status = 'CANCELLED'`,
 )
 check(canceladas.n > 0, 'y sus tareas quedan canceladas, no vivas para siempre')
+
+// --- de donde sale el producto, y que pasa cuando no alcanza (0051) ----------------------
+
+/**
+ * La regla de la bodega: del area almacen solo salen pallets completos; las cajas y las
+ * unidades salen de picking. Y si no alcanza, el camion se abre igual y marca lo que falta, porque la
+ * persona que escaneo la hoja no se puede quedar mirando un error.
+ */
+const { id: churro } = await one(
+  `insert into product (sku, name, base_uom) values ('P-4', 'Churro', 'ST') returning id`,
+)
+const { id: cajaChurro } = await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 10)
+   returning id`,
+  [churro],
+)
+
+// Un pallet completo de 60 en el almacen, y nada en picking.
+const { id: enRack } = await one(
+  `select l.id from location l join lane la on la.id = l.lane_id
+   join zone z on z.id = la.zone_id where z.kind = 'rack' limit 1`,
+)
+const { id: matricula } = await one(
+  `insert into lpn (code, level, source) values ('PAL-TEST-1', 'PALLET', 'NEST') returning id`,
+)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 60::numeric, null, $2::uuid, $3::uuid)`,
+  [churro, enRack, matricula],
+)
+
+const areaDelPallet = await one(
+  `select a.code from location_area la join area a on a.id = la.area_id
+   where la.location_id = $1 and la.valid_to is null`,
+  [enRack],
+)
+check(areaDelPallet.code === 'ALMACEN', 'el pallet de prueba esta en el area almacen')
+
+// Se piden 75: caben 1 pallet completo (60) y sobran 15 que tendrian que salir de picking.
+const { id: camionC } = await one(
+  `insert into sales_order (code, dock_door_id, transporte) values ('PED-005', $1, '4000001')
+   returning id`,
+  [anden],
+)
+await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, $3, 75)`,
+  [camionC, churro, cajaChurro],
+)
+
+const tareasC = await one(`select release_order($1) as n`, [camionC])
+const estadoC = await one(`select status from sales_order where id = $1`, [camionC])
+check(estadoC.status === 'RELEASED', 'sin producto suficiente el camion se abre igual')
+check(tareasC.n === 1, 'y se arma solo la tarea del pallet completo')
+
+const partido = await one(
+  `select count(*)::int as n from stock st
+   join location_area la on la.location_id = st.location_id and la.valid_to is null
+   join area a on a.id = la.area_id
+   where st.product_id = $1 and a.code = 'ALMACEN'
+     and st.qty_allocated > 0 and st.qty_allocated < st.qty_base`,
+  [churro],
+)
+check(partido.n === 0, 'y no se abre ningun pallet del almacen para completar')
+
+const faltaC = await one(
+  `select l.qty_base - coalesce(sum(a.qty_base), 0) as falta
+   from order_line l left join allocation a on a.order_line_id = l.id
+   where l.order_id = $1 group by l.id, l.qty_base`,
+  [camionC],
+)
+check(Number(faltaC.falta) === 15, 'lo que no salio de picking queda como faltante: 15')
+
+const lista = await db.query(`select * from faltante_de_despachos()`)
+const esteFalta = lista.rows.find((f) => f.sku === 'P-4')
+check(Number(esteFalta?.falta) === 15, 'y el faltante sale en la lista de lo que hay que reabastecer')
+
+// Con producto en picking, lo que sobra si sale de ahi.
+await one(`select reasignar_area_por_codigo('F1-002-%', 'PICKING') as n`)
+const { id: enPicking } = await one(`select id from location where code = 'F1-002-01'`)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 40::numeric, null, $2::uuid)`,
+  [churro, enPicking],
+)
+
+const { id: camionD } = await one(
+  `insert into sales_order (code, dock_door_id, transporte) values ('PED-006', $1, '4000002')
+   returning id`,
+  [anden],
+)
+await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, $3, 15)`,
+  [camionD, churro, cajaChurro],
+)
+await one(`select release_order($1) as n`, [camionD])
+
+const deDonde = await one(
+  `select a.code from allocation al
+   join stock st on st.id = al.stock_id
+   join location_area la on la.location_id = st.location_id and la.valid_to is null
+   join area a on a.id = la.area_id
+   join order_line l on l.id = al.order_line_id
+   where l.order_id = $1`,
+  [camionD],
+)
+check(deDonde.code === 'PICKING', 'con producto en picking, las cajas sueltas salen de ahi')
+
+// --- el camion corto no se queda pegado (0052) --------------------------------------------
+
+// El camion C sigue corto por 15, y su unica tarea —el pallet entero— ya se puede terminar.
+await db.query(
+  `update task set status = 'DONE', completed_at = now()
+   where id in (
+     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
+     where l.order_id = $1
+   )`,
+  [camionC],
+)
+
+const cortoAun = await one(`select status from sales_order where id = $1`, [camionC])
+check(
+  cortoAun.status !== 'PICKED',
+  'con producto faltante el camion no se da por surtido, aunque sus tareas esten hechas',
+)
+
+const noSale = await falla(`select despachar($1)`, [camionC])
+check(
+  noSale?.includes('faltan'),
+  'y no sale sin que alguien decida: un faltante pesa igual que una tarea a medias',
+)
+
+// En picking quedan 25 de las 40 que entraron: 15 se fueron en el camion D.
+const recuperadas = await one(`select apartar_lo_que_falta() as n`)
+check(Number(recuperadas.n) === 1, 'al reabastecer picking, lo que faltaba se aparta solo')
+
+const yaCompleto = await one(`select falta_del_camion($1) as falta`, [camionC])
+check(Number(yaCompleto.falta) === 0, 'y el camion queda completo, sin volver a abrirlo')
+
+const noDuplica = await one(`select apartar_lo_que_falta($1) as n`, [camionC])
+check(Number(noDuplica.n) === 0, 'pasar de nuevo sobre un camion completo no aparta de mas')
+
+const yaSalio = await falla(`select apartar_lo_que_falta($1)`, [camion])
+check(yaSalio?.includes('no está abierto'), 'y un camion que ya salio no se toca')
+
+await db.query(
+  `update task set status = 'DONE', completed_at = now()
+   where status <> 'DONE' and id in (
+     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
+     where l.order_id = $1
+   )`,
+  [camionC],
+)
+const surtidoC = await one(`select status from sales_order where id = $1`, [camionC])
+check(surtidoC.status === 'PICKED', 'con la ultima caja surtida si queda surtido')
+
+await one(`select despachar($1)`, [camionC])
+const salioC = await one(`select status from sales_order where id = $1`, [camionC])
+check(salioC.status === 'SHIPPED', 'y sale completo, sin nota de excepcion')
+
+await db.close()

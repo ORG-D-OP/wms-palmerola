@@ -280,20 +280,33 @@ const suelto2 = await pedir(100)
 check(suelto2.rows.length === 1, 'un pedido chico se surte de un solo lugar')
 check(suelto2.rows[0].area === 'PICKING', 'y ese lugar es picking, sin bajar ningun pallet del rack')
 
-// Lo que picking ya no aguanta cae a almacen: mejor partir un pallet que no despachar.
-// Picking quedo en 50 unidades, y entra un pallet mas al rack para que haya de donde partir.
+// Lo que picking ya no aguanta no se saca del almacen: el camion se abre igual y lo que
+// falta queda marcado, que es la senal de reabastecer. Hay un pallet entero disponible en el
+// rack a proposito, para que la prueba valga: el sistema podria partirlo y no lo hace.
+// Vence despues que el de PAL-SURTIR para no robarle el FEFO a la prueba de abajo.
 const { id: lpnUltimo } = await one(
   `insert into lpn (code, level, source) values ('PAL-ENTERO-3', 'PALLET', 'NEST') returning id`,
 )
 await db.query(
-  `select post_movement('RECEIPT', $1, 480, null, $2, $3, 'L-4', '2027-04-30', null, null, $4)`,
+  `select post_movement('RECEIPT', $1, 480, null, $2, $3, 'L-4', '2028-12-31', null, null, $4)`,
   [producto, rack.rows[0].id, lpnUltimo, caja],
 )
 
+// En picking quedan 50 de las 200 que entraron: 50 se fueron en el pedido mixto y 100 en el
+// chico. El camion pide 100, asi que sale corto por 50 justos.
 const resto = await pedir(100)
 check(
-  resto.rows.some((r) => r.area === 'ALMACEN'),
-  'si picking se queda corto, se parte un pallet antes que dejar el camion sin producto',
+  !resto.rows.some((r) => r.area === 'ALMACEN'),
+  'si picking se queda corto, no se baja ningun pallet del almacen a completar',
+)
+check(
+  resto.rows.length === 1 && Number(resto.rows[0].qty_base) === 50,
+  'se aparta lo que haya en picking y nada mas',
+)
+const cortos = await db.query(`select sku, falta from faltante_de_despachos()`)
+check(
+  cortos.rows.some((r) => r.sku === 'PAL-1' && Number(r.falta) === 50),
+  'y las 50 que no salieron quedan en la lista de faltante, que es la senal de reabastecer',
 )
 
 // --- el pallet entero se confirma con su matricula ---------------------------------------

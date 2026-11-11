@@ -3320,6 +3320,8 @@ export type Database = {
         }
       }
       alcance_de: { Args: { p_profile_id: string }; Returns: number }
+      apartar_linea: { Args: { p_order_line_id: string }; Returns: number }
+      apartar_lo_que_falta: { Args: { p_order_id?: string }; Returns: number }
       apply_stock_delta: {
         Args: {
           p_delta: number
@@ -3684,6 +3686,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      falta_del_camion: { Args: { p_order_id: string }; Returns: number }
       falta_para_despacho: {
         Args: { p_product_id: string }
         Returns: {
@@ -3691,6 +3694,16 @@ export type Database = {
           etiqueta: string
           falta: number
           order_id: string
+        }[]
+      }
+      faltante_de_despachos: {
+        Args: never
+        Returns: {
+          camiones: number
+          falta: number
+          nombre: string
+          product_id: string
+          sku: string
         }[]
       }
       flujo_de: { Args: { p_profile_id: string }; Returns: string }
