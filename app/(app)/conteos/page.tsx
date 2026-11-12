@@ -87,7 +87,8 @@ export default async function ConteosPage() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg">Abierto ahora</h2>
           <p className="text-sm text-azul/70">
-            {pendientes.length} posiciones por contar
+            {pendientes.length} {pendientes.length === 1 ? 'posición' : 'posiciones'} por
+            contar
             {sinDueno > 0 ? `, ${sinDueno} esperando en la cola` : ', todas repartidas'}.
           </p>
         </section>
