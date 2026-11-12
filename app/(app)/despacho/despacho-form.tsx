@@ -14,6 +14,7 @@ import {
   type Camion,
   type Linea,
 } from './actions'
+import { plural } from '@/lib/plural'
 
 /**
  * Despachar un camión: la hoja, convertida en lista de chequeo.
@@ -99,8 +100,8 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
           </span>
         </div>
         <p className="text-sm text-azul/60">
-          {camion.cliente ?? 'sin cliente'} · {camion.anden ?? 'sin andén'} · {camion.lineas}{' '}
-          líneas
+          {camion.cliente ?? 'sin cliente'} · {camion.anden ?? 'sin andén'} ·{' '}
+          {plural(camion.lineas, 'línea', 'líneas')}
         </p>
         {camion.entregas.length > 0 ? (
           <p className="text-sm text-azul/60">Documentos: {camion.entregas.join(', ')}</p>
@@ -121,7 +122,7 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
       )}
 
       <p className="text-sm text-azul/60">
-        {chequeadas} de {camion.detalle.length} líneas chequeadas
+        {chequeadas} de {plural(camion.detalle.length, 'línea', 'líneas')} chequeadas
         {faltantes.length > 0 ? ` · ${faltantes.length} sin producto suficiente` : ''}
       </p>
 
@@ -173,7 +174,9 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
               <>
                 <p className="text-sm text-azul/60">
                   {camion.pendientes > 0
-                    ? `Quedan ${camion.pendientes} tareas de surtido abiertas.`
+                    ? `Quedan ${plural(camion.pendientes, 'tarea', 'tareas')} de surtido ${
+                        camion.pendientes === 1 ? 'abierta' : 'abiertas'
+                      }.`
                     : 'Falta chequear líneas.'}{' '}
                   El camión se cierra cuando esté todo arriba.
                 </p>

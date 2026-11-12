@@ -12,6 +12,7 @@ import {
   type Linea,
   type Resultado,
 } from './actions'
+import { plural } from '@/lib/plural'
 
 export type Pendiente = { tarea: string; posicion: string; zona: string; nivel: number | null }
 
@@ -121,8 +122,7 @@ export function ContarForm({
         {pendientes.length === 0 && cola > 0 ? (
           <section className="flex flex-col gap-2 rounded-2xl bg-azul-08 p-4">
             <p className="text-sm">
-              Hay {cola} {cola === 1 ? 'posición' : 'posiciones'} esperando en la cola del
-              conteo.
+              Hay {plural(cola, 'posición', 'posiciones')} esperando en la cola del conteo.
             </p>
             <button type="button" onClick={tomar} disabled={pending} className={BOTON_SUAVE}>
               Tomar una
@@ -133,7 +133,8 @@ export function ContarForm({
         {pendientes.length > 0 ? (
           <section className="flex flex-col gap-2">
             <h2 className="text-sm text-azul/60">
-              Tu conteo: {pendientes.length} posiciones, en orden de recorrido
+              Tu conteo: {plural(pendientes.length, 'posición', 'posiciones')}, en orden de
+              recorrido
             </h2>
             <ul className="flex flex-col gap-2">
               {pendientes.map((p) => (
