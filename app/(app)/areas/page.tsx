@@ -13,6 +13,17 @@ const TOPE = 6000
 /** Los niveles que hay: el 0 es el piso y de ahí para arriba los del rack. */
 const NIVELES = [0, 1, 2, 3, 4, 5, 6]
 
+/**
+ * Los códigos que trae la caja, que pueden ser varios separados por coma: un conjunto de
+ * posiciones que no es un rango —la orilla de los pasillos— se nombra enumerando. Mismo corte
+ * y misma regla de tres caracteres que `posiciones_donde`, para que lo que cuenta la pantalla
+ * sea lo que cambia la base.
+ */
+function partir(texto: string): string[] {
+  const partes = texto.split(/[,;\s]+/).filter(Boolean)
+  return partes.length > 0 && partes.every((p) => p.length >= 3) ? partes : []
+}
+
 /** Las clases de zona, dichas como las dice la bodega. */
 const CLASES: Record<string, string> = {
   floor: 'Todo el piso',
@@ -71,14 +82,18 @@ export default async function AreasPage({
     ])
 
   const clases = [...new Set((zonas ?? []).map((z) => z.kind))].sort()
-  const criterios = (patron.length >= 3 ? 1 : 0) + (zona ? 1 : 0) + (nivel ? 1 : 0)
+  const codigos = partir(patron)
+  const criterios = (codigos.length > 0 ? 1 : 0) + (zona ? 1 : 0) + (nivel ? 1 : 0)
 
   let consulta = supabase
     .from('posicion_detalle')
     .select('code, area_code, area_name, usage_code, usage_name, ocupada, apartada, level')
     .order('code')
     .limit(TOPE)
-  if (patron.length >= 3) consulta = consulta.like('code', `${patron}%`)
+  // El `or` de PostgREST quiere `*` donde el SQL lleva `%`.
+  if (codigos.length > 0) {
+    consulta = consulta.or(codigos.map((c) => `code.like.${c}*`).join(','))
+  }
   const clase = clases.find((k) => k === zona)
   if (zona) {
     consulta = clase ? consulta.eq('zone_kind', clase) : consulta.eq('zone_code', zona)
@@ -177,8 +192,10 @@ export default async function AreasPage({
             separados por coma— o elige zona y nivel: «todos los racks» más «nivel 1» es el piso
             bajo de todos los racks.
           </p>
-        ) : patron.length > 0 && patron.length < 3 ? (
-          <p className="text-sm text-azul/60">Escribe al menos tres caracteres.</p>
+        ) : patron.length > 0 && codigos.length === 0 ? (
+          <p className="text-sm text-azul/60">
+            Escribe al menos tres caracteres de cada código.
+          </p>
         ) : filas.length === 0 ? (
           <p className="text-azul/60">Ninguna posición cumple eso.</p>
         ) : (
