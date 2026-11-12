@@ -279,6 +279,37 @@ check(
   'y el saldo sube con el: dos cajas mas son 48 unidades mas',
 )
 
+// Las sueltas se cuentan aparte. Confirmar lo que pinta la pantalla no puede borrarlas:
+// una posicion de picking casi nunca tiene un numero redondo de cajas.
+const redondas = Number((await saldo('F1-001-03')).qty) / 24
+await one(`select * from recontar('F1-001-03', $1, 7)`, [redondas])
+const vista = await one(`select cajas, sueltas from inventario where location_code = 'F1-001-03'`)
+check(
+  Number(vista.cajas) === redondas && Number(vista.sueltas) === 7,
+  'una posicion puede quedar en cajas enteras mas unidades sueltas',
+)
+const confirmado = await one(`select * from recontar('F1-001-03', $1, $2)`, [
+  vista.cajas,
+  vista.sueltas,
+])
+check(
+  Number(confirmado.diferencia) === 0,
+  'y confirmar lo que la pantalla pinta cuadra, en vez de comerse las sueltas',
+)
+check(
+  Number((await saldo('F1-001-03')).qty) === redondas * 24 + 7,
+  'el saldo se queda igual: las siete sueltas siguen ahi',
+)
+check(
+  Number(confirmado.decia) === redondas && Number(confirmado.decia_sueltas) === 7,
+  'y lo que decia el sistema vuelve en cajas y sueltas, no en un 5.29 que nadie lee',
+)
+const enNegativo = await fails(`select * from recontar('F1-001-03', 1, -1)`)
+check(
+  enNegativo?.includes('menos que cero'),
+  'contar sueltas en negativo no tiene sentido y se rechaza',
+)
+
 // ---------------------------------------------------------------------------------------
 // Los conteos ciclicos del supervisor
 // ---------------------------------------------------------------------------------------
@@ -369,7 +400,7 @@ const cerrada = await todas(
   [auxiliar],
 )
 await como(auxiliar)
-const cuenta = await one(`select * from recontar($1, 10, null, null, $2)`, [
+const cuenta = await one(`select * from recontar($1, 10, 0, null, null, $2)`, [
   cerrada[0].posicion,
   cerrada[0].task_id,
 ])

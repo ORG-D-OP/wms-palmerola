@@ -18,6 +18,10 @@ export type Pendiente = { tarea: string; posicion: string; zona: string; nivel: 
 const numero = (n: number) =>
   n.toLocaleString('es-HN', { maximumFractionDigits: 2 })
 
+/** Como se dice una cantidad en la bodega: «5 cajas», o «5 cajas y 7 sueltas» si no es redonda. */
+const cantidad = (cajas: number, sueltas: number) =>
+  sueltas > 0 ? `${numero(cajas)} cajas y ${numero(sueltas)} sueltas` : `${numero(cajas)} cajas`
+
 /**
  * Contar lo que de verdad hay.
  *
@@ -67,6 +71,7 @@ export function ContarForm({
       const res = await recontar({
         lugar: linea.pallet ?? lugar,
         cajas: Number(datos.get('cajas') ?? 0),
+        sueltas: Number(datos.get('sueltas') ?? 0),
         pallet: linea.pallet ?? undefined,
         tarea: tarea ?? undefined,
       })
@@ -174,8 +179,7 @@ export function ContarForm({
             </p>
             <p className="text-sm text-azul/70">
               {l.pallet ? `${l.pallet} · ` : 'Sin pallet · '}
-              el sistema dice {numero(l.cajas)} cajas
-              {l.sueltas > 0 ? ` y ${numero(l.sueltas)} sueltas` : ''}
+              el sistema dice {cantidad(l.cajas, l.sueltas)}
             </p>
             {l.lote || l.vence ? (
               <p className="text-sm text-azul/60">
@@ -185,16 +189,29 @@ export function ContarForm({
               </p>
             ) : null}
           </div>
-          <label className="flex flex-col gap-1.5">
-            <span className={ETIQUETA}>¿Cuántas cajas hay de verdad?</span>
-            <input
-              name="cajas"
-              defaultValue={l.cajas}
-              required
-              inputMode="decimal"
-              className={`${CAMPO} tabular-nums`}
-            />
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className={ETIQUETA}>Cajas</span>
+              <input
+                name="cajas"
+                defaultValue={l.cajas}
+                required
+                inputMode="decimal"
+                className={`${CAMPO} tabular-nums`}
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={ETIQUETA}>Sueltas</span>
+              <input
+                name="sueltas"
+                defaultValue={l.sueltas}
+                required
+                inputMode="decimal"
+                disabled={l.porCaja <= 1}
+                className={`${CAMPO} tabular-nums disabled:opacity-40`}
+              />
+            </label>
+          </div>
           <button formAction={contar(l)} disabled={pending} className={BOTON}>
             Guardar la cuenta
           </button>
@@ -214,18 +231,17 @@ export function ContarForm({
 }
 
 function Resumen({ resultado }: { resultado: Resultado }) {
-  const { decia, habia, diferencia, deDonde, falta } = resultado
+  const { decia, deciaSueltas, habia, habiaSueltas, diferencia, deDonde, falta } = resultado
 
   if (diferencia === 0) {
-    return <Logro>Cuadra: {numero(habia)} cajas, como decía el sistema.</Logro>
+    return <Logro>Cuadra: {cantidad(habia, habiaSueltas)}, como decía el sistema.</Logro>
   }
 
   return (
     <div className="flex flex-col gap-3">
       <Logro>
-        {diferencia < 0
-          ? `Bajó de ${numero(decia)} a ${numero(habia)} cajas.`
-          : `Subió de ${numero(decia)} a ${numero(habia)} cajas.`}
+        {diferencia < 0 ? 'Bajó' : 'Subió'} de {cantidad(decia, deciaSueltas)} a{' '}
+        {cantidad(habia, habiaSueltas)}.
       </Logro>
       {deDonde ? (
         <div className="rounded-2xl border border-borde p-4">
