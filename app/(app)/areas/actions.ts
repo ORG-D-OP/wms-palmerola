@@ -17,7 +17,9 @@ function fallo(error: { code?: string; message: string }) {
  * exige que al menos uno venga.
  */
 const Cambio = z.object({
-  patron: z.string().trim().max(30).optional(),
+  // Caben varios códigos separados por coma, así que el tope es el de una lista, no el de un
+  // código: las catorce líneas de la orilla del piso son 97 caracteres.
+  patron: z.string().trim().max(400).optional(),
   zona: z.string().trim().max(20).optional(),
   nivel: z.coerce.number().int().min(0).max(20).optional(),
   destino: z.string().trim().min(2).max(20),
