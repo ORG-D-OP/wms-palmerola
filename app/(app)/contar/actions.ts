@@ -20,7 +20,9 @@ export type Linea = {
 
 export type Resultado = {
   decia: number
+  deciaSueltas: number
   habia: number
+  habiaSueltas: number
   diferencia: number
   tareas: number
   deDonde: string | null
@@ -78,6 +80,7 @@ export async function verLugar(codigo: string): Promise<{ ok: true; lineas: Line
 const Recuento = z.object({
   lugar: Codigo,
   cajas: z.coerce.number().min(0, 'Escribe cuántas cajas hay, aunque sean cero.'),
+  sueltas: z.coerce.number().min(0, 'Las unidades sueltas no pueden ser menos que cero.'),
   pallet: Codigo.optional(),
   tarea: z.string().uuid().optional(),
 })
@@ -97,6 +100,7 @@ export async function recontar(
     .rpc('recontar', {
       p_lugar: parsed.data.lugar,
       p_cajas: parsed.data.cajas,
+      p_sueltas: parsed.data.sueltas,
       p_pallet: parsed.data.pallet ?? undefined,
       p_task_id: parsed.data.tarea ?? undefined,
     })
@@ -111,7 +115,9 @@ export async function recontar(
     ok: true,
     resultado: {
       decia: Number(data.decia ?? 0),
+      deciaSueltas: Number(data.decia_sueltas ?? 0),
       habia: Number(data.habia ?? 0),
+      habiaSueltas: Number(data.habia_sueltas ?? 0),
       diferencia: Number(data.diferencia ?? 0),
       tareas: Number(data.tareas ?? 0),
       deDonde: data.de_donde,

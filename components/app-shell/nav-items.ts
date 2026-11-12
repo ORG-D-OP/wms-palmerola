@@ -118,15 +118,20 @@ export function navMovil(role: Roles): NavItem[] {
 }
 
 /**
- * Los atajos del tablero: las pantallas donde se trabaja con las manos.
+ * Los atajos del tablero: todas las pantallas a las que la persona tiene derecho.
  *
- * Son las mismas de la barra del teléfono —menos el tablero, que no se enlaza a sí mismo—
- * porque la lista de pantallas de trabajo es una sola y no tiene por qué estar escrita dos
- * veces. En el teléfono, las que ya están en la barra se esconden: la misma fila de enlaces
- * dos veces en una pantalla no ayuda a nadie, y se come lo que sólo da el tablero.
+ * Es el índice completo, no un resumen, porque en el teléfono no hay otro: la barra de abajo
+ * sólo lleva cinco y la barra de arriba no existe debajo de `md`. Mientras esto filtró por
+ * `movil`, reordenar, contar, los conteos y media administración no tenían forma de abrirse
+ * desde un teléfono.
+ *
+ * Cada atajo lleva su `movil` porque el tablero decide con eso dónde se enseña: las cinco que
+ * ya están en la barra de abajo se esconden en el teléfono y vuelven en pantalla grande, y las
+ * que no son de mano se enseñan en el teléfono y se esconden en pantalla grande, donde la
+ * barra de arriba ya las lleva. La misma fila de enlaces dos veces no ayuda a nadie.
  */
-export function atajos(role: Roles): NavItem[] {
-  return TODOS.filter((i) => i.href !== '/' && i.movil && permitido(role, i.permiso)).map(
-    ({ href, label, icon }) => ({ href, label, icon }),
+export function atajos(role: Roles): (NavItem & { movil: boolean })[] {
+  return TODOS.filter((i) => i.href !== '/' && permitido(role, i.permiso)).map(
+    ({ href, label, icon, movil }) => ({ href, label, icon, movil }),
   )
 }

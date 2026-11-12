@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { lanzarConteo } from './actions'
+import { plural } from '@/lib/plural'
 
 export type Opcion = { valor: string; nombre: string }
 
@@ -66,9 +67,7 @@ export function Lanzar({ zonas, areas, niveles }: {
         <Logro>
           {estado.lanzado.tareas} posiciones que contar.{' '}
           {estado.lanzado.personas > 0
-            ? `Repartidas entre ${estado.lanzado.personas} ${
-                estado.lanzado.personas === 1 ? 'persona' : 'personas'
-              }, un tramo seguido cada quien.`
+            ? `Repartidas entre ${plural(estado.lanzado.personas, 'persona', 'personas')}, un tramo seguido cada quien.`
             : 'Nadie está trabajando ahora mismo, así que quedan en la cola para el que entre.'}
         </Logro>
       ) : null}

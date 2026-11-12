@@ -92,7 +92,7 @@ export default async function DashboardPage() {
               key={a.href}
               href={a.href}
               className={`flex-col gap-2 rounded-2xl bg-azul p-4 text-white transition-opacity hover:opacity-90 ${
-                enLaBarra.has(a.href) ? 'hidden md:flex' : 'flex'
+                enLaBarra.has(a.href) ? 'hidden md:flex' : a.movil ? 'flex' : 'flex md:hidden'
               }`}
             >
               <Icon name={a.icon} />
