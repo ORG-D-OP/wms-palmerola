@@ -7,6 +7,7 @@ import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import {
   cerrarConteo,
   recontar,
+  tomarConteo,
   verLugar,
   type Linea,
   type Resultado,
@@ -25,7 +26,13 @@ const numero = (n: number) =>
  * bien y confirmar no cuesta nada— y por eso, cuando baja la cantidad, la pantalla termina
  * diciendo de dónde sacar lo que falta: sin eso, el que estaba surtiendo se queda a medias.
  */
-export function ContarForm({ pendientes }: { pendientes: Pendiente[] }) {
+export function ContarForm({
+  pendientes,
+  cola,
+}: {
+  pendientes: Pendiente[]
+  cola: number
+}) {
   const [lugar, setLugar] = useState<string | null>(null)
   const [lineas, setLineas] = useState<Linea[]>([])
   const [tarea, setTarea] = useState<string | null>(null)
@@ -73,6 +80,16 @@ export function ContarForm({ pendientes }: { pendientes: Pendiente[] }) {
     })
   }
 
+  const tomar = () => {
+    setError(null)
+    empezar(async () => {
+      const res = await tomarConteo()
+      if (!res.ok) return setError(res.error)
+      if (!res.posicion || !res.tarea) return setError('Ya no queda nada en la cola del conteo.')
+      abrir(res.posicion, res.tarea)
+    })
+  }
+
   const terminar = () => {
     if (!tarea) return
     empezar(async () => {
@@ -95,6 +112,18 @@ export function ContarForm({ pendientes }: { pendientes: Pendiente[] }) {
           {resultado ? <Resumen resultado={resultado} /> : null}
           {error ? <Aviso>{error}</Aviso> : null}
         </div>
+
+        {pendientes.length === 0 && cola > 0 ? (
+          <section className="flex flex-col gap-2 rounded-2xl bg-azul-08 p-4">
+            <p className="text-sm">
+              Hay {cola} {cola === 1 ? 'posición' : 'posiciones'} esperando en la cola del
+              conteo.
+            </p>
+            <button type="button" onClick={tomar} disabled={pending} className={BOTON_SUAVE}>
+              Tomar una
+            </button>
+          </section>
+        ) : null}
 
         {pendientes.length > 0 ? (
           <section className="flex flex-col gap-2">

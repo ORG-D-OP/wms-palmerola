@@ -134,3 +134,30 @@ export async function cerrarConteo(tarea: string): Promise<{ ok: true } | Fail> 
   revalidatePath('/contar')
   return { ok: true }
 }
+
+/**
+ * Toma una posición de la cola del conteo.
+ *
+ * Hace falta porque un conteo lanzado cuando no había nadie trabajando queda sin dueño, y
+ * entonces no aparece en la lista de nadie. La cola de siempre lo reparte, con su regla de
+ * alcance: a quien anda a pie no le va a tocar un nivel 4.
+ */
+export async function tomarConteo(): Promise<
+  { ok: true; tarea: string | null; posicion: string | null } | Fail
+> {
+  await requirePermission('conteo:ejecutar')
+
+  const supabase = await createSupabaseServerClient()
+  const { data: tarea, error } = await supabase.rpc('claim_next_task', { p_types: ['COUNT'] })
+  if (error) return fallo(error)
+  if (!tarea?.id) return { ok: true, tarea: null, posicion: null }
+
+  const { data } = await supabase
+    .from('conteos_pendientes')
+    .select('task_id, posicion')
+    .eq('task_id', tarea.id)
+    .maybeSingle()
+
+  revalidatePath('/contar')
+  return { ok: true, tarea: tarea.id, posicion: data?.posicion ?? null }
+}

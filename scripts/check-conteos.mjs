@@ -311,6 +311,22 @@ const enCola = await one(
 )
 check(enCola.n === Number(solas.tareas), 'todas listas para que las tome el que entre')
 
+// Lo que queda en la cola tiene que poder tomarse: si no, un conteo lanzado cuando no habia
+// nadie trabajando no aparece nunca en la lista de nadie.
+await como(auxiliar)
+await db.query(`select iniciar_turno()`)
+const tomada = await one(`select * from claim_next_task(array['COUNT']::task_type[])`)
+check(
+  tomada?.type === 'COUNT' && tomada.assigned_to === auxiliar,
+  'una posicion que quedo en la cola se puede tomar como cualquier otra tarea',
+)
+await db.query(
+  `update task set status = 'READY', assigned_to = null, assigned_at = null where id = $1`,
+  [tomada.id],
+)
+await db.query(`delete from shift_assignment where profile_id = '${auxiliar}'`)
+await como(jefe)
+
 const repetido = await fails(`select * from lanzar_conteo(null, 'PICKING')`)
 check(
   repetido?.includes('ya está lanzado'),
