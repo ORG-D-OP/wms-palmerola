@@ -15,12 +15,25 @@ const CLASES: Record<string, string> = {
   returns: 'Devoluciones',
 }
 
-/** La diferencia en cajas, que es como se cuenta en la bodega. */
+/**
+ * La diferencia en cajas y sueltas, que es como se cuenta en la bodega.
+ *
+ * Partida en dos, no en un decimal: en picking casi nunca sobra o falta un número redondo de
+ * cajas, y «-20.21 cajas» no le dice nada a nadie.
+ */
 const diferencia = (r: { diferencia: number | null; por_caja: number | null }) => {
-  const cajas = Number(r.diferencia ?? 0) / Number(r.por_caja || 1)
-  if (cajas === 0) return 'cuadra'
-  const texto = cajas.toLocaleString('es-HN', { maximumFractionDigits: 2 })
-  return `${cajas > 0 ? '+' : ''}${texto} cajas`
+  const unidades = Number(r.diferencia ?? 0)
+  if (unidades === 0) return 'cuadra'
+
+  const porCaja = Number(r.por_caja || 1)
+  const sobran = Math.abs(unidades)
+  const cajas = Math.floor(sobran / porCaja)
+  const sueltas = sobran - cajas * porCaja
+  const signo = unidades > 0 ? '+' : '-'
+
+  if (cajas === 0) return `${signo}${sueltas} sueltas`
+  if (sueltas === 0) return `${signo}${cajas} cajas`
+  return `${signo}${cajas} cajas y ${sueltas} sueltas`
 }
 
 const fecha = (iso: string | null) =>

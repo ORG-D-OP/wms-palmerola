@@ -235,6 +235,21 @@ check(
   `y dice de donde sacarlo (${r.de_donde})`,
 )
 check(!r.de_donde.includes(lugarContado), 'de otro lado, no del que acaba de contar')
+check(
+  !/\.\d{3,}/.test(r.de_donde),
+  'y lo dice en cajas de verdad, no en un numero de diecisiete decimales',
+)
+
+const comoSeDice = await one(
+  `select texto_cajas(955, 24) as mixto, texto_cajas(48, 24) as redondo,
+          texto_cajas(7, 24) as poquito`,
+)
+check(
+  comoSeDice.mixto === '39 cajas y 19 sueltas' &&
+    comoSeDice.redondo === '2 cajas' &&
+    comoSeDice.poquito === '7 sueltas',
+  'una cantidad se dice como en la bodega: cajas, y sueltas solo si las hay',
+)
 
 const movCount = await one(
   `select type::text, reason_code, qty_base, note from stock_movement
@@ -319,6 +334,68 @@ check(
   'contar sueltas en negativo no tiene sentido y se rechaza',
 )
 
+// Y el caso que de verdad duele: la tarea de surtido ya esta repartida y en la mano de
+// alguien cuando aparece el descuadre. Lo que quede recortado tiene que seguir siendo surtible,
+// porque si no el que esta surtiendo se queda con una tarea que no puede cerrar.
+const { id: linea2 } = await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 2, $2, $3, 120) returning id`,
+  [pedido, producto, caja],
+)
+await db.query(`select apartar_linea($1)`, [linea2])
+
+await como(auxiliar)
+await db.query(`select iniciar_turno()`)
+const enMano = await one(`select * from claim_next_task(array['PICK']::task_type[])`)
+check(enMano?.type === 'PICK', 'alguien toma la tarea de surtido y la tiene en la mano')
+
+const dondeEstaba = await one(`select code from location where id = $1`, [
+  enMano.from_location_id,
+])
+const antesDeRecortar = await one(
+  `select s.qty_base, s.qty_allocated from stock s
+   join location l on l.id = s.location_id where l.code = $1 and s.qty_base > 0`,
+  [dondeEstaba.code],
+)
+check(
+  Number(antesDeRecortar.qty_allocated) >= Number(enMano.qty_base),
+  'y lo suyo esta apartado en esa posicion',
+)
+
+await one(`select start_pick($1, $2)`, [enMano.id, dondeEstaba.code])
+const empezada = await one(`select status::text from task where id = $1`, [enMano.id])
+check(empezada.status === 'IN_PROGRESS', 'y la empieza: ya esta parada frente a la posicion')
+
+const menos = Number(enMano.qty_base) - 24
+const recortada = await one(`select * from recontar($1, $2, $3)`, [
+  dondeEstaba.code,
+  Math.floor(menos / 24),
+  menos % 24,
+])
+check(Number(recortada.diferencia) < 0, 'el recuento baja la cantidad con la tarea ya repartida')
+
+const quedo = await one(`select status::text, qty_base from task where id = $1`, [enMano.id])
+check(
+  quedo.status !== 'CANCELLED' && Number(quedo.qty_base) === menos,
+  'la tarea que estaba en la mano se recorta a lo que si hay, no se cancela',
+)
+
+await db.query(
+  `insert into barcode (packaging_level_id, code, symbology, is_primary)
+   values ($1, 'PRUEBACONTEO01', 'CODE128', true)`,
+  [caja],
+)
+const surtido = await one(`select * from complete_pick($1, 'PRUEBACONTEO01', $2)`, [
+  enMano.id,
+  menos,
+])
+check(
+  Number(surtido.surtido) === menos,
+  'y se puede cerrar por lo recortado: nadie se queda con una tarea imposible',
+)
+
+await db.query(`delete from shift_assignment where profile_id = $1`, [auxiliar])
+
 // ---------------------------------------------------------------------------------------
 // Los conteos ciclicos del supervisor
 // ---------------------------------------------------------------------------------------
@@ -341,8 +418,15 @@ const areaInventada = await fails(`select * from lanzar_conteo(null, 'NO-EXISTE'
 check(areaInventada?.includes('No hay ningún área'), 'y un area que no existe, igual')
 
 // Nadie trabajando: las tareas quedan en la cola.
+const conExistencia = await one(
+  `select count(distinct s.location_id)::int as n from stock s
+   where s.qty_base > 0 and (area_de(s.location_id)).code = 'PICKING'`,
+)
 const solas = await one(`select * from lanzar_conteo(null, 'PICKING')`)
-check(Number(solas.tareas) >= 3, `el conteo del area de picking arma una tarea por posicion con existencia (${solas.tareas})`)
+check(
+  Number(solas.tareas) === conExistencia.n && conExistencia.n > 0,
+  `el conteo del area de picking arma una tarea por posicion con existencia (${conExistencia.n})`,
+)
 check(Number(solas.personas) === 0, 'sin nadie trabajando no hay a quien repartir')
 check(Number(solas.repartidas) === 0, 'y las tareas quedan en la cola, sin dueno')
 
