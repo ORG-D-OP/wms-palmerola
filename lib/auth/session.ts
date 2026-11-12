@@ -9,7 +9,10 @@ export type SessionUser = {
   id: string
   email: string | null
   fullName: string
+  /** El rango: lo que el jefe le puso. No cambia por ponerse a trabajar en otra cosa. */
   role: UserRole
+  /** El rango más lo concedido para cubrir. De aquí salen los permisos. */
+  roles: UserRole[]
 }
 
 /** cache() evita repetir la consulta cuando varios componentes del mismo render la piden. */
@@ -23,18 +26,22 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   const { data: profile } = await supabase
     .from('profile')
-    .select('full_name, role, is_active')
+    .select('full_name, role, roles_extra, is_active')
     .eq('id', user.id)
     .single()
 
   // Un usuario desactivado tiene sesion valida pero no entra.
   if (!profile?.is_active) return null
 
+  const rango = rolDe(profile.role)
+  const concedidos = (profile.roles_extra ?? []).map(rolDe)
+
   return {
     id: user.id,
     email: user.email ?? null,
     fullName: profile.full_name,
-    role: rolDe(profile.role),
+    role: rango,
+    roles: [...new Set([rango, ...concedidos])],
   }
 })
 
@@ -46,6 +53,6 @@ export async function requireUser(): Promise<SessionUser> {
 
 export async function requirePermission(permission: Permission): Promise<SessionUser> {
   const user = await requireUser()
-  if (!can(user.role, permission)) throw new ForbiddenError()
+  if (!can(user.roles, permission)) throw new ForbiddenError()
   return user
 }

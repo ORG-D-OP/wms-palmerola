@@ -76,8 +76,8 @@ export default async function DashboardPage() {
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
-  const accesos = atajos(user.role)
-  const enLaBarra = new Set(navMovil(user.role).map((i) => i.href))
+  const accesos = atajos(user.roles)
+  const enLaBarra = new Set(navMovil(user.roles).map((i) => i.href))
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
         ))}
       </dl>
 
-      <Ocupacion estados={ocupacion} permite3D={can(user.role, 'kpi:ver')} />
+      <Ocupacion estados={ocupacion} permite3D={can(user.roles, 'kpi:ver')} />
 
       {areas.length > 0 ? (
         <section className="flex flex-col gap-2">

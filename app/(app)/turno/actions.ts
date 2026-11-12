@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import { ROLES_DE_TRABAJO } from '@/lib/auth/roles'
 
 type Fail = { ok: false; error: string }
 
@@ -15,20 +16,26 @@ function fallo(error: { code?: string; message: string }): Fail {
 }
 
 const Turno = z.object({
-  equipo: z.string().trim().max(20).optional(),
+  tipo: z.string().trim().max(24).optional(),
+  rol: z.enum(ROLES_DE_TRABAJO).optional(),
 })
 
 export async function iniciarTurno(_prev: unknown, datos: FormData) {
   await requirePermission('turno:iniciar')
 
-  const parsed = Turno.safeParse({ equipo: datos.get('equipo') || undefined })
-  if (!parsed.success) return { ok: false as const, error: 'Revisa el equipo.' }
+  const parsed = Turno.safeParse({
+    tipo: datos.get('tipo') || undefined,
+    rol: datos.get('rol') || undefined,
+  })
+  if (!parsed.success) return { ok: false as const, error: 'Revisa el equipo y el rol.' }
 
   const supabase = await createSupabaseServerClient()
   // El lado de la operación ya no se escoge: lo reparte el jefe de bodega por andén, así que
-  // todo el mundo entra a los dos lados hasta que esa asignación exista.
+  // todo el mundo entra a los dos lados hasta que esa asignación exista. Del equipo se declara
+  // el tipo, no la unidad: lo que el sistema necesita saber es hasta qué nivel alcanza.
   const { error } = await supabase.rpc('iniciar_turno', {
-    p_equipment_code: parsed.data.equipo || undefined,
+    p_tipo_equipo: parsed.data.tipo || undefined,
+    p_rol: parsed.data.rol,
   })
 
   if (error) return fallo(error)
@@ -47,6 +54,26 @@ export async function entrarATrabajo() {
   if (error) return fallo(error)
   revalidatePath('/')
   revalidatePath('/turno')
+  return { ok: true as const }
+}
+
+/**
+ * Cambiarse de rol a media mañana. Es el supervisor que baja a ayudar cuando se acumula el
+ * trabajo, y el auxiliar que cubre de chequeador. No toca el rango de nadie: los permisos se
+ * quedan donde estaban, lo único que cambia es qué trabajo le da el sistema.
+ */
+export async function trabajarComo(rol: string) {
+  await requirePermission('turno:iniciar')
+
+  const parsed = z.enum(ROLES_DE_TRABAJO).safeParse(rol)
+  if (!parsed.success) return { ok: false as const, error: 'Ese rol no es de trabajo.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('trabajar_como', { p_rol: parsed.data })
+
+  if (error) return fallo(error)
+  revalidatePath('/turno')
+  revalidatePath('/')
   return { ok: true as const }
 }
 

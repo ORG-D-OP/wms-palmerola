@@ -1,8 +1,8 @@
 import { requirePermission } from '@/lib/auth/session'
-import { can, rolDe } from '@/lib/auth/roles'
+import { can, rolDe, rolesDeTrabajoDe } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { SwitchTeclado } from '@/components/ui/teclado'
-import { TurnoForm, type Equipo } from './turno-form'
+import { TurnoForm, type Equipo, type Tipo } from './turno-form'
 import { Flota } from './flota'
 import { Reparto, type Carga, type Persona } from './reparto'
 
@@ -12,14 +12,14 @@ export default async function TurnoPage() {
   const user = await requirePermission('turno:iniciar')
   const supabase = await createSupabaseServerClient()
 
-  const reparte = can(user.role, 'tareas:reasignar')
+  const reparte = can(user.roles, 'tareas:reasignar')
 
   const [{ data: turnos }, { data: equipos }, { data: tipos }, { data: gente }, { data: puertas }] =
     await Promise.all([
       supabase
         .from('shift_assignment')
         .select(
-          'started_at, paused_at, pause_note, dock_door(code), equipment(code, equipment_type(name, max_level))',
+          'started_at, paused_at, pause_note, working_role, dock_door(code), equipment_type(code, name, max_level), equipment(code, equipment_type(name, max_level))',
         )
         .is('ended_at', null)
         .eq('profile_id', user.id),
@@ -46,9 +46,11 @@ export default async function TurnoPage() {
   const abierto = turnos?.[0]
   const turno = abierto
     ? {
+        rol: rolDe(abierto.working_role ?? user.role),
         equipo: abierto.equipment?.code ?? null,
-        tipo: abierto.equipment?.equipment_type?.name ?? null,
-        alcance: abierto.equipment?.equipment_type?.max_level ?? 0,
+        tipo: abierto.equipment_type?.name ?? abierto.equipment?.equipment_type?.name ?? null,
+        alcance:
+          abierto.equipment_type?.max_level ?? abierto.equipment?.equipment_type?.max_level ?? 0,
         desde: abierto.started_at,
         pausado: abierto.paused_at !== null,
         motivo: abierto.pause_note,
@@ -67,7 +69,11 @@ export default async function TurnoPage() {
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-xl">Disponibilidad</h1>
-      <TurnoForm turno={turno} equipos={flota} />
+      <TurnoForm
+        turno={turno}
+        tipos={(tipos ?? []).map((t): Tipo => ({ code: t.code, name: t.name, alcance: t.max_level }))}
+        roles={rolesDeTrabajoDe(user.roles)}
+      />
 
       <SwitchTeclado />
 
@@ -96,7 +102,7 @@ export default async function TurnoPage() {
         />
       ) : null}
 
-      {can(user.role, 'flota:administrar') ? (
+      {can(user.roles, 'flota:administrar') ? (
         <Flota
           equipos={flota}
           tipos={(tipos ?? []).map((t) => ({

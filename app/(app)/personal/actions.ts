@@ -50,6 +50,18 @@ export async function devolver(id: string): Promise<Resultado> {
   return llamar('reactivar_persona', { p_id: persona.data })
 }
 
+/**
+ * Los roles que el jefe concede además del rango, para cubrir a quien está de vacaciones.
+ * No toca el rango: quien cubre sigue siendo lo que era, y por eso no hay que acordarse de
+ * devolverle nada cuando el otro vuelve.
+ */
+export async function concederRoles(id: string, roles: string[]): Promise<Resultado> {
+  const persona = z.uuid().safeParse(id)
+  const papeles = z.array(Rol).safeParse(roles)
+  if (!persona.success || !papeles.success) return { ok: false, error: 'Revisa los roles.' }
+  return llamar('conceder_roles', { p_id: persona.data, p_roles: papeles.data })
+}
+
 export async function ponerRol(id: string, rol: string): Promise<Resultado> {
   const persona = Persona.safeParse(id)
   const papel = Rol.safeParse(rol)

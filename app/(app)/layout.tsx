@@ -9,8 +9,8 @@ import { logout } from '@/app/(public)/login/actions'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser()
-  const items = navParaRol(user.role)
-  const abajo = navMovil(user.role)
+  const items = navParaRol(user.roles)
+  const abajo = navMovil(user.roles)
 
   return (
     <>

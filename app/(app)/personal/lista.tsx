@@ -3,10 +3,11 @@
 import { useState, useTransition } from 'react'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
-import { ROLES, ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
+import { ROLES, ROLES_DE_TRABAJO, ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
 import {
   aceptar,
   autorizarCorreos,
+  concederRoles,
   devolver,
   ponerRol,
   quitarCorreo,
@@ -20,6 +21,7 @@ export type Persona = {
   identidad: string | null
   correo: string
   rol: UserRole
+  rolesExtra: UserRole[]
   activa: boolean
   aceptada: boolean
   registrada: string
@@ -148,6 +150,9 @@ export function Lista({
                   ))}
                 </select>
               </label>
+
+              <Cubre p={p} pending={pending} hacer={hacer} />
+
               <button
                 type="button"
                 disabled={pending}
@@ -291,5 +296,62 @@ function Correos({
         </div>
       ) : null}
     </section>
+  )
+}
+
+/**
+ * Lo que una persona puede cubrir además de lo suyo.
+ *
+ * El caso es el de siempre en la bodega: el chequeador se va de vacaciones y un auxiliar lo
+ * cubre. Antes había que cambiarle el rol y acordarse de devolvérselo —y mientras tanto dejaba
+ * de poder hacer lo suyo—. Conceder suma: sigue siendo auxiliar, y además puede chequear.
+ *
+ * El supervisor y el administrador no aparecen aquí para cubrir: ellos ya pueden ponerse a
+ * trabajar en lo que haga falta desde su propia pantalla de turno.
+ */
+function Cubre({
+  p,
+  pending,
+  hacer,
+}: {
+  p: Persona
+  pending: boolean
+  hacer: (f: () => Promise<{ ok: boolean; error?: string }>) => void
+}) {
+  const puede = ROLES_DE_TRABAJO.filter((r) => r !== p.rol)
+  if (p.rol === 'supervisor' || p.rol === 'admin') return null
+
+  const alternar = (r: UserRole) => {
+    const nuevos = p.rolesExtra.includes(r)
+      ? p.rolesExtra.filter((x) => x !== r)
+      : [...p.rolesExtra, r]
+    hacer(() => concederRoles(p.id, nuevos))
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={ETIQUETA}>También puede cubrir</span>
+      <div className="flex flex-wrap gap-2">
+        {puede.map((r) => {
+          const activo = p.rolesExtra.includes(r)
+          return (
+            <button
+              key={r}
+              type="button"
+              disabled={pending}
+              onClick={() => alternar(r)}
+              aria-pressed={activo}
+              className={`rounded-full border px-3 py-1.5 text-sm ${
+                activo
+                  ? 'border-verde bg-verde/15 text-azul'
+                  : 'border-borde text-azul/60'
+              }`}
+            >
+              {ROLE_LABELS[r]}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

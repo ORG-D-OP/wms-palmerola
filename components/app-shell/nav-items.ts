@@ -76,10 +76,12 @@ const TODOS = [
 
 export type NavItem = { href: string; label: string; icon: string }
 
-const permitido = (role: UserRole, permiso: Permission | null) =>
-  permiso === null || can(role, permiso)
+type Roles = UserRole | readonly UserRole[]
 
-export function navParaRol(role: UserRole): NavItem[] {
+const permitido = (roles: Roles, permiso: Permission | null) =>
+  permiso === null || can(roles, permiso)
+
+export function navParaRol(role: Roles): NavItem[] {
   return TODOS.filter((i) => permitido(role, i.permiso)).map(({ href, label, icon }) => ({
     href,
     label,
@@ -88,7 +90,7 @@ export function navParaRol(role: UserRole): NavItem[] {
 }
 
 /** Lo que cabe en la barra inferior del teléfono. */
-export function navMovil(role: UserRole): NavItem[] {
+export function navMovil(role: Roles): NavItem[] {
   return TODOS.filter((i) => i.movil && permitido(role, i.permiso))
     .map(({ href, label, icon }) => ({ href, label, icon }))
     .slice(0, 5)
@@ -102,7 +104,7 @@ export function navMovil(role: UserRole): NavItem[] {
  * veces. En el teléfono, las que ya están en la barra se esconden: la misma fila de enlaces
  * dos veces en una pantalla no ayuda a nadie, y se come lo que sólo da el tablero.
  */
-export function atajos(role: UserRole): NavItem[] {
+export function atajos(role: Roles): NavItem[] {
   return TODOS.filter((i) => i.href !== '/' && i.movil && permitido(role, i.permiso)).map(
     ({ href, label, icon }) => ({ href, label, icon }),
   )

@@ -29,6 +29,7 @@ export default async function PersonalPage() {
     identidad: f.employee_code,
     correo: f.email,
     rol: rolDe(f.role),
+    rolesExtra: (f.roles_extra ?? []).map(rolDe),
     activa: f.is_active,
     aceptada: f.approved_at !== null,
     registrada: f.created_at,
