@@ -177,6 +177,15 @@ const apartadoAqui = await todas(
 )
 check(apartadoAqui.length >= 1, 'y el apartado apunta a una posicion concreta')
 
+// Y de paso, lo que el reordenamiento promete y no estaba probado: lo apartado no se mueve.
+const apartadoNoSeMueve = await fails(`select * from reordenar($1, 'F1-005-02')`, [
+  apartadoAqui[0].code,
+])
+check(
+  apartadoNoSeMueve?.includes('apartado para un pedido'),
+  'lo apartado para un pedido no se reordena: quien va a surtir se quedaria mirando un hueco',
+)
+
 await como(miron)
 const sinPermiso = await fails(`select * from recontar('F1-001-03', 5)`)
 check(sinPermiso?.includes('No tienes permiso'), 'quien solo mira no cambia cantidades')

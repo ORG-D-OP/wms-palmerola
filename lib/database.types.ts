@@ -4086,7 +4086,7 @@ export type Database = {
         Returns: undefined
       }
       destino_valido: {
-        Args: { p_codigo: string; p_task_id?: string }
+        Args: { p_codigo: string }
         Returns: {
           barcode: string
           code: string
@@ -4485,14 +4485,17 @@ export type Database = {
           p_lugar: string
           p_nota?: string
           p_pallet?: string
+          p_sueltas?: number
           p_task_id?: string
         }
         Returns: {
           de_donde: string
           decia: number
+          decia_sueltas: number
           diferencia: number
           falta: number
           habia: number
+          habia_sueltas: number
           por_caja: number
           tareas: number
         }[]
