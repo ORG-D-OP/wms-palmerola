@@ -12,6 +12,11 @@ const { id: yo } = await one(`insert into auth.users (email) values ('yo@ejemplo
 const { id: otro } = await one(`insert into auth.users (email) values ('otro@ejemplo.test') returning id`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
+// Los dos trabajan en la bodega: con el rango de solo lectura la cola no les da nada.
+await db.query(
+  `update profile set role = 'auxiliar' where id in ('${yo}', '${otro}')`,
+)
+
 const { id: productId } = await one(
   `insert into product (sku, name, base_uom) values ('T-1', 'Producto', 'ST') returning id`,
 )

@@ -229,6 +229,15 @@ const sinEntrar = await fails(`select trabajar_como('auxiliar')`)
 check(sinEntrar?.includes('Primero entra a trabajar'), 'para cambiarse de rol hay que estar en turno')
 
 await one(`select iniciar_turno()`)
+
+// Al jefe no le caen tareas solo: por eso existe cambiarse de rol. Con el turno abierto y su
+// rango puesto, la cola no le da nada.
+const sinBajar = await fails(`select claim_next_task()`)
+check(
+  sinBajar?.includes('Con tu rango no te caen tareas solas'),
+  'con su rango puesto, al jefe no le cae ninguna tarea sola',
+)
+
 await one(`select trabajar_como('auxiliar')`)
 const bajo = await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [jefe])
 check(bajo.rol_trabajo === 'auxiliar', 'el supervisor baja a ayudar como auxiliar')
