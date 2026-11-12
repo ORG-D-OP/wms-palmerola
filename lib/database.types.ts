@@ -72,6 +72,13 @@ export type Database = {
             foreignKeyName: "allocation_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
             referencedRelation: "task"
             referencedColumns: ["id"]
           },
@@ -712,6 +719,13 @@ export type Database = {
             foreignKeyName: "location_reserved_by_task_id_fkey"
             columns: ["reserved_by_task_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
             referencedRelation: "task"
             referencedColumns: ["id"]
           },
@@ -769,6 +783,13 @@ export type Database = {
             foreignKeyName: "location_area_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "location_area_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -815,6 +836,13 @@ export type Database = {
           valid_to?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "location_tag_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
           {
             foreignKeyName: "location_tag_location_id_fkey"
             columns: ["location_id"]
@@ -969,6 +997,13 @@ export type Database = {
             foreignKeyName: "order_crossdock_from_location_id_fkey"
             columns: ["from_location_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -1041,6 +1076,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_readiness"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_crossdock_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
           },
           {
             foreignKeyName: "order_crossdock_to_location_id_fkey"
@@ -1716,6 +1758,13 @@ export type Database = {
             foreignKeyName: "returnable_count_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: true
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "returnable_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: true
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -1771,6 +1820,13 @@ export type Database = {
           qty_after?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "returnable_movement_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
           {
             foreignKeyName: "returnable_movement_location_id_fkey"
             columns: ["location_id"]
@@ -2002,6 +2058,13 @@ export type Database = {
             foreignKeyName: "stock_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -2066,6 +2129,167 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_count: {
+        Row: {
+          counted_at: string
+          counted_by: string | null
+          expiry_date: string | null
+          id: string
+          location_id: string
+          lot: string | null
+          lpn_id: string | null
+          movement_id: number | null
+          note: string | null
+          product_id: string
+          qty_expected: number
+          qty_found: number
+          task_id: string | null
+        }
+        Insert: {
+          counted_at?: string
+          counted_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          location_id: string
+          lot?: string | null
+          lpn_id?: string | null
+          movement_id?: number | null
+          note?: string | null
+          product_id: string
+          qty_expected: number
+          qty_found: number
+          task_id?: string | null
+        }
+        Update: {
+          counted_at?: string
+          counted_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          location_id?: string
+          lot?: string | null
+          lpn_id?: string | null
+          movement_id?: number | null
+          note?: string | null
+          product_id?: string
+          qty_expected?: number
+          qty_found?: number
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "stock_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "posicion_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "retornables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["lpn_id"]
+          },
+          {
+            foreignKeyName: "stock_count_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movement"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_count_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "stock_count_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
         ]
@@ -2144,6 +2368,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipment"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movement_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
           },
           {
             foreignKeyName: "stock_movement_from_location_id_fkey"
@@ -2228,6 +2459,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "reason_code"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "stock_movement_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
           },
           {
             foreignKeyName: "stock_movement_to_location_id_fkey"
@@ -2361,6 +2599,13 @@ export type Database = {
             foreignKeyName: "task_from_location_id_fkey"
             columns: ["from_location_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -2433,6 +2678,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_readiness"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
           },
           {
             foreignKeyName: "task_to_location_id_fkey"
@@ -2653,6 +2905,20 @@ export type Database = {
         }
         Relationships: []
       }
+      conteos_pendientes: {
+        Row: {
+          assigned_to: string | null
+          created_at: string | null
+          location_id: string | null
+          nivel: number | null
+          pick_sequence: number | null
+          posicion: string | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          task_id: string | null
+          zona: string | null
+        }
+        Relationships: []
+      }
       despacho_progreso: {
         Row: {
           anden: string | null
@@ -2766,6 +3032,20 @@ export type Database = {
           recibidos: number | null
           sin_aviso: boolean | null
           status: string | null
+        }
+        Relationships: []
+      }
+      inexactitud: {
+        Row: {
+          conteos: number | null
+          descuadres: number | null
+          pct_conteos_con_descuadre: number | null
+          pct_unidades: number | null
+          persona: string | null
+          profile_id: string | null
+          ultimo: string | null
+          unidades_de_diferencia: number | null
+          unidades_esperadas: number | null
         }
         Relationships: []
       }
@@ -2993,6 +3273,54 @@ export type Database = {
           },
         ]
       }
+      recuentos: {
+        Row: {
+          counted_at: string | null
+          diferencia: number | null
+          expiry_date: string | null
+          id: string | null
+          lot: string | null
+          note: string | null
+          pallet: string | null
+          persona: string | null
+          posicion: string | null
+          producto: string | null
+          qty_expected: number | null
+          qty_found: number | null
+          sku: string | null
+          task_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_timing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retornables: {
         Row: {
           cantidad: number | null
@@ -3050,6 +3378,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
           {
             foreignKeyName: "stock_location_id_fkey"
             columns: ["location_id"]
@@ -3173,6 +3508,13 @@ export type Database = {
             foreignKeyName: "task_from_location_id_fkey"
             columns: ["from_location_id"]
             isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "task_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
             referencedRelation: "inventario"
             referencedColumns: ["location_id"]
           },
@@ -3224,6 +3566,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_readiness"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["location_id"]
           },
           {
             foreignKeyName: "task_to_location_id_fkey"
@@ -3503,6 +3852,39 @@ export type Database = {
           sku: string
         }[]
       }
+      cerrar_conteo: {
+        Args: { p_task_id: string }
+        Returns: {
+          assigned_at: string | null
+          assigned_to: string | null
+          closed_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expiry_date: string | null
+          flow: string | null
+          from_location_id: string | null
+          id: string
+          lot: string | null
+          lpn_id: string | null
+          min_level: number | null
+          packaging_level_id: string | null
+          priority: number
+          product_id: string | null
+          qty_base: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          to_location_id: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          wave_id: string | null
+          zone_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "task"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cerrar_ingreso_sin_aviso: {
         Args: { p_pedido: string }
         Returns: {
@@ -3702,6 +4084,42 @@ export type Database = {
         Args: { p_forzar?: boolean; p_nota?: string; p_order_id: string }
         Returns: undefined
       }
+      destino_valido: {
+        Args: { p_codigo: string; p_task_id?: string }
+        Returns: {
+          barcode: string
+          code: string
+          coord_x: number | null
+          coord_y: number | null
+          coord_z: number | null
+          created_at: string
+          depth_index: number
+          id: string
+          kind: Database["public"]["Enums"]["location_type"]
+          lane_id: string
+          level: number
+          max_height_mm: number | null
+          max_pallets_stacked: number | null
+          max_weight_kg: number | null
+          pick_sequence: number | null
+          reserved_by_task_id: string | null
+          reserved_until: string | null
+          retired_at: string | null
+          status: Database["public"]["Enums"]["location_status"]
+          updated_at: string
+          usage_code: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "location"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      es_rol_de_trabajo: {
+        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
       existencia_de: {
         Args: { p_texto: string }
         Returns: {
@@ -3764,6 +4182,23 @@ export type Database = {
         Args: { roles: Database["public"]["Enums"]["user_role"][] }
         Returns: boolean
       }
+      hay_en: {
+        Args: { p_texto: string }
+        Returns: {
+          expiry_date: string
+          location_code: string
+          location_id: string
+          lot: string
+          lpn_code: string
+          lpn_id: string
+          nombre: string
+          product_id: string
+          qty_allocated: number
+          qty_base: number
+          sku: string
+          stock_id: string
+        }[]
+      }
       iniciar_turno: {
         Args: {
           p_flow?: string
@@ -3789,6 +4224,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      lanzar_conteo: {
+        Args: { p_area?: string; p_nivel?: number; p_zona?: string }
+        Returns: {
+          personas: number
+          repartidas: number
+          tareas: number
+        }[]
       }
       listar_correos: {
         Args: never
@@ -3848,6 +4291,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      posiciones_a_contar: {
+        Args: { p_area?: string; p_nivel?: number; p_zona?: string }
+        Returns: {
+          location_id: string
+          nivel: number
+          paso: number
+          zone_id: string
+        }[]
       }
       posiciones_como: { Args: { p_patron: string }; Returns: string[] }
       posiciones_donde: {
@@ -4026,7 +4478,36 @@ export type Database = {
           to_location_code: string
         }[]
       }
+      recontar: {
+        Args: {
+          p_cajas: number
+          p_lugar: string
+          p_nota?: string
+          p_pallet?: string
+          p_task_id?: string
+        }
+        Returns: {
+          de_donde: string
+          decia: number
+          diferencia: number
+          falta: number
+          habia: number
+          por_caja: number
+          tareas: number
+        }[]
+      }
       release_order: { Args: { p_order_id: string }; Returns: number }
+      reordenar: {
+        Args: { p_destino: string; p_origen: string; p_pallet?: string }
+        Returns: {
+          a: string
+          cantidad: number
+          de: string
+          nombre: string
+          pallet: string
+          sku: string
+        }[]
+      }
       rol_asignable: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean

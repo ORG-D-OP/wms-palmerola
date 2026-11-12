@@ -60,7 +60,6 @@ await como(jefe)
 // ---------------------------------------------------------------------------------------
 
 const origen = await posicion('F1-001-01')
-const destino = await posicion('F1-001-02')
 const { id: pallet } = await one(
   `insert into lpn (code, level, source) values ('WMS-00009001', 'PALLET', 'PROVISIONAL')
    returning id`,
