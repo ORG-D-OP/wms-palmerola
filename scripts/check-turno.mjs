@@ -280,4 +280,14 @@ check(
 )
 check(esperando.roles_extra.includes('chequeador'), 'y que roles le tiene concedidos')
 
+// El que baja a ayudar tiene que poder volver a lo suyo sin salir del turno, o la pantalla lo
+// deja encerrado: los tres roles de bodega no incluyen su rango.
+await one(`select trabajar_como('supervisor')`)
+const devuelta = await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [jefe])
+check(devuelta.rol_trabajo === 'supervisor', 'y vuelve a lo suyo sin salir del turno')
+check(
+  (await one(`select count(*)::int as n from shift_assignment where profile_id = $1 and ended_at is null`, [jefe])).n === 1,
+  'sin abrir otro turno: es el mismo',
+)
+
 await db.close()

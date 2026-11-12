@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
-import { ROLES_DE_TRABAJO } from '@/lib/auth/roles'
+import { ROLES, ROLES_DE_TRABAJO, rolesDeTrabajoDe } from '@/lib/auth/roles'
 
 type Fail = { ok: false; error: string }
 
@@ -63,10 +63,14 @@ export async function entrarATrabajo() {
  * quedan donde estaban, lo único que cambia es qué trabajo le da el sistema.
  */
 export async function trabajarComo(rol: string) {
-  await requirePermission('turno:iniciar')
+  const user = await requirePermission('turno:iniciar')
 
-  const parsed = z.enum(ROLES_DE_TRABAJO).safeParse(rol)
-  if (!parsed.success) return { ok: false as const, error: 'Ese rol no es de trabajo.' }
+  // Se admite también el rango de quien manda, que es el «volver a lo mío» del que bajó a
+  // ayudar. La base lo vuelve a comprobar en `puede_trabajar_como`.
+  const parsed = z.enum(ROLES).safeParse(rol)
+  if (!parsed.success || !rolesDeTrabajoDe(user.roles).includes(parsed.data)) {
+    return { ok: false as const, error: 'Ese rol no es de trabajo.' }
+  }
 
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.rpc('trabajar_como', { p_rol: parsed.data })

@@ -72,6 +72,7 @@ export default async function TurnoPage() {
       <TurnoForm
         turno={turno}
         tipos={(tipos ?? []).map((t): Tipo => ({ code: t.code, name: t.name, alcance: t.max_level }))}
+        rango={rolDe(user.role)}
         roles={rolesDeTrabajoDe(user.roles)}
       />
 

@@ -69,11 +69,26 @@ export function can(roles: UserRole | readonly UserRole[], permission: Permissio
   return mios.some((r) => permitidos.includes(r))
 }
 
-/** Los roles con los que alguien se puede poner a trabajar, para el selector del turno. */
+/** Los roles que son trabajo de bodega: de estos salen las tareas. */
 export const ROLES_DE_TRABAJO = ['auxiliar', 'chequeador', 'montacargista'] as const satisfies
   readonly UserRole[]
 
+/** Los de mando no son trabajo de bodega: traen los permisos y reparten. */
+export const ROLES_DE_MANDO = ['supervisor', 'admin'] as const satisfies readonly UserRole[]
+
+export function esDeTrabajo(rol: UserRole): boolean {
+  return (ROLES_DE_TRABAJO as readonly UserRole[]).includes(rol)
+}
+
+/**
+ * Con qué roles puede ponerse a trabajar esta persona, para el selector del turno.
+ *
+ * El supervisor y el admin pueden con cualquiera de bodega **y con el suyo**: el que bajó a
+ * ayudar necesita con qué volver a lo de siempre sin tener que salir del turno y entrar otra
+ * vez. Los demás, su rango y lo que el jefe les haya concedido para cubrir.
+ */
 export function rolesDeTrabajoDe(roles: readonly UserRole[]): UserRole[] {
-  if (roles.includes('supervisor') || roles.includes('admin')) return [...ROLES_DE_TRABAJO]
+  const mando = ROLES_DE_MANDO.filter((r) => roles.includes(r))
+  if (mando.length > 0) return [...mando, ...ROLES_DE_TRABAJO]
   return ROLES_DE_TRABAJO.filter((r) => roles.includes(r))
 }
