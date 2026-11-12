@@ -9,25 +9,31 @@ export type Opcion = { code: string; name: string }
 
 /**
  * Los dos cambios que el jefe hace sobre un rango de posiciones ya visto: a qué área
- * pertenecen y para qué sirven. El rango viaja oculto, así que lo que se cambia es
- * exactamente lo que la pantalla acaba de contar.
+ * pertenecen y para qué sirven. Los tres criterios del rango viajan ocultos, así que lo que se
+ * cambia es exactamente lo que la pantalla acaba de contar.
  */
 export function Cambios({
   patron,
+  zona,
+  nivel,
   areas,
   usos,
 }: {
   patron: string
+  zona: string
+  nivel: string
   areas: Opcion[]
   usos: Opcion[]
 }) {
   const [area, accionArea, moviendo] = useActionState(moverArea, null)
   const [uso, accionUso, cambiando] = useActionState(cambiarUso, null)
 
+  const rango = { patron, zona, nivel }
+
   return (
     <div className="flex flex-col gap-4">
       <form action={accionArea} className="flex flex-col gap-2">
-        <input type="hidden" name="patron" value={patron} />
+        <Rango {...rango} />
         <label className={ETIQUETA} htmlFor="area">
           Mover a un área
         </label>
@@ -49,7 +55,7 @@ export function Cambios({
       </form>
 
       <form action={accionUso} className="flex flex-col gap-2">
-        <input type="hidden" name="patron" value={patron} />
+        <Rango {...rango} />
         <label className={ETIQUETA} htmlFor="uso">
           Para qué sirven
         </label>
@@ -70,5 +76,16 @@ export function Cambios({
         {uso && !uso.ok ? <Aviso>{uso.error}</Aviso> : null}
       </form>
     </div>
+  )
+}
+
+/** Los tres criterios del rango, tal como la pantalla los acaba de contar. */
+function Rango({ patron, zona, nivel }: { patron: string; zona: string; nivel: string }) {
+  return (
+    <>
+      <input type="hidden" name="patron" value={patron} />
+      <input type="hidden" name="zona" value={zona} />
+      <input type="hidden" name="nivel" value={nivel} />
+    </>
   )
 }
