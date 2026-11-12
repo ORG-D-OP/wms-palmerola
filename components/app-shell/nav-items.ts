@@ -51,6 +51,27 @@ const TODOS = [
     permiso: 'inventario:mover',
     movil: false,
   },
+  {
+    href: '/reordenar',
+    label: 'Reordenar',
+    icon: 'swap_horiz',
+    permiso: 'inventario:mover',
+    movil: false,
+  },
+  {
+    href: '/contar',
+    label: 'Contar',
+    icon: 'checklist',
+    permiso: 'conteo:ejecutar',
+    movil: false,
+  },
+  {
+    href: '/conteos',
+    label: 'Conteos cíclicos',
+    icon: 'event_repeat',
+    permiso: 'conteo:lanzar',
+    movil: false,
+  },
   { href: '/productos', label: 'Productos', icon: 'inventory_2', permiso: null, movil: false },
   {
     href: '/personal',

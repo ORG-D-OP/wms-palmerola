@@ -43,7 +43,10 @@ const PERMISSIONS = {
   'inventario:mover': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'inventario:ajustar': ['supervisor', 'admin'],
   'surtido:ejecutar': ['auxiliar', 'montacargista', 'supervisor', 'admin'],
-  'conteo:ejecutar': ['chequeador', 'supervisor', 'admin'],
+  // El recuento del dia a dia lo hace cualquiera: el que esta ahi mirando el pallet es el
+  // que sabe que hay. Su nombre queda en el historial, que es el control, no el permiso.
+  'conteo:ejecutar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
+  'conteo:lanzar': ['supervisor', 'admin'],
   'turno:iniciar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'ingresos:administrar': ['chequeador', 'supervisor', 'admin'],
   'despachos:administrar': ['chequeador', 'supervisor', 'admin'],
