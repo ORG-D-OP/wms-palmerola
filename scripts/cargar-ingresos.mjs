@@ -6,14 +6,24 @@
 // EVALUACION-TRAZABILIDAD.md, §36). Se guarda sin ceros a la izquierda, que es como viene
 // impreso: el archivo trae «0060211130» y el papel dice «60211130».
 import { loadEnv } from './lib/env.mjs'
-import { readXlsx } from './lib/xlsx.mjs'
+import { hojasDe, readXlsx } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/pallets.xlsx'
 const DESTINO = process.argv[3] ?? 'Comayagua'
 const LOTE = 500
 
+// El ZRDN trae quince hojas y hay que escoger. `Format` es la primera, la que sale por
+// omision, y es la de presentacion: en 10,531 de sus 10,535 filas la primera columna no trae
+// el pais sino el documento MIX, corrido un lugar. `RawData` trae lo mismo pero cuadrado —solo
+// dos filas sueltas al final—, asi que es de la que hay que leer. `Header`, `Pivot` y
+// `RawHeader` son adornos del reporte, y `Sub1`..`Sub10` son el andamio de los subtotales:
+// Sub1 trae dos filas de totales por pais y las otras nueve estan vacias.
+const HOJA = 'RawData'
+
 const COL = {
-  // La primera columna trae el pais o, en las filas siguientes del grupo, el documento MIX.
+  // En `RawData` el pais siempre es el pais. Si el archivo viniera sin esa hoja y tocara leer
+  // `Format`, la primera columna trae el pais o el documento MIX, y de ahi la comprobacion de
+  // dos letras mas abajo.
   pais: 0,
   documento: 1,
   planta: 2,
@@ -74,8 +84,10 @@ const cantidad = (v) => {
 
 // ----------------------------------------------------------------------------------------
 
-const crudas = readXlsx(ARCHIVO)
-console.log(`${crudas.length - 1} filas en ${ARCHIVO}`)
+const hojas = hojasDe(ARCHIVO)
+const hoja = hojas.includes(HOJA) ? HOJA : hojas[0]
+const crudas = readXlsx(ARCHIVO, hoja)
+console.log(`${crudas.length - 1} filas en ${ARCHIVO}, hoja ${hoja}`)
 
 const filas = crudas
   .slice(1)

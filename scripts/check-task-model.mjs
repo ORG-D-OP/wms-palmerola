@@ -17,6 +17,12 @@ const { id: otro } = await one(
 const comoOperario = (id) =>
   db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
+// Los dos son de piso. Un rango que no trabaja la bodega no recibe tareas de la cola, que
+// es lo que se comprueba al final del archivo.
+await db.query(
+  `update profile set role = 'auxiliar' where id in ('${operario}', '${otro}')`,
+)
+
 const { id: productId } = await one(
   `insert into product (sku, name, base_uom) values ('TEST-1', 'Producto', 'ST') returning id`,
 )
@@ -108,3 +114,21 @@ const sobreReserva = await fails(
   [baja.id],
 )
 check(sobreReserva !== null, 'no se puede reservar mas de lo que hay')
+
+// Un rango que no trabaja la bodega no entra en la cola, aunque abra turno.
+const { id: miron } = await one(
+  `insert into auth.users (email) values ('miron@ejemplo.test') returning id`,
+)
+await db.query(`update profile set role = 'solo_lectura' where id = '${miron}'`)
+await comoOperario(miron)
+await one(`select iniciar_turno()`)
+await db.query(
+  `insert into task (type, product_id, qty_base, to_location_id)
+   values ('PUTAWAY', $1, 10, $2)`,
+  [productId, alta.id],
+)
+const sinRango = await fails(`select claim_next_task()`)
+check(
+  sinRango?.includes('Con tu rango no te caen tareas solas'),
+  'un rango que no trabaja la bodega no recibe tareas de la cola',
+)
