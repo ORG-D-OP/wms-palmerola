@@ -1624,6 +1624,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
           updated_at: string
         }
         Insert: {
@@ -1635,6 +1636,7 @@ export type Database = {
           id: string
           is_active?: boolean
           role?: Database["public"]["Enums"]["user_role"]
+          roles_extra?: Database["public"]["Enums"]["user_role"][]
           updated_at?: string
         }
         Update: {
@@ -1646,6 +1648,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           role?: Database["public"]["Enums"]["user_role"]
+          roles_extra?: Database["public"]["Enums"]["user_role"][]
           updated_at?: string
         }
         Relationships: []
@@ -1866,34 +1869,40 @@ export type Database = {
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
+          equipment_type_code: string | null
           flow: string
           id: string
           pause_note: string | null
           paused_at: string | null
           profile_id: string
           started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
           dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
+          equipment_type_code?: string | null
           flow?: string
           id?: string
           pause_note?: string | null
           paused_at?: string | null
           profile_id: string
           started_at?: string
+          working_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
           dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
+          equipment_type_code?: string | null
           flow?: string
           id?: string
           pause_note?: string | null
           paused_at?: string | null
           profile_id?: string
           started_at?: string
+          working_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Relationships: [
           {
@@ -1909,6 +1918,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipment"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignment_equipment_type_code_fkey"
+            columns: ["equipment_type_code"]
+            isOneToOne: false
+            referencedRelation: "equipment_type"
+            referencedColumns: ["code"]
           },
           {
             foreignKeyName: "shift_assignment_profile_id_fkey"
@@ -2656,6 +2672,7 @@ export type Database = {
       }
       disponibles: {
         Row: {
+          alcance: number | null
           anden: string | null
           anden_lado: Database["public"]["Enums"]["dock_direction"] | null
           disponible: boolean | null
@@ -2663,7 +2680,9 @@ export type Database = {
           full_name: string | null
           id: string | null
           pause_note: string | null
+          rol_trabajo: Database["public"]["Enums"]["user_role"] | null
           role: Database["public"]["Enums"]["user_role"] | null
+          roles_extra: Database["public"]["Enums"]["user_role"][] | null
           started_at: string | null
         }
         Relationships: []
@@ -2800,6 +2819,7 @@ export type Database = {
           pause_note: string | null
           paused_at: string | null
           profile_id: string | null
+          rol_trabajo: Database["public"]["Enums"]["user_role"] | null
           started_at: string | null
           tipo_equipo: string | null
         }
@@ -3344,6 +3364,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
           updated_at: string
         }
         SetofOptions: {
@@ -3442,6 +3463,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
           updated_at: string
         }
         SetofOptions: {
@@ -3592,6 +3614,30 @@ export type Database = {
           location_code: string
         }[]
       }
+      conceder_roles: {
+        Args: {
+          p_id: string
+          p_roles: Database["public"]["Enums"]["user_role"][]
+        }
+        Returns: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          employee_code: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profile"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       contar_retornable: {
         Args: { p_delta: number; p_note?: string; p_posicion: string }
         Returns: {
@@ -3632,6 +3678,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
           updated_at: string
         }
         SetofOptions: {
@@ -3716,17 +3763,23 @@ export type Database = {
         Returns: boolean
       }
       iniciar_turno: {
-        Args: { p_equipment_code?: string; p_flow?: string }
+        Args: {
+          p_flow?: string
+          p_rol?: Database["public"]["Enums"]["user_role"]
+          p_tipo_equipo?: string
+        }
         Returns: {
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
+          equipment_type_code: string | null
           flow: string
           id: string
           pause_note: string | null
           paused_at: string | null
           profile_id: string
           started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
         }
         SetofOptions: {
           from: "*"
@@ -3755,6 +3808,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
         }[]
       }
       lpn_contenido: {
@@ -3777,12 +3831,14 @@ export type Database = {
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
+          equipment_type_code: string | null
           flow: string
           id: string
           pause_note: string | null
           paused_at: string | null
           profile_id: string
           started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
         }
         SetofOptions: {
           from: "*"
@@ -3822,6 +3878,10 @@ export type Database = {
           sku: string
         }[]
       }
+      puede_trabajar_como: {
+        Args: { p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
       quitar_correo: { Args: { p_email: string }; Returns: string }
       reactivar_persona: {
         Args: { p_id: string }
@@ -3834,6 +3894,7 @@ export type Database = {
           id: string
           is_active: boolean
           role: Database["public"]["Enums"]["user_role"]
+          roles_extra: Database["public"]["Enums"]["user_role"][]
           updated_at: string
         }
         SetofOptions: {
@@ -3849,12 +3910,14 @@ export type Database = {
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
+          equipment_type_code: string | null
           flow: string
           id: string
           pause_note: string | null
           paused_at: string | null
           profile_id: string
           started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
         }
         SetofOptions: {
           from: "*"
@@ -3944,6 +4007,15 @@ export type Database = {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
       }
+      rol_de_trabajo: {
+        Args: { p_profile_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      roles_de_la_sesion: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"][]
+      }
+      soltar_tareas_del_turno: { Args: never; Returns: number }
       start_pick: {
         Args: { p_location_code: string; p_task_id: string }
         Returns: {
@@ -4059,6 +4131,28 @@ export type Database = {
           p_product_id: string
         }
         Returns: string
+      }
+      trabajar_como: {
+        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Returns: {
+          dock_door_id: string | null
+          ended_at: string | null
+          equipment_id: string | null
+          equipment_type_code: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       unidades_por: { Args: { p_packaging_level_id: string }; Returns: number }
       verificar_linea: {

@@ -1,12 +1,16 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState, useTransition } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
 import { hora } from '@/lib/warehouse/hora'
-import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno } from './actions'
+import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno, trabajarComo } from './actions'
 
 export type Equipo = { id: string; code: string; tipo: string; alcance: number; libre: boolean }
+
+/** Los tipos de equipo: lo que se declara al entrar, porque de ahí sale el alcance. */
+export type Tipo = { code: string; name: string; alcance: number }
 
 export type Turno = {
   equipo: string | null
@@ -16,6 +20,7 @@ export type Turno = {
   pausado: boolean
   motivo: string | null
   anden: string | null
+  rol: UserRole
 }
 
 /**
@@ -29,7 +34,15 @@ export type Turno = {
  * La pausa existe para cuando le hablan a alguien para otra cosa: sale de la cola sin
  * perder el equipo que tiene asignado.
  */
-export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Equipo[] }) {
+export function TurnoForm({
+  turno,
+  tipos,
+  roles,
+}: {
+  turno: Turno | null
+  tipos: Tipo[]
+  roles: UserRole[]
+}) {
   const [estado, accion, pending] = useActionState(iniciarTurno, null)
 
   if (turno) {
@@ -45,8 +58,12 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
 
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
+            <dt className={ETIQUETA}>Trabajando como</dt>
+            <dd className="text-lg">{ROLE_LABELS[turno.rol]}</dd>
+          </div>
+          <div>
             <dt className={ETIQUETA}>Equipo</dt>
-            <dd className="text-lg">{turno.equipo ?? 'Sin equipo'}</dd>
+            <dd className="text-lg">{turno.tipo ?? 'Sin equipo'}</dd>
           </div>
           <div>
             <dt className={ETIQUETA}>Alcance</dt>
@@ -64,6 +81,8 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
             </dd>
           </div>
         </dl>
+
+        <CambiarRol actual={turno.rol} roles={roles} />
 
         {turno.pausado ? (
           <form action={reanudarTurno}>
@@ -92,8 +111,6 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
     )
   }
 
-  const disponibles = equipos.filter((e) => e.libre)
-
   return (
     <form action={accion} className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
       <p className="text-sm text-azul/70">
@@ -101,29 +118,31 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
         rack te llegan.
       </p>
 
+      {roles.length > 1 ? (
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>¿Como qué vas a trabajar?</span>
+          <select name="rol" defaultValue={roles[0]} className={CAMPO}>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
       <label className="flex flex-col gap-1.5">
-        <span className={ETIQUETA}>Equipo</span>
-        <select name="equipo" defaultValue="" className={CAMPO}>
-          <option value="">Sin equipo (solo piso)</option>
-          {disponibles.map((e) => (
-            <option key={e.id} value={e.code}>
-              {e.code} · {e.tipo} · {e.alcance === 0 ? 'piso' : `nivel ${e.alcance}`}
+        <span className={ETIQUETA}>¿Con qué vas a andar?</span>
+        <select name="tipo" defaultValue="" className={CAMPO}>
+          <option value="">A pie o con burro (solo piso)</option>
+          {tipos.map((t) => (
+            <option key={t.code} value={t.code}>
+              {t.name}
+              {t.alcance > 0 ? ` · hasta el nivel ${t.alcance}` : ''}
             </option>
           ))}
         </select>
       </label>
-
-      {equipos.length > 0 && disponibles.length === 0 ? (
-        <p className="text-sm text-azul/60">
-          Todos los equipos registrados están ocupados por otra persona.
-        </p>
-      ) : null}
-      {equipos.length === 0 ? (
-        <p className="text-sm text-azul/60">
-          Todavía no hay montacargas registrados. Hasta que el jefe de bodega los dé de alta,
-          nadie recibe tareas de rack.
-        </p>
-      ) : null}
 
       <button type="submit" disabled={pending} className={BOTON}>
         {pending ? 'Entrando...' : 'Entrar a trabajo'}
@@ -131,5 +150,46 @@ export function TurnoForm({ turno, equipos }: { turno: Turno | null; equipos: Eq
 
       {estado && !estado.ok ? <Aviso>{estado.error}</Aviso> : null}
     </form>
+  )
+}
+
+/**
+ * Cambiarse de rol sin salir del turno.
+ *
+ * Es para el supervisor que baja a ayudar cuando se acumula el trabajo, y para quien cubre a
+ * un compañero de vacaciones. No cambia lo que la persona es —eso sólo lo mueve el jefe—,
+ * cambia qué trabajo le da el sistema. Y lo que tenía asignado sin empezar vuelve a la cola,
+ * porque ya no es trabajo suyo; si anda con algo en la mano, primero lo termina.
+ */
+function CambiarRol({ actual, roles }: { actual: UserRole; roles: UserRole[] }) {
+  const otros = roles.filter((r) => r !== actual)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  if (otros.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borde pt-4">
+      <span className={ETIQUETA}>Ayudar con otro trabajo</span>
+      <div className="flex flex-wrap gap-2">
+        {otros.map((r) => (
+          <button
+            key={r}
+            type="button"
+            disabled={pending}
+            className={BOTON_SUAVE}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await trabajarComo(r)
+                setError(res.ok ? null : res.error)
+              })
+            }
+          >
+            {ROLE_LABELS[r]}
+          </button>
+        ))}
+      </div>
+      {error ? <Aviso>{error}</Aviso> : null}
+    </div>
   )
 }

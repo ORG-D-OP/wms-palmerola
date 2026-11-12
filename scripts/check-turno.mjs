@@ -33,6 +33,8 @@ check(
   `el montacargas de rack alcanza los 6 niveles de abarrotes (${alcanceRack.max_level})`,
 )
 
+// La flota no hace falta para trabajar: se declara el tipo de equipo, no la unidad. Igual se
+// registra una, porque el jefe la lleva y la vista tiene que seguir mostrandola.
 await como(jefe)
 await one(
   `insert into equipment (code, type_code) values ('MC-01', 'MONTACARGA_RACK') returning id`,
@@ -48,16 +50,29 @@ check(sinTurno.alcance === 0, 'sin turno abierto nadie alcanza mas que el piso')
 check(sinTurno.flujo === 'BOTH', 'sin turno abierto le toca lo de los dos lados')
 
 await como(conEquipo)
-await one(`select iniciar_turno('MC-01', 'BOTH')`)
+await one(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
 const conMaquina = await one(`select alcance_de($1) as alcance`, [conEquipo])
 check(conMaquina.alcance === 6, 'con el montacargas de rack alcanza el nivel 6')
 
-const tomado = await fails(`select iniciar_turno('MC-01', 'BOTH')`)
-check(tomado === null, 'volver a marcar el mismo equipo cierra el turno anterior y sigue')
+const tomado = await fails(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
+check(tomado === null, 'volver a entrar cierra el turno anterior y sigue')
 
+// La flota es el recurso escaso y no se reparte desde el sistema: lo que el sistema necesita
+// saber es el alcance. Dos personas pueden declararse del mismo tipo a la vez, que es lo que
+// permite que un montacarguista de rack se declare de piso cuando se acumula el trabajo de
+// piso.
 await como(aPie)
-const ajeno = await fails(`select iniciar_turno('MC-01', 'BOTH')`)
-check(ajeno?.includes('ya lo tiene otra persona'), 'dos personas no andan en el mismo montacargas')
+const mismoTipo = await fails(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
+check(mismoTipo === null, 'dos personas pueden declarar el mismo tipo de equipo a la vez')
+check(
+  (await one(`select alcance_de($1) as a`, [aPie])).a === 6,
+  'y las dos alcanzan el rack',
+)
+
+const inventado = await fails(`select iniciar_turno('MC-01', 'BOTH')`)
+check(inventado?.includes('no existe'), 'pero el tipo tiene que existir: no es la matricula')
+
+await one(`select cerrar_turno()`)
 
 // ---------------------------------------------------------------------------------------
 // Las tareas se reparten por alcance y por flujo
@@ -106,7 +121,7 @@ check(mia?.id === rec.task_id, 'con el montacargas de rack la tarea si le toca')
 
 // Un turno de despacho no agarra tareas de ingreso.
 await one(`select cerrar_turno()`)
-await one(`select iniciar_turno('MC-01', 'OUTBOUND')`)
+await one(`select iniciar_turno('MONTACARGA_RACK', 'OUTBOUND')`)
 await db.query(
   `update task set status = 'READY', assigned_to = null, assigned_at = null, started_at = null
    where id = $1`,
@@ -128,7 +143,7 @@ check(cerradas.n === 1, 'cerrar turno cierra el que estaba abierto')
 
 await como(conEquipo)
 await one(`select cerrar_turno()`)
-await one(`select iniciar_turno('MC-01', 'BOTH')`)
+await one(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
 await db.query(
   `update task set status = 'READY', assigned_to = null, assigned_at = null, started_at = null
    where id = $1`,
@@ -148,7 +163,10 @@ check(dosVeces !== null, 'no se pausa dos veces')
 const comoEstoy = await one(`select paused_at, equipo from mi_trabajo where profile_id = $1`, [
   conEquipo,
 ])
-check(comoEstoy.equipo === 'MC-01', 'y no se pierde el equipo asignado, que era el punto')
+check(
+  comoEstoy.equipo === 'MONTACARGA_RACK',
+  'y no se pierde el equipo declarado, que era el punto',
+)
 
 const vuelve = await one(`select * from reanudar_turno()`)
 check(vuelve.paused_at === null, 'reanudar lo devuelve a la cola')
@@ -161,5 +179,105 @@ check(nadaQueReanudar !== null, 'reanudar sin estar pausado no hace nada callado
 
 const quienHay = await db.query(`select * from disponibles where id = $1`, [conEquipo])
 check(quienHay.rows[0]?.disponible === true, 'el jefe puede ver quien esta en la bodega')
+
+// --- varios roles por persona, y el rol con el que se trabaja (0053) ---------------------
+
+/**
+ * Dos casos distintos que el modelo de un rol por persona no aguantaba: el auxiliar que cubre
+ * de chequeador mientras el otro esta de vacaciones, y el supervisor que baja a ayudar cuando
+ * se acumula el trabajo. El primero necesita que el jefe le conceda el rol; el segundo, no.
+ */
+
+await como(aPie)
+const noConcedido = await fails(`select trabajar_como('chequeador')`)
+check(
+  noConcedido?.includes('que te lo conceda'),
+  'un auxiliar no se pone a trabajar de chequeador por su cuenta',
+)
+
+await como(jefe)
+const concedido = await one(`select * from conceder_roles($1, array['chequeador']::user_role[])`, [aPie])
+check(
+  concedido.roles_extra.includes('chequeador'),
+  'el jefe le concede el rol para cubrir las vacaciones del chequeador',
+)
+check(concedido.role === 'auxiliar', 'y no le toca el rango: sigue siendo auxiliar')
+
+await como(aPie)
+const ahoraSi = await one(`select has_role('chequeador') as si`)
+check(ahoraSi.si === true, 'con el rol concedido pasa por chequeador')
+const yLoSuyo = await one(`select has_role('auxiliar') as si`)
+check(yLoSuyo.si === true, 'y sigue pasando por auxiliar: cubrir no le quita lo suyo')
+
+await one(`select iniciar_turno(null, 'BOTH', 'chequeador')`)
+const cubriendo = await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [aPie])
+check(cubriendo.rol_trabajo === 'chequeador', 'entra a trabajar como chequeador')
+check(
+  (await one(`select role from profile where id = $1`, [aPie])).role === 'auxiliar',
+  'y en la ficha sigue siendo auxiliar, que es lo que evita devolverle el rol a mano',
+)
+
+const noPuedeMontacargas = await fails(`select trabajar_como('montacargista')`)
+check(
+  noPuedeMontacargas?.includes('que te lo conceda'),
+  'lo concedido es lo concedido: no se extiende a lo demas',
+)
+
+// El supervisor no necesita que nadie le conceda nada, y no pierde sus permisos al bajar.
+await como(jefe)
+const sinEntrar = await fails(`select trabajar_como('auxiliar')`)
+check(sinEntrar?.includes('Primero entra a trabajar'), 'para cambiarse de rol hay que estar en turno')
+
+await one(`select iniciar_turno()`)
+await one(`select trabajar_como('auxiliar')`)
+const bajo = await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [jefe])
+check(bajo.rol_trabajo === 'auxiliar', 'el supervisor baja a ayudar como auxiliar')
+check(
+  (await one(`select has_role('supervisor') as si`)).si === true,
+  'y no pierde los permisos de supervisor, que era la condicion',
+)
+check(
+  (await one(`select role from profile where id = $1`, [jefe])).role === 'supervisor',
+  'porque su rango no se movio',
+)
+check(
+  (await one(`select manda_sobre_personal() as si`)).si === true,
+  'asi que todavia manda sobre el personal mientras ayuda',
+)
+
+const yaEsta = await fails(`select trabajar_como('auxiliar')`)
+check(yaEsta?.includes('Ya estás trabajando'), 'cambiarse al rol que ya tiene no hace nada')
+
+const aMirar = await fails(`select trabajar_como('solo_lectura')`)
+check(aMirar !== null, 'nadie se pone a trabajar de solo lectura: eso no es un trabajo')
+
+// Nadie deja tareas a medias: con algo empezado no se cambia de rol.
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = $1 where id = $2`,
+  [jefe, rec.task_id],
+)
+const aMedias = await fails(`select trabajar_como('chequeador')`)
+check(
+  aMedias?.includes('empezado'),
+  'con un pallet a medio camino no se cambia de rol',
+)
+
+await db.query(
+  `update task set status = 'ASSIGNED', assigned_to = $1 where id = $2`,
+  [jefe, rec.task_id],
+)
+await one(`select trabajar_como('chequeador')`)
+const soltada = await one(`select status, assigned_to from task where id = $1`, [rec.task_id])
+check(
+  soltada.status === 'READY' && soltada.assigned_to === null,
+  'y lo asignado sin empezar vuelve libre a la cola: ya no es trabajo suyo',
+)
+
+const esperando = await one(`select rol_trabajo, roles_extra from disponibles where id = $1`, [aPie])
+check(
+  esperando.rol_trabajo === 'chequeador',
+  'el jefe ve con que rol anda cada quien, no solo cual es su rango',
+)
+check(esperando.roles_extra.includes('chequeador'), 'y que roles le tiene concedidos')
 
 await db.close()

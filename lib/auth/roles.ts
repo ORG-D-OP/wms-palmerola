@@ -58,6 +58,22 @@ const PERMISSIONS = {
 
 export type Permission = keyof typeof PERMISSIONS
 
-export function can(role: UserRole, permission: Permission): boolean {
-  return (PERMISSIONS[permission] as readonly UserRole[]).includes(role)
+/**
+ * Los permisos son la unión de los roles de la persona: su rango más lo que el jefe le
+ * concedió para cubrir. Cubrir no le quita nada de lo suyo, y bajar a ayudar tampoco: el rol
+ * con el que se trabaja vive en el turno, no aquí.
+ */
+export function can(roles: UserRole | readonly UserRole[], permission: Permission): boolean {
+  const permitidos = PERMISSIONS[permission] as readonly UserRole[]
+  const mios = typeof roles === 'string' ? [roles] : roles
+  return mios.some((r) => permitidos.includes(r))
+}
+
+/** Los roles con los que alguien se puede poner a trabajar, para el selector del turno. */
+export const ROLES_DE_TRABAJO = ['auxiliar', 'chequeador', 'montacargista'] as const satisfies
+  readonly UserRole[]
+
+export function rolesDeTrabajoDe(roles: readonly UserRole[]): UserRole[] {
+  if (roles.includes('supervisor') || roles.includes('admin')) return [...ROLES_DE_TRABAJO]
+  return ROLES_DE_TRABAJO.filter((r) => roles.includes(r))
 }

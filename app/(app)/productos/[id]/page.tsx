@@ -75,7 +75,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-azul/60">Sin código asignado. No se puede almacenar todavía.</p>
         )}
 
-        {can(user.role, 'maestros:editar') && caja ? (
+        {can(user.roles, 'maestros:editar') && caja ? (
           <AssignBarcode productId={producto.id} hint={producto.external_barcode_hint} />
         ) : null}
       </section>
