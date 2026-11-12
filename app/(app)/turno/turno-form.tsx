@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from 'react'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
-import { ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
+import { ROLE_LABELS, esDeTrabajo, type UserRole } from '@/lib/auth/roles'
 import { hora } from '@/lib/warehouse/hora'
 import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno, trabajarComo } from './actions'
 
@@ -37,10 +37,12 @@ export type Turno = {
 export function TurnoForm({
   turno,
   tipos,
+  rango,
   roles,
 }: {
   turno: Turno | null
   tipos: Tipo[]
+  rango: UserRole
   roles: UserRole[]
 }) {
   const [estado, accion, pending] = useActionState(iniciarTurno, null)
@@ -82,7 +84,7 @@ export function TurnoForm({
           </div>
         </dl>
 
-        <CambiarRol actual={turno.rol} roles={roles} />
+        <CambiarRol actual={turno.rol} rango={rango} roles={roles} />
 
         {turno.pausado ? (
           <form action={reanudarTurno}>
@@ -161,34 +163,61 @@ export function TurnoForm({
  * cambia qué trabajo le da el sistema. Y lo que tenía asignado sin empezar vuelve a la cola,
  * porque ya no es trabajo suyo; si anda con algo en la mano, primero lo termina.
  */
-function CambiarRol({ actual, roles }: { actual: UserRole; roles: UserRole[] }) {
+function CambiarRol({
+  actual,
+  rango,
+  roles,
+}: {
+  actual: UserRole
+  rango: UserRole
+  roles: UserRole[]
+}) {
   const otros = roles.filter((r) => r !== actual)
+  const ayudar = otros.filter(esDeTrabajo)
+  const volver = otros.includes(rango) && !esDeTrabajo(rango) ? rango : null
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   if (otros.length === 0) return null
 
+  const cambiar = (r: UserRole) =>
+    startTransition(async () => {
+      const res = await trabajarComo(r)
+      setError(res.ok ? null : res.error)
+    })
+
   return (
     <div className="flex flex-col gap-2 border-t border-borde pt-4">
-      <span className={ETIQUETA}>Ayudar con otro trabajo</span>
-      <div className="flex flex-wrap gap-2">
-        {otros.map((r) => (
-          <button
-            key={r}
-            type="button"
-            disabled={pending}
-            className={BOTON_SUAVE}
-            onClick={() =>
-              startTransition(async () => {
-                const res = await trabajarComo(r)
-                setError(res.ok ? null : res.error)
-              })
-            }
-          >
-            {ROLE_LABELS[r]}
-          </button>
-        ))}
-      </div>
+      {ayudar.length > 0 ? (
+        <>
+          <span className={ETIQUETA}>Ayudar con otro trabajo</span>
+          <div className="flex flex-wrap gap-2">
+            {ayudar.map((r) => (
+              <button
+                key={r}
+                type="button"
+                disabled={pending}
+                className={BOTON_SUAVE}
+                onClick={() => cambiar(r)}
+              >
+                {ROLE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {volver ? (
+        <button
+          type="button"
+          disabled={pending}
+          className={BOTON_SUAVE}
+          onClick={() => cambiar(volver)}
+        >
+          Dejar de ayudar: volver a lo mío
+        </button>
+      ) : null}
+
       {error ? <Aviso>{error}</Aviso> : null}
     </div>
   )
