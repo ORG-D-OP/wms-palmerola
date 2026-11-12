@@ -15,6 +15,14 @@ const CLASES: Record<string, string> = {
   returns: 'Devoluciones',
 }
 
+/** La diferencia en cajas, que es como se cuenta en la bodega. */
+const diferencia = (r: { diferencia: number | null; por_caja: number | null }) => {
+  const cajas = Number(r.diferencia ?? 0) / Number(r.por_caja || 1)
+  if (cajas === 0) return 'cuadra'
+  const texto = cajas.toLocaleString('es-HN', { maximumFractionDigits: 2 })
+  return `${cajas > 0 ? '+' : ''}${texto} cajas`
+}
+
 const fecha = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleString('es-HN', {
@@ -44,7 +52,7 @@ export default async function ConteosPage() {
       supabase.from('inexactitud').select('*').order('conteos', { ascending: false }),
       supabase
         .from('recuentos')
-        .select('id, counted_at, persona, posicion, sku, qty_expected, qty_found, diferencia')
+        .select('id, counted_at, persona, posicion, sku, diferencia, por_caja')
         .order('counted_at', { ascending: false })
         .limit(20),
     ])
@@ -53,9 +61,13 @@ export default async function ConteosPage() {
     valor: z.code ?? '',
     nombre: z.name ?? z.code ?? '',
   }))
+  // Una clase que sólo tiene una zona sale dos veces con el mismo nombre —«Cuarentena» como
+  // clase y como zona—, y el que escoge no sabe cuál es cuál. Sólo vale la pena decir «todos
+  // los racks» cuando hay más de uno.
   const porClase: Opcion[] = [...new Set((zonas ?? []).map((z) => z.kind))].flatMap((k) => {
     const nombre = k ? CLASES[k] : undefined
-    return k && nombre ? [{ valor: k, nombre }] : []
+    const cuantas = (zonas ?? []).filter((z) => z.kind === k).length
+    return k && nombre && cuantas > 1 ? [{ valor: k, nombre }] : []
   })
 
   const pendientes = abiertos ?? []
@@ -117,11 +129,7 @@ export default async function ConteosPage() {
                 <span className="min-w-0 flex-1 truncate text-azul/60">
                   {r.sku} · {r.persona ?? ''}
                 </span>
-                <span className="shrink-0 tabular-nums">
-                  {Number(r.diferencia) === 0
-                    ? 'cuadra'
-                    : `${Number(r.diferencia) > 0 ? '+' : ''}${Number(r.diferencia)}`}
-                </span>
+                <span className="shrink-0 tabular-nums">{diferencia(r)}</span>
               </li>
             ))}
           </ul>

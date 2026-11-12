@@ -3283,6 +3283,7 @@ export type Database = {
           note: string | null
           pallet: string | null
           persona: string | null
+          por_caja: number | null
           posicion: string | null
           producto: string | null
           qty_expected: number | null

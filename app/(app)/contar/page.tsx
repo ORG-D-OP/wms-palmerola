@@ -22,15 +22,26 @@ async function misConteos(profileId: string): Promise<Pendiente[]> {
   }))
 }
 
+/** Lo que se lanzó sin dueño y sigue esperando en la cola. */
+async function enLaCola(): Promise<number> {
+  const supabase = await createSupabaseServerClient()
+  const { count } = await supabase
+    .from('conteos_pendientes')
+    .select('task_id', { count: 'exact', head: true })
+    .is('assigned_to', null)
+
+  return count ?? 0
+}
+
 export default async function ContarPage() {
   await requirePermission('conteo:ejecutar')
   const user = await requireUser()
-  const pendientes = await misConteos(user.id)
+  const [pendientes, cola] = await Promise.all([misConteos(user.id), enLaCola()])
 
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-xl">Contar</h1>
-      <ContarForm pendientes={pendientes} />
+      <ContarForm pendientes={pendientes} cola={cola} />
     </main>
   )
 }
