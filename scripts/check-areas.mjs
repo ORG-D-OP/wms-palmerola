@@ -73,6 +73,76 @@ const vacio = await fails(`select reasignar_area_por_codigo('ZZZ-000', 'PICKING'
 check(vacio?.includes('Ninguna posición'), 'un patron que no agarra nada avisa')
 
 // ---------------------------------------------------------------------------------------
+// El rango por criterios: lo que el prefijo del codigo no sabe decir
+// ---------------------------------------------------------------------------------------
+
+const codigos = async (sql, params) =>
+  (await db.query(`select code from location where id = any(${sql}) order by code`, params)).rows.map(
+    (r) => r.code,
+  )
+
+const sinNada = await fails(`select posiciones_donde()`)
+check(sinNada?.includes('al menos una cosa'), 'sin ningun criterio no se agarra la bodega entera por descuido')
+
+// «El piso bajo de los racks»: el nivel va en medio del codigo (R-ABA-L01-B01-N1-P1), asi que
+// esto es justo lo que ningun prefijo podia agarrar.
+const pisoBajo = await codigos(`posiciones_donde(null, 'rack', 1)`)
+check(pisoBajo.length > 0, 'el piso bajo de los racks se agarra por zona y nivel')
+check(
+  pisoBajo.every((c) => c.includes('-N1-')),
+  'y solo trae el nivel 1, ni uno de los de arriba',
+)
+check(
+  new Set(pisoBajo.map((c) => c.slice(0, 5))).size === 2,
+  'cruzando las dos zonas de rack de un solo enunciado',
+)
+
+const todoPiso = await codigos(`posiciones_donde(null, 'floor')`)
+const zonasPiso = new Set(todoPiso.map((c) => c.slice(0, 2)))
+check(zonasPiso.size === 7, `«todo el piso» son las siete zonas en un enunciado (${zonasPiso.size})`)
+
+const unaZona = await codigos(`posiciones_donde(null, 'F1')`)
+check(
+  unaZona.length > 0 && unaZona.every((c) => c.startsWith('F1-')),
+  'y una zona sola se dice por su codigo, igual que su clase',
+)
+
+const cruzado = await codigos(`posiciones_donde('R-ABA', 'rack', 1)`)
+check(
+  cruzado.length > 0 && cruzado.every((c) => c.startsWith('R-ABA') && c.includes('-N1-')),
+  'los criterios se cruzan: el piso bajo de abarrotes y nada mas',
+)
+
+const inventada = await fails(`select posiciones_donde(null, 'sotano')`)
+check(
+  inventada?.includes('No hay zona ni clase'),
+  'una zona que no existe avisa, en vez de devolver la bodega entera',
+)
+
+const nivelAjeno = await fails(`select posiciones_donde(null, 'floor', 3)`)
+check(nivelAjeno?.includes('Ninguna posición'), 'el piso no tiene nivel 3, y lo dice')
+
+const cortoCriterios = await fails(`select posiciones_donde('F')`)
+check(cortoCriterios?.includes('tres caracteres'), 'el codigo sigue exigiendo tres caracteres')
+
+// «Las lineas de la orilla» no es un rango, es una lista: catorce lineas sueltas. Se enumeran.
+const orilla = await codigos(`posiciones_donde('F1-001, F1-025, F5-014')`)
+check(
+  orilla.length > 0 && new Set(orilla.map((c) => c.slice(0, 6))).size === 3,
+  'varios codigos separados por coma son un solo rango',
+)
+check(
+  orilla.every((c) => ['F1-001', 'F1-025', 'F5-014'].includes(c.slice(0, 6))),
+  'y no se cuela ninguna linea que no se pidio',
+)
+
+const unoCorto = await fails(`select posiciones_donde('F1-001, F')`)
+check(
+  unoCorto?.includes('tres caracteres'),
+  'si uno de la lista viene corto se rechaza la lista entera, no se ignora',
+)
+
+// ---------------------------------------------------------------------------------------
 // El motor obedece el area, el uso y el alcance
 // ---------------------------------------------------------------------------------------
 
@@ -152,5 +222,50 @@ check(vecina.n === 0, 'un pallet en el nivel 1 no pinta ocupados los otros cinco
 
 const otroUso = await one(`select estado from posicion_estado where code = 'F1-001-02'`)
 check(otroUso?.estado === 'OTRO_USO', 'la posicion de corrugado se pinta distinta')
+
+// ---------------------------------------------------------------------------------------
+// Redibujar el picking con la bodega llena, que es el caso de cada semana
+// ---------------------------------------------------------------------------------------
+// La planimetria, el ABC y la distribucion cambian seguido, asi que el picking se va a mover
+// con producto adentro. Mover de area **no** se bloquea por eso —a diferencia de cambiar el
+// uso—, y el saldo no se toca: lo unico que cambia es de donde puede sacar el motor.
+
+const movidoConPallet = await one(`select reasignar_area_donde('PICKING', null, 'rack', 1) as n`)
+check(movidoConPallet.n > 0, 'el picking se redibuja aunque haya producto encima')
+
+const quedo = await one(`select area_code, ocupada from posicion_detalle where code = $1`, [
+  destino.code,
+])
+check(
+  quedo.area_code === 'PICKING' && quedo.ocupada === true,
+  'la posicion con el pallet quedo en picking, y el pallet sigue ahi',
+)
+
+const tarea = await one(`select id from task limit 1`)
+await db.query(`update location set reserved_by_task_id = $2 where id = $1`, [
+  destino.id,
+  tarea.id,
+])
+const conApartada = await one(`select reasignar_area_donde('ALMACEN', null, 'rack', 1) as n`)
+check(
+  conApartada.n > 0,
+  'y se devuelve aunque alguna este apartada: si no, el cambio semanal nunca pasaria',
+)
+await db.query(`update location set reserved_by_task_id = null where id = $1`, [destino.id])
+
+const intacto = await one(`select sum(qty_base)::int as q from stock where location_id = $1`, [
+  destino.id,
+])
+check(intacto.q === 48, 'el saldo no se movio en ninguno de los dos cambios')
+
+const historia = await one(
+  `select count(*)::int as n, count(valid_to)::int as cerradas
+     from location_area where location_id = $1`,
+  [destino.id],
+)
+check(
+  historia.n === 3 && historia.cerradas === 2,
+  `y queda la historia de los dos cambios, no solo el ultimo (${historia.n}/${historia.cerradas})`,
+)
 
 await db.close()

@@ -2848,6 +2848,8 @@ export type Database = {
           code: string | null
           holds_product: boolean | null
           id: string | null
+          lane_code: string | null
+          level: number | null
           ocupada: boolean | null
           usage_code: string | null
           usage_name: string | null
@@ -3848,6 +3850,10 @@ export type Database = {
         }
       }
       posiciones_como: { Args: { p_patron: string }; Returns: string[] }
+      posiciones_donde: {
+        Args: { p_nivel?: number; p_patron?: string; p_zona?: string }
+        Returns: string[]
+      }
       post_movement: {
         Args: {
           p_desprende?: boolean
@@ -3930,12 +3936,30 @@ export type Database = {
         Args: { p_area_code: string; p_location_ids: string[] }
         Returns: number
       }
+      reasignar_area_donde: {
+        Args: {
+          p_area_code: string
+          p_nivel?: number
+          p_patron?: string
+          p_zona?: string
+        }
+        Returns: number
+      }
       reasignar_area_por_codigo: {
         Args: { p_area_code: string; p_patron: string }
         Returns: number
       }
       reasignar_uso: {
         Args: { p_location_ids: string[]; p_usage_code: string }
+        Returns: number
+      }
+      reasignar_uso_donde: {
+        Args: {
+          p_nivel?: number
+          p_patron?: string
+          p_usage_code: string
+          p_zona?: string
+        }
         Returns: number
       }
       reasignar_uso_por_codigo: {
