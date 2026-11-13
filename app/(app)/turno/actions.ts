@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
-import { ROLES, ROLES_DE_TRABAJO, rolesDeTrabajoDe } from '@/lib/auth/roles'
+import { ROLES, rolesDeTrabajoDe } from '@/lib/auth/roles'
 
 type Fail = { ok: false; error: string }
 
@@ -15,19 +15,29 @@ function fallo(error: { code?: string; message: string }): Fail {
   return { ok: false, error: toErrorResponse(error).body.error }
 }
 
+/**
+ * El rol con el que se entra a trabajo es cualquiera de los que la persona puede tomar, **el
+ * suyo incluido**: el jefe que entra a trabajo entra como jefe. Aquí sólo se aceptaban los tres
+ * de bodega, así que el selector ofrecía «Administrador» o «Supervisor» de primero y entrar con
+ * eso devolvía «revisa el equipo y el rol». La misma regla que `trabajarComo`, que sí estaba
+ * bien: vale lo que `rolesDeTrabajoDe` le permita.
+ */
 const Turno = z.object({
   tipo: z.string().trim().max(24).optional(),
-  rol: z.enum(ROLES_DE_TRABAJO).optional(),
+  rol: z.enum(ROLES).optional(),
 })
 
 export async function iniciarTurno(_prev: unknown, datos: FormData) {
-  await requirePermission('turno:iniciar')
+  const user = await requirePermission('turno:iniciar')
 
   const parsed = Turno.safeParse({
     tipo: datos.get('tipo') || undefined,
     rol: datos.get('rol') || undefined,
   })
   if (!parsed.success) return { ok: false as const, error: 'Revisa el equipo y el rol.' }
+  if (parsed.data.rol && !rolesDeTrabajoDe(user.roles).includes(parsed.data.rol)) {
+    return { ok: false as const, error: 'Ese rol no es de trabajo.' }
+  }
 
   const supabase = await createSupabaseServerClient()
   // El lado de la operación ya no se escoge: lo reparte el jefe de bodega por andén, así que
