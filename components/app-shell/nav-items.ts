@@ -131,12 +131,19 @@ const permitido = (roles: Roles, permiso: Permission | null) =>
  * rango que entró a trabajar de auxiliar guarda pallets como todos, y por eso el viaje se mira
  * aparte del permiso.
  */
-const visible = (roles: Roles, rolDeTrabajo: UserRole | undefined, item: (typeof TODOS)[number]) =>
-  permitido(roles, item.permiso) &&
-  (!('viaje' in item) || rolDeTrabajo !== 'chequeador')
+/**
+ * El rol del turno esconde las pantallas de viaje, pero nunca a quien anda con algo en la
+ * mano: la tarea empezada es suya hasta que la cierre, y `trabajar_como` no deja cambiar de
+ * rol con algo empezado. Sin esto, cambiarse a chequeador a media tarea deja encerrado.
+ */
+export type Trabajo = { rol?: UserRole; enMano?: boolean }
 
-export function navParaRol(role: Roles, rolDeTrabajo?: UserRole): NavItem[] {
-  return TODOS.filter((i) => visible(role, rolDeTrabajo, i)).map(({ href, label, icon }) => ({
+const visible = (roles: Roles, trabajo: Trabajo, item: (typeof TODOS)[number]) =>
+  permitido(roles, item.permiso) &&
+  (!('viaje' in item) || trabajo.rol !== 'chequeador' || trabajo.enMano === true)
+
+export function navParaRol(role: Roles, trabajo: Trabajo = {}): NavItem[] {
+  return TODOS.filter((i) => visible(role, trabajo, i)).map(({ href, label, icon }) => ({
     href,
     label,
     icon,
@@ -144,8 +151,8 @@ export function navParaRol(role: Roles, rolDeTrabajo?: UserRole): NavItem[] {
 }
 
 /** Lo que cabe en la barra inferior del teléfono. */
-export function navMovil(role: Roles, rolDeTrabajo?: UserRole): NavItem[] {
-  return TODOS.filter((i) => i.movil && visible(role, rolDeTrabajo, i))
+export function navMovil(role: Roles, trabajo: Trabajo = {}): NavItem[] {
+  return TODOS.filter((i) => i.movil && visible(role, trabajo, i))
     .map(({ href, label, icon }) => ({ href, label, icon }))
     .slice(0, 5)
 }
@@ -163,8 +170,8 @@ export function navMovil(role: Roles, rolDeTrabajo?: UserRole): NavItem[] {
  * que no son de mano se enseñan en el teléfono y se esconden en pantalla grande, donde la
  * barra de arriba ya las lleva. La misma fila de enlaces dos veces no ayuda a nadie.
  */
-export function atajos(role: Roles, rolDeTrabajo?: UserRole): (NavItem & { movil: boolean })[] {
-  return TODOS.filter((i) => i.href !== '/' && visible(role, rolDeTrabajo, i)).map(
+export function atajos(role: Roles, trabajo: Trabajo = {}): (NavItem & { movil: boolean })[] {
+  return TODOS.filter((i) => i.href !== '/' && visible(role, trabajo, i)).map(
     ({ href, label, icon, movil }) => ({ href, label, icon, movil }),
   )
 }

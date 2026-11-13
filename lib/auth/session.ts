@@ -19,6 +19,14 @@ export type SessionUser = {
    * no se mueve del andén. Sin turno abierto, su rango.
    */
   workingRole: UserRole
+  /**
+   * Si anda con algo en la mano. Hace falta porque el rol del turno esconde las pantallas de
+   * viaje, y a quien se cambió a chequeador con una tarea empezada eso lo dejaría encerrado:
+   * la base se la sigue dando —`claim_next_task` devuelve lo propio antes de filtrar— pero
+   * sin la pantalla no tiene por dónde terminarla, y `trabajar_como` no lo deja cambiar de
+   * rol con algo empezado.
+   */
+  tareasEnMano: boolean
 }
 
 /** cache() evita repetir la consulta cuando varios componentes del mismo render la piden. */
@@ -42,12 +50,19 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const rango = rolDe(profile.role)
   const concedidos = (profile.roles_extra ?? []).map(rolDe)
 
-  const { data: turno } = await supabase
-    .from('shift_assignment')
-    .select('working_role')
-    .eq('profile_id', user.id)
-    .is('ended_at', null)
-    .maybeSingle()
+  const [{ data: turno }, { count: enMano }] = await Promise.all([
+    supabase
+      .from('shift_assignment')
+      .select('working_role')
+      .eq('profile_id', user.id)
+      .is('ended_at', null)
+      .maybeSingle(),
+    supabase
+      .from('task')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_to', user.id)
+      .in('status', ['ASSIGNED', 'IN_PROGRESS']),
+  ])
 
   return {
     id: user.id,
@@ -56,6 +71,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     role: rango,
     roles: [...new Set([rango, ...concedidos])],
     workingRole: turno?.working_role ? rolDe(turno.working_role) : rango,
+    tareasEnMano: (enMano ?? 0) > 0,
   }
 })
 

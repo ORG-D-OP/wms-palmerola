@@ -74,9 +74,14 @@ export function Crossdock({
   if (elegido) {
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-borde p-4">
+        {/*
+          No dice «llévalo»: el que recibe no se mueve del andén. Queda pendiente decidir si
+          el traslado al andén de carga se convierte en tarea, como el de guardar; mientras
+          tanto el texto no le manda a nadie a caminar.
+        */}
         <p className="text-sm">
-          Llévalo al andén <span className="tabular-nums">{elegido.anden}</span> y escanéalo
-          para confirmar.
+          Va al andén <span className="tabular-nums">{elegido.anden}</span>. Cuando esté allá,
+          se escanea para confirmar.
         </p>
         <ScanInput label={`Andén ${elegido.anden}`} disabled={pending} onScan={pasar} />
         <button type="button" onClick={() => setElegido(null)} className={BOTON_SUAVE}>

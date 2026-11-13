@@ -684,6 +684,11 @@ check(
   Number(marcadaCantidad.cajas) === 240,
   `al marcar la linea se da por buena toda la cantidad que bajo (${marcadaCantidad.cajas})`,
 )
+check(
+  (await one(`select checked_qty_base from order_line where order_id = $1`, [camionPorCantidad]))
+    .checked_qty_base === null,
+  'y el escaneo no congela ninguna cifra: lo que falte por bajar todavia cuenta',
+)
 
 const masDeLoQueBajo = await falla(
   `select corregir_chequeo((select id from order_line where order_id = $1), 11::numeric)`,
@@ -743,5 +748,63 @@ const yaSalioElCamion = await falla(
 )
 check(yaSalioElCamion?.includes('ya salio') || yaSalioElCamion?.includes('ya salió'),
   'y con el camion afuera la cantidad ya no se toca')
+
+/**
+ * Y el caso de verdad: una linea se surte en **varios viajes** —el reparto hace una tarea por
+ * pallet entero y otra por el resto— y el chequeador escanea cuando llega el primero, no
+ * cuando ha llegado todo. Si el escaneo congelara la cantidad de ese momento, el camion
+ * saldria con el primer pallet y el resto se quedaria en el anden sin que nadie lo dijera.
+ */
+const { id: palletF } = await one(
+  `insert into lpn (code, level, source) values ('PAL-TEST-4', 'PALLET', 'NEST') returning id`,
+)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 120::numeric, null, $2::uuid, $3::uuid)`,
+  [tostada, enPicking2, palletF],
+)
+const { id: palletG } = await one(
+  `insert into lpn (code, level, source) values ('PAL-TEST-5', 'PALLET', 'NEST') returning id`,
+)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 120::numeric, null, $2::uuid, $3::uuid)`,
+  [tostada, enPicking2, palletG],
+)
+
+const camionEnDosViajes = await nuevoCamion('PED-030', '4000030', 10)
+const viajes = await db.query(
+  `select a.task_id as id, t.qty_base from order_line l
+   join allocation a on a.order_line_id = l.id join task t on t.id = a.task_id
+   where l.order_id = $1 order by t.qty_base`,
+  [camionEnDosViajes],
+)
+check(viajes.rows.length === 2, `la linea se parte en dos viajes (${viajes.rows.length})`)
+
+const surtirTarea = async (tarea, cajas) => {
+  await db.query(
+    `update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`,
+    [tarea],
+  )
+  return one(`select * from complete_pick($1, 'P-5', $2)`, [tarea, cajas])
+}
+
+await surtirTarea(viajes.rows[0].id, Number(viajes.rows[0].qty_base) / 24)
+await one(`select * from verificar_linea($1, 'P-5')`, [camionEnDosViajes])
+await surtirTarea(viajes.rows[1].id, Number(viajes.rows[1].qty_base) / 24)
+
+const antesDelSegundo = await one(
+  `select coalesce(sum(qty_base), 0) as q from stock_movement
+   where type = 'SHIP' and product_id = $1`,
+  [tostada],
+)
+await one(`select despachar($1)`, [camionEnDosViajes])
+const salioEnteroEnDos = await one(
+  `select (select coalesce(sum(qty_base), 0) from stock_movement
+            where type = 'SHIP' and product_id = $1) - $2::numeric as salio`,
+  [tostada, antesDelSegundo.q],
+)
+check(
+  Number(salioEnteroEnDos.salio) === 240,
+  `y sale con los dos viajes, no con el que habia bajado cuando escaneo (${salioEnteroEnDos.salio})`,
+)
 
 await db.close()

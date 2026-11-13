@@ -264,8 +264,11 @@ function Renglon({
   const [corrigiendo, setCorrigiendo] = useState(false)
   const corta = linea.apartado < linea.pedido
   const falta = linea.pedido - linea.apartado
-  const { cajas: cajasArriba } = desglose(linea.arriba ?? 0, linea.porCaja)
-  const deMenos = linea.chequeada && linea.arriba !== null && linea.arriba < linea.surtido
+  // Sin corregir nada, lo que sube es todo lo que bajó: el escaneo no congela una cifra,
+  // porque una línea casi nunca baja de un solo viaje.
+  const arriba = linea.arriba ?? linea.surtido
+  const { cajas: cajasArriba } = desglose(arriba, linea.porCaja)
+  const deMenos = linea.chequeada && arriba < linea.surtido
 
   return (
     <li
@@ -290,8 +293,8 @@ function Renglon({
         <span className="shrink-0 text-right tabular-nums">
           <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
           <span className="block text-xs text-azul/60">
-            {linea.chequeada && linea.arriba !== null
-              ? `${textoCajas(linea.arriba, linea.porCaja)} arriba`
+            {linea.chequeada
+              ? `${textoCajas(arriba, linea.porCaja)} arriba`
               : linea.surtido > 0
                 ? `${textoCajas(linea.surtido, linea.porCaja)} surtidas`
                 : 'sin surtir'}
@@ -338,8 +341,8 @@ function Renglon({
           <div className="flex items-center gap-3 pl-9">
             {deMenos ? (
               <span className="text-sm text-rojo">
-                Subieron {textoCajas(linea.surtido - (linea.arriba ?? 0), linea.porCaja)} menos de
-                las que bajaron
+                Subieron {textoCajas(linea.surtido - arriba, linea.porCaja)} menos de las que
+                bajaron
               </span>
             ) : null}
             <button
