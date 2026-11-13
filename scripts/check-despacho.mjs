@@ -660,4 +660,88 @@ check(
   'y el movimiento apunta cual se desprendio, en vez de dejarlo a adivinar',
 )
 
+// --- el chequeador dice cuantas subieron (0080) -------------------------------------------
+
+/**
+ * Chequear era decir «si», no decir «cuantas»: un escaneo marcaba la linea entera. El oficio
+ * del chequeador es comprobar la cantidad, asi que confirma el numero o lo corrige, y el
+ * camion sale con lo que dijo que subio. Lo que no subio se queda en el anden, con su
+ * existencia intacta.
+ */
+const { id: palletE } = await one(
+  `insert into lpn (code, level, source) values ('PAL-TEST-3', 'PALLET', 'NEST') returning id`,
+)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, $3::uuid)`,
+  [tostada, enPicking2, palletE],
+)
+
+const camionPorCantidad = await nuevoCamion('PED-009', '4000005', 10)
+await surtirDe(camionPorCantidad, 10)
+
+const marcadaCantidad = await one(`select * from verificar_linea($1, 'P-5')`, [camionPorCantidad])
+check(
+  Number(marcadaCantidad.cajas) === 240,
+  `al marcar la linea se da por buena toda la cantidad que bajo (${marcadaCantidad.cajas})`,
+)
+
+const masDeLoQueBajo = await falla(
+  `select corregir_chequeo((select id from order_line where order_id = $1), 11::numeric)`,
+  [camionPorCantidad],
+)
+check(
+  masDeLoQueBajo?.includes('no se puede cargar mas de lo que hay') ||
+    masDeLoQueBajo?.includes('no se puede cargar más de lo que hay'),
+  'mas cajas de las que bajaron no se pueden cargar: eso seria inventar producto',
+)
+
+await como(operario)
+const noLeTocaCorregir = await falla(
+  `select corregir_chequeo((select id from order_line where order_id = $1), 8::numeric)`,
+  [camionPorCantidad],
+)
+check(noLeTocaCorregir?.includes('corrige el chequeador'), 'y la cantidad del chequeo no la cambia cualquiera')
+await como(jefe)
+
+const corregidoCantidad = await one(
+  `select corregir_chequeo((select id from order_line where order_id = $1), 8::numeric) as base`,
+  [camionPorCantidad],
+)
+check(Number(corregidoCantidad.base) === 192, 'ocho cajas son 192 unidades, no ocho')
+
+const yaSalido = await one(
+  `select coalesce(sum(qty_base), 0) as q from stock_movement
+   where type = 'SHIP' and product_id = $1`,
+  [tostada],
+)
+await one(`select despachar($1)`, [camionPorCantidad])
+const salioPorCantidad = await one(
+  `select (select status from sales_order where id = $1) as status,
+          (select coalesce(sum(qty_base), 0) from stock_movement
+            where type = 'SHIP' and product_id = $2) - $3::numeric as salio`,
+  [camionPorCantidad, tostada, yaSalido.q],
+)
+check(salioPorCantidad.status === 'SHIPPED', 'el camion sale')
+check(
+  Number(salioPorCantidad.salio) === 192,
+  `y sale con las ocho cajas que el chequeador dijo, no con las diez (${salioPorCantidad.salio})`,
+)
+
+const quedoEnAnden = await one(
+  `select coalesce(sum(s.qty_base), 0) as q from stock s join location l on l.id = s.location_id
+   where l.code = 'STG-AND-03' and s.product_id = $1`,
+  [tostada],
+)
+check(
+  Number(quedoEnAnden.q) === 48,
+  `y las dos cajas que no subieron se quedan en el anden (${quedoEnAnden.q} unidades)`,
+)
+
+const yaSalioElCamion = await falla(
+  `select corregir_chequeo((select id from order_line where order_id = $1), 5::numeric)`,
+  [camionPorCantidad],
+)
+check(yaSalioElCamion?.includes('ya salio') || yaSalioElCamion?.includes('ya salió'),
+  'y con el camion afuera la cantidad ya no se toca')
+
 await db.close()

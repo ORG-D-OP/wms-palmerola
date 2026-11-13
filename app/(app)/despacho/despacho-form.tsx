@@ -9,13 +9,14 @@ import { ESTADO } from './estado'
 import {
   buscarDespacho,
   chequear,
+  corregirCantidad,
   despachar,
   recargarDespacho,
   type Camion,
   type Linea,
 } from './actions'
 import { plural } from '@/lib/plural'
-import { textoCajas } from '@/lib/cajas'
+import { desglose, textoCajas } from '@/lib/cajas'
 
 /**
  * Despachar un camión: la hoja, convertida en lista de chequeo.
@@ -24,6 +25,11 @@ import { textoCajas } from '@/lib/cajas'
  * es la hoja: todas las líneas con su cantidad, y el chequeador va escaneando lo que sube.
  * Lo escaneado queda en verde; lo que no alcanzó la bodega queda señalado como faltante
  * desde el primer momento, sin esperar a que alguien lo descubra en el andén.
+ *
+ * El escaneo da por buena toda la cantidad que bajó, porque ése es el caso normal, y la deja
+ * corregible mientras el camión no haya salido: chequear es comprobar la cantidad, y nadie
+ * cuenta bien a la primera con un camión esperando. Lo que el chequeador deje escrito es lo
+ * que sale; lo que no subió se queda en el andén.
  *
  * El camión se puede cerrar incompleto, porque un camión que tiene que salir sale, pero eso
  * pide una razón: un faltante que nadie escribió es un descuadre que aparece la semana que
@@ -129,7 +135,20 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
 
       <ul className="flex flex-col divide-y divide-borde">
         {camion.detalle.map((l) => (
-          <Renglon key={l.lineNo} linea={l} />
+          <Renglon
+            key={l.lineNo}
+            linea={l}
+            editable={!despachado && puedeCerrar}
+            onCorregir={(cajas) =>
+              empezar(async () => {
+                const res = await corregirCantidad(camion.id, l.id, cajas)
+                if (!res.ok) return setError(res.error)
+                setCamion(res.camion)
+                setAviso(`${l.name}: ${textoCajas(cajas * l.porCaja, l.porCaja)} arriba.`)
+                setError('')
+              })
+            }
+          />
         ))}
       </ul>
 
@@ -233,35 +252,106 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
  * Una línea de la hoja. Tres estados y se distinguen de un vistazo desde un metro: chequeada
  * en verde, corta de producto en rojo, y pendiente en gris.
  */
-function Renglon({ linea }: { linea: Linea }) {
+function Renglon({
+  linea,
+  editable,
+  onCorregir,
+}: {
+  linea: Linea
+  editable: boolean
+  onCorregir: (cajas: number) => void
+}) {
+  const [corrigiendo, setCorrigiendo] = useState(false)
   const corta = linea.apartado < linea.pedido
   const falta = linea.pedido - linea.apartado
+  const { cajas: cajasArriba } = desglose(linea.arriba ?? 0, linea.porCaja)
+  const deMenos = linea.chequeada && linea.arriba !== null && linea.arriba < linea.surtido
 
   return (
     <li
-      className={`-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 ${
+      className={`-mx-2 flex flex-col gap-2 rounded-xl px-2 py-3 ${
         linea.chequeada ? 'bg-[var(--verde)]/20' : ''
       }`}
     >
-      <Icon
-        name={linea.chequeada ? 'check_circle' : corta ? 'error' : 'radio_button_unchecked'}
-        className={linea.chequeada ? 'text-azul' : corta ? 'text-rojo' : 'text-azul/30'}
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">{linea.name}</span>
-        <span className="block text-sm text-azul/60">
-          {linea.sku}
-          {corta ? (
-            <span className="text-rojo"> · faltan {textoCajas(falta, linea.porCaja)}</span>
-          ) : null}
+      <div className="flex items-center gap-3">
+        <Icon
+          name={linea.chequeada ? 'check_circle' : corta ? 'error' : 'radio_button_unchecked'}
+          className={linea.chequeada ? 'text-azul' : corta ? 'text-rojo' : 'text-azul/30'}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{linea.name}</span>
+          <span className="block text-sm text-azul/60">
+            {linea.sku}
+            {corta ? (
+              <span className="text-rojo"> · faltan {textoCajas(falta, linea.porCaja)}</span>
+            ) : null}
+          </span>
         </span>
-      </span>
-      <span className="shrink-0 text-right tabular-nums">
-        <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
-        <span className="block text-xs text-azul/60">
-          {linea.surtido > 0 ? `${textoCajas(linea.surtido, linea.porCaja)} surtidas` : 'sin surtir'}
+        <span className="shrink-0 text-right tabular-nums">
+          <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
+          <span className="block text-xs text-azul/60">
+            {linea.chequeada && linea.arriba !== null
+              ? `${textoCajas(linea.arriba, linea.porCaja)} arriba`
+              : linea.surtido > 0
+                ? `${textoCajas(linea.surtido, linea.porCaja)} surtidas`
+                : 'sin surtir'}
+          </span>
         </span>
-      </span>
+      </div>
+
+      {/*
+        Corregir la cantidad es parte del oficio: el chequeador cuenta y la hoja dice otra
+        cosa. Sólo sale cuando la línea ya está chequeada, porque antes no hay nada que
+        corregir, y se va con el camión: despachado, el número ya no se toca.
+      */}
+      {linea.chequeada && editable ? (
+        corrigiendo ? (
+          <form
+            action={(datos) => {
+              onCorregir(Number(datos.get('cajas')))
+              setCorrigiendo(false)
+            }}
+            className="flex items-end gap-2"
+          >
+            <label className="flex flex-1 flex-col gap-1.5">
+              <span className={ETIQUETA}>¿Cuántas cajas subieron?</span>
+              <input
+                name="cajas"
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                defaultValue={cajasArriba}
+                autoFocus
+                required
+                className={CAMPO}
+              />
+            </label>
+            <button type="submit" className={BOTON}>
+              Guardar
+            </button>
+            <button type="button" onClick={() => setCorrigiendo(false)} className={BOTON_SUAVE}>
+              Mejor no
+            </button>
+          </form>
+        ) : (
+          <div className="flex items-center gap-3 pl-9">
+            {deMenos ? (
+              <span className="text-sm text-rojo">
+                Subieron {textoCajas(linea.surtido - (linea.arriba ?? 0), linea.porCaja)} menos de
+                las que bajaron
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setCorrigiendo(true)}
+              className="text-sm text-azul/60 underline"
+            >
+              Corregir la cantidad
+            </button>
+          </div>
+        )
+      ) : null}
     </li>
   )
 }
