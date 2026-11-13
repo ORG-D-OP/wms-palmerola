@@ -217,6 +217,25 @@ check(Number(faltante.falta) === 60, 'la linea sin existencia queda entera por a
 // --- chequear escaneando ----------------------------------------------------------------
 
 await como(operario)
+
+// Chequear una linea de la que no ha bajado nada se para: la hoja mira la carga, no el codigo.
+const sinBajar = await falla(`select verificar_linea($1, '17802225689141')`, [segundo])
+check(
+  sinBajar?.includes('no hay nada surtido'),
+  'no se puede marcar una linea de la que no ha bajado una sola caja',
+)
+
+const { id: tareaSegundo } = await one(
+  `select a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+   where l.order_id = $1 and l.line_no = 1`,
+  [segundo],
+)
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = '${operario}' where id = $1`,
+  [tareaSegundo],
+)
+await one(`select * from complete_pick($1, '17802225689141', 1)`, [tareaSegundo])
+
 const marcada = await one(`select * from verificar_linea($1, '17802225689141')`, [segundo])
 check(marcada.linea === 1, 'el auxiliar marca la linea escaneando la caja que sube')
 check(marcada.ya_estaba === false, 'y la primera vez no estaba marcada')
@@ -256,6 +275,76 @@ await one(
 )
 const noVa = await falla(`select verificar_linea($1, '17802225689165')`, [segundo])
 check(noVa?.includes('no va en este camión'), 'y un producto que no va en el camion, tambien')
+
+// --- el codigo repetido se resuelve dentro del camion (0078) ------------------------------
+
+/**
+ * En el maestro de verdad hay 81 codigos de barras repetidos entre 175 productos, y 60 de
+ * ellos juntan variantes con **distinta cantidad por caja**. `producto_por_codigo` los
+ * resolvia con un `limit 1` sin orden, asi que escanear la caja del producto que si va en el
+ * camion contestaba «ese producto no va en este camion».
+ */
+await como(jefe)
+const gemelo = async (sku, nombre, porCaja) => {
+  const { id } = await one(
+    `insert into product (sku, name, base_uom) values ($1, $2, 'ST') returning id`,
+    [sku, nombre],
+  )
+  const { id: nivel } = await one(
+    `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', $2)
+     returning id`,
+    [id, porCaja],
+  )
+  await one(
+    `insert into barcode (packaging_level_id, code, symbology, is_primary)
+     values ($1, '17802225689172', 'GTIN14', true)`,
+    [nivel],
+  )
+  return { id, nivel }
+}
+// El mismo codigo en dos productos, y con distinto tamano de caja, que es el caso de verdad.
+const vaEnElCamion = await gemelo('60127.1', 'Zambos Platano Picositas 192s', 192)
+await gemelo('60127C1', 'Zambos Platano Picositas 240s', 240)
+
+const { id: posGemelo } = await one(`select id from location where code = 'F1-001-03'`)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 384::numeric, null, $2::uuid)`,
+  [vaEnElCamion.id, posGemelo],
+)
+
+const { id: anden3 } = await one(`select id from dock_door where code = 'AND-06'`)
+const { id: camionG } = await one(
+  `insert into sales_order (code, dock_door_id, transporte) values ('PED-020', $1, '4000010')
+   returning id`,
+  [anden3],
+)
+await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, $3, 192)`,
+  [camionG, vaEnElCamion.id, vaEnElCamion.nivel],
+)
+await one(`select release_order($1) as n`, [camionG])
+
+const { id: tareaG } = await one(
+  `select a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+   where l.order_id = $1`,
+  [camionG],
+)
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`,
+  [tareaG],
+)
+const surtidoGemelo = await one(`select * from complete_pick($1, '17802225689172', 1)`, [tareaG])
+check(
+  Number(surtidoGemelo.surtido) === 192,
+  'el codigo repetido vale para surtir: se compara contra el producto de la tarea',
+)
+
+const marcadaGemela = await one(`select * from verificar_linea($1, '17802225689172')`, [camionG])
+check(
+  marcadaGemela.sku === '60127.1',
+  'y al chequear marca la linea de este camion, no la del gemelo que no va',
+)
 
 // --- cerrar sin todo --------------------------------------------------------------------
 
