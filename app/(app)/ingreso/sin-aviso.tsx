@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { Mixto } from './mixto'
 import { buscarProducto, recibirSinAviso, type Producto, type Recibido } from './actions'
 
 /**
@@ -17,20 +18,26 @@ import { buscarProducto, recibirSinAviso, type Producto, type Recibido } from '.
  * pueden faltar —el pallet llega sin etiqueta Nest, la caja trae un código que no está en el
  * maestro— y por eso ninguna detiene la descarga: lo que no puede faltar es el producto, que
  * entonces se escribe, y el vencimiento, de donde sale el FEFO.
+ *
+ * Que el pallet traiga más de un producto es la excepción, así que vive detrás de un enlace y
+ * no estorba aquí: ver `mixto.tsx`.
  */
 export function SinAviso({
   pedido,
   dockLocationId,
   onRecibido,
+  onRecargar,
 }: {
   pedido: string
   dockLocationId: string
   onRecibido: (recibido: Recibido) => void
+  onRecargar: () => void
 }) {
   const [pallet, setPallet] = useState<string | null>(null)
   const [palletListo, setPalletListo] = useState(false)
   const [producto, setProducto] = useState<Producto | null>(null)
   const [codigo, setCodigo] = useState('')
+  const [mixto, setMixto] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, empezar] = useTransition()
 
@@ -56,6 +63,7 @@ export function SinAviso({
     setPalletListo(false)
     setProducto(null)
     setCodigo('')
+    setMixto(false)
     setError(null)
   }
 
@@ -111,6 +119,24 @@ export function SinAviso({
     </div>
   )
 
+  if (mixto) {
+    return (
+      <div className="flex flex-col gap-3">
+        {resumenPallet}
+        <Mixto
+          pedido={pedido}
+          dockLocationId={dockLocationId}
+          palletCode={pallet}
+          onRecibido={() => {
+            limpiar()
+            onRecargar()
+          }}
+          onCancelar={() => setMixto(false)}
+        />
+      </div>
+    )
+  }
+
   if (!producto) {
     return (
       <div className="flex flex-col gap-3">
@@ -125,6 +151,13 @@ export function SinAviso({
           Hace falta si el código no está en el maestro o si lo comparten dos productos.
         </p>
         {error ? <Aviso>{error}</Aviso> : null}
+        <button
+          type="button"
+          onClick={() => setMixto(true)}
+          className="self-start text-sm underline underline-offset-4"
+        >
+          Trae más de un producto
+        </button>
       </div>
     )
   }

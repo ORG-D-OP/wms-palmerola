@@ -20,11 +20,19 @@ export default async function InventarioPage({
   const { q = '' } = await searchParams
   const supabase = await createSupabaseServerClient()
 
-  const { data, error } = q.trim()
-    ? await supabase.rpc('existencia_de', { p_texto: q.trim() }).limit(LIMITE)
-    : { data: [], error: null }
+  const [{ data, error }, { data: hermanas }] = await Promise.all([
+    q.trim()
+      ? supabase.rpc('existencia_de', { p_texto: q.trim() }).limit(LIMITE)
+      : { data: [], error: null },
+    // Si lo escaneado es la etiqueta de un pallet mixto ya desarmado, la madre no tiene saldo
+    // y la búsqueda normal no encuentra nada. Esto contesta dónde quedó lo que venía con él.
+    q.trim()
+      ? supabase.rpc('hermanas_del_pallet', { p_lpn_code: q.trim() })
+      : { data: [] },
+  ])
 
   const filas = data ?? []
+  const vinoJunto = hermanas ?? []
   const totalUnidades = filas.reduce((a, f) => a + Number(f.qty_base ?? 0), 0)
 
   return (
@@ -32,6 +40,23 @@ export default async function InventarioPage({
       <h1 className="text-xl">Buscar en el inventario</h1>
 
       <Buscador />
+
+      {vinoJunto.length > 0 ? (
+        <section className="flex flex-col gap-1 rounded-2xl border border-borde p-4">
+          <p className="text-sm text-azul/60">Vino en el mismo pallet</p>
+          <ul className="flex flex-col divide-y divide-borde">
+            {vinoJunto.map((h) => (
+              <li key={h.lpn_code} className="flex items-baseline justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate">{h.product_name}</span>
+                  <span className="block text-sm text-azul/60">{h.sku}</span>
+                </span>
+                <span className="shrink-0 tabular-nums">{h.posicion}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!q.trim() ? (
         <p className="text-sm text-azul/60">

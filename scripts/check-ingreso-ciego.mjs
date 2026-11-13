@@ -238,3 +238,156 @@ check(dosVeces?.includes('ya está cerrado'), 'ni se cierra dos veces')
 
 const yaNo = await db.query(`select pedido from ingreso_abierto where pedido = $1`, [doc.pedido])
 check(yaNo.rows.length === 0, 'y sale de la lista de abiertos')
+
+// ---------------------------------------------------------------------------------------
+// El pallet mixto (0067)
+// ---------------------------------------------------------------------------------------
+// Un mixto se descubre en el anden, y se desarma ahi mismo: del almacen solo salen pallets
+// completos de un producto. Cada producto sale como su propio pallet, colgando de la etiqueta
+// que de verdad venia en el camion.
+
+const mix = await one(`select * from abrir_ingreso_sin_aviso('Planta Choloma', 'Vino mixto')`)
+const mixto = (productos, pallet = null) =>
+  db.query(`select * from recibir_mixto($1, $2::jsonb, $3, $4)`, [
+    mix.pedido,
+    JSON.stringify(productos),
+    anden,
+    pallet,
+  ])
+
+const uno = await falla(`select * from recibir_mixto($1, $2::jsonb, $3, null)`, [
+  mix.pedido,
+  JSON.stringify([{ codigo: '61244C4', cases: 10, expiry: '2027-01-31' }]),
+  anden,
+])
+check(uno?.includes('al menos dos productos'), 'un pallet de un solo producto se recibe normal')
+
+const repetido = await falla(`select * from recibir_mixto($1, $2::jsonb, $3, null)`, [
+  mix.pedido,
+  JSON.stringify([
+    { codigo: '61244C4', cases: 10, lot: 'L-1', expiry: '2027-01-31' },
+    { codigo: '61244C4', cases: 5, lot: 'L-1', expiry: '2027-01-31' },
+  ]),
+  anden,
+])
+check(repetido?.includes('ya está en el pallet'), 'el mismo producto y lote no se apunta dos veces')
+
+const sinVence = await falla(`select * from recibir_mixto($1, $2::jsonb, $3, null)`, [
+  mix.pedido,
+  JSON.stringify([
+    { codigo: '61244C4', cases: 10, expiry: '2027-01-31' },
+    { codigo: '61244P4', cases: 5 },
+  ]),
+  anden,
+])
+check(sinVence?.includes('FEFO'), 'y a cada producto del mixto se le pide su vencimiento')
+
+const sinCuantas = await falla(`select * from recibir_mixto($1, $2::jsonb, $3, null)`, [
+  mix.pedido,
+  JSON.stringify([
+    { codigo: '61244C4', cases: 10, expiry: '2027-01-31' },
+    { codigo: '61244P4', cases: 0, expiry: '2027-01-31' },
+  ]),
+  anden,
+])
+check(sinCuantas?.includes('cuántas cajas'), 'ni se recibe sin decir cuantas cajas trae cada uno')
+
+const desarmado = (
+  await mixto(
+    [
+      { codigo: '61244C4', cases: 20, lot: 'L-A', expiry: '2027-03-31' },
+      { codigo: '61244P4', cases: 12, expiry: '2027-04-30' },
+    ],
+    'PAL-MIX-001',
+  )
+).rows
+
+check(desarmado.length === 2, 'el mixto se desarma en un pallet por producto')
+check(
+  desarmado.every((p) => p.madre === 'PAL-MIX-001'),
+  'y los dos cuelgan de la etiqueta que traia el camion',
+)
+check(
+  desarmado.every((p) => p.lpn_code.startsWith('WMS-')),
+  'cada pieza lleva matricula propia, que es la que hay que imprimir y pegar',
+)
+
+const madre = await one(`select id, source from lpn where code = 'PAL-MIX-001'`)
+const saldoMadre = await one(
+  `select count(*)::int as n from stock where lpn_id = $1`,
+  [madre.id],
+)
+check(saldoMadre.n === 0, 'la madre no lleva saldo: el producto cuelga de las hijas')
+check(madre.source === 'NEST', 'y la madre sigue siendo la etiqueta de planta')
+
+const hijas = await db.query(
+  `select l.code, l.parent_id, l.source, s.qty_base, p.sku
+   from lpn l join stock s on s.lpn_id = l.id join product p on p.id = s.product_id
+   where l.parent_id = $1 order by p.sku`,
+  [madre.id],
+)
+check(hijas.rows.length === 2, 'las dos hijas quedan colgadas de la madre')
+check(
+  hijas.rows.every((h) => h.source === 'PROVISIONAL'),
+  'y marcadas como provisionales, porque la matricula la invento el WMS',
+)
+check(
+  Number(hijas.rows[0].qty_base) === 480 && Number(hijas.rows[1].qty_base) === 288,
+  'con el saldo de cada producto en unidades: 20 y 12 cajas de 24',
+)
+
+const tareasMixto = await db.query(
+  `select count(*)::int as n from task where type = 'PUTAWAY' and lpn_id in (
+     select id from lpn where parent_id = $1)`,
+  [madre.id],
+)
+check(tareasMixto.rows[0].n === 2, 'y cada pieza deja su tarea de guardado, por separado')
+
+const actaMixto = await one(
+  `select count(*)::int as n from inbound_pallet where doc_id = $1`,
+  [mix.id],
+)
+check(actaMixto.n === 2, 'el acta del ingreso cuenta las piezas, no la madre')
+
+// Escanear la etiqueta de la madre no encuentra saldo, porque ya no lo tiene. Lo que sí
+// contesta es qué venía en ese pallet y dónde quedó cada cosa.
+const porMadre = await db.query(`select * from hermanas_del_pallet('PAL-MIX-001')`)
+check(porMadre.rows.length === 2, 'la etiqueta de la madre dice que venia en ese pallet')
+check(
+  porMadre.rows.every((h) => h.posicion !== null),
+  'y donde quedo cada cosa',
+)
+
+const porHija = await db.query(`select * from hermanas_del_pallet($1)`, [hijas.rows[0].code])
+check(porHija.rows.length === 2, 'y desde una pieza se ve con que vino')
+
+const normal = await db.query(`select * from hermanas_del_pallet('PAL-NEST-001')`)
+check(normal.rows.length === 0, 'un pallet de un solo producto no arrastra hermanas')
+
+const madreRepetida = await falla(
+  `select * from recibir_mixto($1, $2::jsonb, $3, 'PAL-MIX-001')`,
+  [
+    mix.pedido,
+    JSON.stringify([
+      { codigo: '61244C4', cases: 1, expiry: '2027-03-31' },
+      { codigo: '61244P4', cases: 1, expiry: '2027-04-30' },
+    ]),
+    anden,
+  ],
+)
+check(madreRepetida?.includes('ya está en el sistema'), 'la etiqueta de la madre no entra dos veces')
+
+const sinEtiquetaMixto = (
+  await mixto([
+    { codigo: '61244C4', cases: 3, expiry: '2027-05-31' },
+    { codigo: '61244P4', cases: 4, expiry: '2027-06-30' },
+  ])
+).rows
+check(
+  sinEtiquetaMixto[0].madre.startsWith('WMS-'),
+  'un mixto sin etiqueta tambien se recibe: el WMS le pone madre propia',
+)
+const madrePropia = await one(`select source from lpn where code = $1`, [
+  sinEtiquetaMixto[0].madre,
+])
+check(madrePropia.source === 'PROVISIONAL', 'y esa madre queda marcada como provisional')

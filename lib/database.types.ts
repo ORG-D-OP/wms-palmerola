@@ -4245,6 +4245,16 @@ export type Database = {
           stock_id: string
         }[]
       }
+      hermanas_del_pallet: {
+        Args: { p_lpn_code: string }
+        Returns: {
+          lpn_code: string
+          posicion: string
+          product_name: string
+          qty_base: number
+          sku: string
+        }[]
+      }
       iniciar_turno: {
         Args: {
           p_flow?: string
@@ -4497,6 +4507,25 @@ export type Database = {
         Returns: {
           cases: number
           lpn_code: string
+          pallets: number
+          product_name: string
+          recibidos: number
+          sku: string
+          to_location_code: string
+        }[]
+      }
+      recibir_mixto: {
+        Args: {
+          p_dock_location_id: string
+          p_max_level?: number
+          p_pallet_code?: string
+          p_pedido: string
+          p_productos: Json
+        }
+        Returns: {
+          cases: number
+          lpn_code: string
+          madre: string
           pallets: number
           product_name: string
           recibidos: number
