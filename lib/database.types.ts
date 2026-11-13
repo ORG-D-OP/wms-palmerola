@@ -3986,10 +3986,16 @@ export type Database = {
         }
       }
       complete_pick: {
-        Args: { p_barcode: string; p_qty: number; p_task_id: string }
+        Args: {
+          p_barcode: string
+          p_cajas: number
+          p_sueltas?: number
+          p_task_id: string
+        }
         Returns: {
           pedido: number
           surtido: number
+          texto: string
         }[]
       }
       complete_putaway: {
@@ -4337,6 +4343,7 @@ export type Database = {
           sku: string
         }[]
       }
+      producto_por_codigo: { Args: { p_codigo: string }; Returns: string }
       puede_trabajar_como: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -4524,6 +4531,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"][]
       }
+      soltar_lo_no_empezado: { Args: never; Returns: number }
       soltar_tareas_del_turno: { Args: never; Returns: number }
       start_pick: {
         Args: { p_location_code: string; p_task_id: string }

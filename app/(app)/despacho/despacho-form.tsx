@@ -15,6 +15,7 @@ import {
   type Linea,
 } from './actions'
 import { plural } from '@/lib/plural'
+import { textoCajas } from '@/lib/cajas'
 
 /**
  * Despachar un camión: la hoja, convertida en lista de chequeo.
@@ -251,14 +252,14 @@ function Renglon({ linea }: { linea: Linea }) {
         <span className="block text-sm text-azul/60">
           {linea.sku}
           {corta ? (
-            <span className="text-rojo"> · faltan {falta.toLocaleString('es-HN')} en bodega</span>
+            <span className="text-rojo"> · faltan {textoCajas(falta, linea.porCaja)}</span>
           ) : null}
         </span>
       </span>
       <span className="shrink-0 text-right tabular-nums">
-        <span className="block">{linea.pedido.toLocaleString('es-HN')}</span>
+        <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
         <span className="block text-xs text-azul/60">
-          {linea.surtido.toLocaleString('es-HN')} surtidas
+          {textoCajas(linea.surtido, linea.porCaja)} surtidas
         </span>
       </span>
     </li>

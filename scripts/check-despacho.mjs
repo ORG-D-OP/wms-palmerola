@@ -210,6 +210,14 @@ check(sellada.n === 1, 'y la marca queda en la linea, no en la pantalla')
 const desconocido = await falla(`select verificar_linea($1, '99999999999999')`, [segundo])
 check(desconocido?.includes('No conozco'), 'un codigo que no existe lo dice')
 
+// De los 690 niveles CASE del maestro hay 49 sin codigo de barras. Si el SKU no sirviera, el
+// chequeador se quedaria sin ninguna salida con esos productos.
+const porSku = await one(`select * from verificar_linea($1, (select sku from product where id = $2))`, [
+  segundo,
+  producto,
+])
+check(porSku.ya_estaba === true, 'el SKU vale como codigo: hay productos sin codigo de barras')
+
 const { id: ajeno } = await one(
   `insert into product (sku, name, base_uom) values ('P-3', 'Aceite', 'ST') returning id`,
 )

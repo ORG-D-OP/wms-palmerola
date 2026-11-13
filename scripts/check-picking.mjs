@@ -139,14 +139,41 @@ check(otraPos?.includes('no es la posición de esta tarea'), 'escanear otra posi
 
 await one(`select start_pick($1, $2)`, [tarea.id, viejo.code])
 
-const otroProducto = await fails(`select * from complete_pick($1, '0000000000000', 30)`, [tarea.id])
+// Lo que pasa cuando a alguien se le recarga la pantalla con la posicion ya escaneada: la
+// tarea empezada tiene que volver a el, no quedarse sin dueno con la existencia apartada.
+const retomada = await one(`select * from claim_next_task(array['PICK']::task_type[])`)
+check(retomada.id === tarea.id, 'al volver a la pantalla vuelve la tarea empezada, no otra')
+
+const otraVez = await one(`select status from start_pick($1, $2)`, [tarea.id, viejo.code])
+check(otraVez.status === 'IN_PROGRESS', 'y volver a escanear la posicion no es un error')
+
+const reentra = await one(`select id from iniciar_turno()`)
+check(reentra.id !== null, 'entrar a trabajo con algo empezado ya no se frena')
+
+const sigueSuya = await one(`select * from claim_next_task(array['PICK']::task_type[])`)
+check(sigueSuya.id === tarea.id, 'y al volver a entrar la tarea empezada sigue siendo suya')
+
+const otroProducto = await fails(`select * from complete_pick($1, '0000000000000', 1, 6)`, [
+  tarea.id,
+])
 check(otroProducto?.includes('no es el producto'), 'escanear otro producto se detiene')
 
 const deMas = await fails(`select * from complete_pick($1, '17802225689141', 999)`, [tarea.id])
-check(deMas?.includes('entre 1 y'), 'no se puede surtir mas de lo pedido')
+check(deMas?.includes('no puede pasarse'), 'no se puede surtir mas de lo pedido')
 
-const hecho = await one(`select * from complete_pick($1, '17802225689141', 30)`, [tarea.id])
-check(Number(hecho.surtido) === 30, 'el surtido queda registrado')
+const negativas = await fails(`select * from complete_pick($1, '17802225689141', 1, -1)`, [
+  tarea.id,
+])
+check(negativas?.includes('menos que cero'), 'las sueltas no pueden ser negativas')
+
+// La tarea pide 30 unidades de un producto de 24 por caja: una caja y seis sueltas. Antes la
+// pantalla pedia «cajas» y guardaba 30 unidades, que es un tercio de lo que decia.
+const desconocido = await fails(`select * from complete_pick($1, 'NO-EXISTE', 1, 6)`, [tarea.id])
+check(desconocido?.includes('no es el producto'), 'un codigo que nadie conoce se detiene')
+
+const hecho = await one(`select * from complete_pick($1, 'P-1', 1, 6)`, [tarea.id])
+check(Number(hecho.surtido) === 30, 'el surtido queda registrado en unidades')
+check(hecho.texto === '1 caja y 6 sueltas', 'y el recibo lo dice en cajas y sueltas')
 
 const enAnden = await one(
   `select coalesce(sum(s.qty_base), 0) as q from stock s join location l on l.id = s.location_id

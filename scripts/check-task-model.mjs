@@ -59,8 +59,18 @@ await one(`select iniciar_turno()`)
 const segunda = await one(`select * from claim_next_task()`)
 check(segunda.id !== primera.id, 'otra persona recibe una tarea distinta, nunca la misma')
 
+// Pedir trabajo otra vez devuelve lo que ya se trae. Es lo que pasa cuando a alguien se le
+// recarga la pantalla, y lo que antes dejaba la tarea sin dueno con la existencia apartada.
+const otraVez = await one(`select * from claim_next_task()`)
+check(otraVez.id === segunda.id, 'pedir trabajo de nuevo devuelve la que ya se trae, no otra')
+
+await db.query(`update task set status = 'BLOCKED', assigned_to = null where id = $1`, [segunda.id])
 const vacia = await one(`select * from claim_next_task()`)
 check(vacia.id === null, 'sin trabajo pendiente la cola no devuelve nada')
+await db.query(`update task set status = 'ASSIGNED', assigned_to = $1 where id = $2`, [
+  otro,
+  segunda.id,
+])
 
 const ajena = await fails(`select start_task($1)`, [primera.id])
 check(ajena?.includes('no está asignada a ti'), 'no se puede empezar la tarea de otro')

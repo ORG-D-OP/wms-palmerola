@@ -9,6 +9,7 @@ import { SinTarea } from '@/components/ui/sin-tarea'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
+import { textoCajas } from '@/lib/cajas'
 
 type Paso = 'buscando' | 'tomar' | 'llevar' | 'sin'
 
@@ -101,7 +102,8 @@ export function PutawayForm() {
       <div className="rounded-xl bg-azul-08 p-3">
         <p>{job?.productName}</p>
         <p className="text-sm text-azul/60">
-          {job?.sku} · {job?.qty} cajas{job?.lot ? ` · lote ${job.lot}` : ''}
+          {job?.sku} · {job ? textoCajas(job.qty, job.porCaja) : ''}
+          {job?.lot ? ` · lote ${job.lot}` : ''}
         </p>
       </div>
 
