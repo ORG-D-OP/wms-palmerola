@@ -134,7 +134,10 @@ async function crear() {
       select 'SINT-TAB' || lpad(g::text, 3, '0'),
              'Cliente sintético ' || g,
              'SINT-TAB' || lpad(g::text, 3, '0'),
-             (select id from dock_door order by code offset (g % 14) limit 1),
+             -- Sólo andenes de despacho. Repartirlos entre los primeros catorce por orden de
+             -- código los ponía a todos en recepción.
+             (select dock_door_id from anden_de_carga
+               order by anden offset (g % (select count(*) from anden_de_carga)) limit 1),
              'DRAFT',
              'Datos sintéticos'
       from generate_series(1, ${PEDIDOS}) g

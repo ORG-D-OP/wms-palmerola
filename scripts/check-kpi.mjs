@@ -131,7 +131,7 @@ check(
 
 // --- la precision de los despachos ---------------------------------------------------------
 
-const { id: anden } = await one(`select id from dock_door limit 1`)
+const { id: anden } = await one(`select dock_door_id as id from anden_de_carga order by anden limit 1`)
 for (const [code, nota] of [
   ['KPI-CAM-1', null],
   ['KPI-CAM-2', 'Faltaron 3 cajas'],
