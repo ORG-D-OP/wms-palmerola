@@ -86,8 +86,11 @@ async function llenar(area, desde, cuantas, lleno) {
       join elegidos e on e.n = ((pos.n - 1) % ${PRODUCTOS}) + 1
     ),
     nuevos as (
+      -- Las matriculas de una corrida anterior siguen ahi: el libro mayor las referencia y no
+      -- se dejan borrar. Se reusan.
       insert into lpn (code, source, level)
       select pallet, 'INTERNO', 'PALLET' from par
+      on conflict (code) do update set source = excluded.source
       returning id, code
     )
     select count(*)::int as pallets, sum(par.cajas * par.por_caja + par.sueltas)::int as unidades
@@ -165,13 +168,28 @@ async function crear() {
 
 async function limpiar() {
   console.log('Soltando lo apartado y las tareas')
+  // Soltar lo apartado sin devolverlo a `qty_allocated` dejaria la existencia reservada para
+  // siempre contra una tarea que ya no existe.
   await sql(`
-    delete from allocation a
-    using stock s where s.id = a.stock_id and s.lot like 'SINT-%'`)
+    with sueltas as (
+      delete from allocation a
+      using stock s
+      where s.id = a.stock_id and s.lot like 'SINT-%'
+      returning a.stock_id, a.qty_base
+    ),
+    suma as (select stock_id, sum(qty_base) as q from sueltas group by stock_id)
+    update stock s set qty_allocated = greatest(0, s.qty_allocated - suma.q)
+    from suma where s.id = suma.stock_id`)
+
+  // Solo las tareas sinteticas: las de los ingresos reales no se tocan.
   await sql(`
-    update task set status = 'CANCELLED', completed_at = now(),
-                    closed_reason = 'Datos sintéticos borrados'
-    where status not in ('DONE', 'CANCELLED')`)
+    update task t set status = 'CANCELLED', completed_at = now(),
+                      closed_reason = 'Datos sintéticos borrados'
+    where t.status not in ('DONE', 'CANCELLED')
+      and (
+        t.lot like 'SINT-%'
+        or exists (select 1 from lpn l where l.id = t.lpn_id and l.code like 'SINT-%')
+      )`)
   await sql(`delete from order_line l using sales_order o
              where o.id = l.order_id and o.code like 'SINT-%'`)
   await sql(`delete from sales_order where code like 'SINT-%'`)
@@ -200,7 +218,10 @@ async function limpiar() {
   }
 
   await sql(`delete from stock where lot like 'SINT-%' and qty_base = 0`)
-  await sql(`delete from lpn where code like 'SINT-%'`)
+  // Las matriculas se quedan: el libro mayor las referencia y es inmutable a proposito. Lo
+  // que se borra es lo que las hace estorbar, que es la existencia.
+  const quedan = await uno(`select count(*)::int as n from lpn where code like 'SINT-%'`)
+  console.log(`  ${quedan.n} matrículas sintéticas quedan en el libro mayor, sin existencia`)
   await resumen()
 }
 
