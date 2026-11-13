@@ -79,6 +79,13 @@ export type Database = {
             foreignKeyName: "allocation_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
+            referencedRelation: "kpi_tarea"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
             referencedRelation: "task"
             referencedColumns: ["id"]
           },
@@ -724,6 +731,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "conteos_pendientes"
             referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_tarea"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "location_reserved_by_task_id_fkey"
@@ -2006,19 +2020,25 @@ export type Database = {
           code: string
           created_at: string
           id: string
+          max_shift_hours: number
           name: string
+          time_zone: string
         }
         Insert: {
           code: string
           created_at?: string
           id?: string
+          max_shift_hours?: number
           name: string
+          time_zone?: string
         }
         Update: {
           code?: string
           created_at?: string
           id?: string
+          max_shift_hours?: number
           name?: string
+          time_zone?: string
         }
         Relationships: []
       }
@@ -2273,6 +2293,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "conteos_pendientes"
             referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_tarea"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stock_count_task_id_fkey"
@@ -3093,6 +3120,67 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_despacho_dia: {
+        Row: {
+          camiones: number | null
+          chequeadas: number | null
+          completos: number | null
+          dia: string | null
+          lineas: number | null
+        }
+        Relationships: []
+      }
+      kpi_dia: {
+        Row: {
+          cajas: number | null
+          cajas_por_hora: number | null
+          camiones: number | null
+          chequeadas: number | null
+          completos: number | null
+          dia: string | null
+          horas_turno: number | null
+          improductivo_pct: number | null
+          lineas: number | null
+          personas: number | null
+          precision_pct: number | null
+          tareas: number | null
+        }
+        Relationships: []
+      }
+      kpi_tarea: {
+        Row: {
+          assigned_to: string | null
+          cajas: number | null
+          dia: string | null
+          id: string | null
+          minutos: number | null
+          type: Database["public"]["Enums"]["task_type"] | null
+        }
+        Relationships: []
+      }
+      kpi_turno_dia: {
+        Row: {
+          dia: string | null
+          horas: number | null
+          profile_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignment_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mi_trabajo: {
         Row: {
           alcance: number | null
@@ -3316,6 +3404,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "conteos_pendientes"
             referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_tarea"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stock_count_task_id_fkey"
@@ -4281,6 +4376,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      kpi_dias_atras: { Args: never; Returns: number }
+      kpi_por_persona: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          cajas: number
+          cajas_por_hora: number
+          horas_trabajando: number
+          horas_turno: number
+          improductivo_pct: number
+          nombre: string
+          profile_id: string
+          rol: Database["public"]["Enums"]["user_role"]
+          tareas: number
+        }[]
+      }
       lanzar_conteo: {
         Args: { p_area?: string; p_nivel?: number; p_zona?: string }
         Returns: {
@@ -4576,6 +4686,7 @@ export type Database = {
         }[]
       }
       release_order: { Args: { p_order_id: string }; Returns: number }
+      reloj_de_bodega: { Args: never; Returns: string }
       reordenar: {
         Args: { p_destino: string; p_origen: string; p_pallet?: string }
         Returns: {
@@ -4721,6 +4832,7 @@ export type Database = {
         Args: { p_por_caja: number; p_qty: number }
         Returns: string
       }
+      tope_de_turno: { Args: never; Returns: string }
       trabajar_como: {
         Args: { p_rol: Database["public"]["Enums"]["user_role"] }
         Returns: {
