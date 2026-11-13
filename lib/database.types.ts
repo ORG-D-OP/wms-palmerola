@@ -106,6 +106,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          replenish_pct: number
           site_id: string
           type_code: string
         }
@@ -116,6 +117,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          replenish_pct?: number
           site_id: string
           type_code: string
         }
@@ -126,6 +128,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          replenish_pct?: number
           site_id?: string
           type_code?: string
         }
@@ -3120,6 +3123,25 @@ export type Database = {
           },
         ]
       }
+      picking_bajo: {
+        Row: {
+          disponible: number | null
+          expiry_date: string | null
+          hay_en_origen: number | null
+          lot: string | null
+          lote_origen: string | null
+          pct: number | null
+          por_caja: number | null
+          posicion: string | null
+          producto: string | null
+          replenish_pct: number | null
+          sacar_de: string | null
+          sku: string | null
+          tope: number | null
+          vence_origen: string | null
+        }
+        Relationships: []
+      }
       posicion_detalle: {
         Row: {
           apartada: boolean | null
@@ -3691,6 +3713,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ajustar_aviso_reabastecimiento: {
+        Args: { p_area_code: string; p_pct: number }
+        Returns: {
+          barcode: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          replenish_pct: number
+          site_id: string
+          type_code: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "area"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       alcance_de: { Args: { p_profile_id: string }; Returns: number }
       apartar_linea: { Args: { p_order_line_id: string }; Returns: number }
       apartar_lo_que_falta: { Args: { p_order_id?: string }; Returns: number }
@@ -3735,6 +3777,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          replenish_pct: number
           site_id: string
           type_code: string
         }
