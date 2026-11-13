@@ -18,7 +18,17 @@ import {
 
 type Dock = { id: string; code: string }
 
-export function IngresoForm({ docks }: { docks: Dock[] }) {
+export function IngresoForm({
+  docks,
+  puedeSinAviso,
+}: {
+  docks: Dock[]
+  /**
+   * Abrir un ingreso sin aviso es de chequeador para arriba, y el auxiliar sí recibe pallets
+   * de uno ya abierto. Sin esto el botón se le ofrecía a quien el servidor iba a rechazar.
+   */
+  puedeSinAviso: boolean
+}) {
   const [dockId, setDockId] = useState(docks[0]?.id ?? '')
   const [doc, setDoc] = useState<Documento | null>(null)
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
@@ -112,44 +122,46 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
           camión; después solo se escanean las etiquetas de los pallets.
         </p>
 
-        <div className="border-t border-borde pt-5">
-          {abriendoCiego ? (
-            <form action={abrirCiego} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className={ETIQUETA}>¿De dónde viene?</span>
-                <input name="origen" autoFocus placeholder="Planta Choloma" className={CAMPO} />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ETIQUETA}>Nota (opcional)</span>
-                <input name="nota" placeholder="Avisaron por correo" className={CAMPO} />
-              </label>
-              <button type="submit" disabled={pending} className={BOTON}>
-                {pending ? 'Abriendo...' : 'Empezar a descargar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAbriendoCiego(false)}
-                className={BOTON_SUAVE}
-              >
-                Cancelar
-              </button>
-            </form>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setAbriendoCiego(true)}
-                className={BOTON_SUAVE}
-              >
-                Llegó un camión sin aviso
-              </button>
-              <p className="mt-2 text-sm text-azul/60">
-                Cuando no hay hoja ni pedido. Se abre el ingreso, se recibe lo que baje, y al
-                cerrarlo queda el acta de lo que entró de verdad.
-              </p>
-            </>
-          )}
-        </div>
+        {puedeSinAviso ? (
+          <div className="border-t border-borde pt-5">
+            {abriendoCiego ? (
+              <form action={abrirCiego} className="flex flex-col gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className={ETIQUETA}>¿De dónde viene?</span>
+                  <input name="origen" autoFocus placeholder="Planta Choloma" className={CAMPO} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ETIQUETA}>Nota (opcional)</span>
+                  <input name="nota" placeholder="Avisaron por correo" className={CAMPO} />
+                </label>
+                <button type="submit" disabled={pending} className={BOTON}>
+                  {pending ? 'Abriendo...' : 'Empezar a descargar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbriendoCiego(false)}
+                  className={BOTON_SUAVE}
+                >
+                  Cancelar
+                </button>
+              </form>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAbriendoCiego(true)}
+                  className={BOTON_SUAVE}
+                >
+                  Llegó un camión sin aviso
+                </button>
+                <p className="mt-2 text-sm text-azul/60">
+                  Cuando no hay hoja ni pedido. Se abre el ingreso, se recibe lo que baje, y al
+                  cerrarlo queda el acta de lo que entró de verdad.
+                </p>
+              </>
+            )}
+          </div>
+        ) : null}
 
         {error ? <Aviso>{error}</Aviso> : null}
       </div>
@@ -173,7 +185,12 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
             }}
             className="text-sm underline underline-offset-4"
           >
-            Cerrar
+            {/*
+              Se llamaba «Cerrar», justo al lado de la palabra «Pedido», y no cierra nada: sólo
+              quita el documento de la pantalla. El de bodega leía «cerrar el recibo» y se iba
+              creyendo que el camión quedaba cerrado, con los pallets que faltaban dentro.
+            */}
+            Dejarlo para después
           </button>
         </div>
         <p className="text-2xl tabular-nums">{doc.pedido}</p>
@@ -239,9 +256,15 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
             }}
             onRecargar={() => cargar(doc.pedido)}
           />
-          <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
-            Terminé de descargar: cerrar el acta
-          </button>
+          {puedeSinAviso ? (
+            <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
+              Terminé de descargar: cerrar el acta
+            </button>
+          ) : (
+            <p className="text-sm text-azul/60">
+              Cuando termines de bajar todo, el acta la cierra un chequeador.
+            </p>
+          )}
         </>
       ) : enCrossdock ? null : faltan > 0 ? (
         <ScanInput
