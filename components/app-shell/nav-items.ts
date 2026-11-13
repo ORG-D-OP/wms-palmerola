@@ -79,6 +79,7 @@ const TODOS = [
     permiso: 'conteo:lanzar',
     movil: false,
   },
+  { href: '/kpi', label: 'Indicadores', icon: 'insights', permiso: 'kpi:ver', movil: false },
   { href: '/productos', label: 'Productos', icon: 'inventory_2', permiso: null, movil: false },
   {
     href: '/personal',
