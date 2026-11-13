@@ -43,7 +43,11 @@ export default async function InventarioPage({
 
       {vinoJunto.length > 0 ? (
         <section className="flex flex-col gap-1 rounded-2xl border border-borde p-4">
-          <p className="text-sm text-azul/60">Vino en el mismo pallet</p>
+          <p className="text-sm text-azul/60">
+            {filas.length === 0
+              ? 'Esa matrícula ya no tiene saldo: se desarmó. Esto es lo que venía en ella'
+              : 'Vino en el mismo pallet'}
+          </p>
           <ul className="flex flex-col divide-y divide-borde">
             {vinoJunto.map((h) => (
               <li key={h.lpn_code} className="flex items-baseline justify-between gap-3 py-2">
@@ -66,7 +70,11 @@ export default async function InventarioPage({
       ) : error ? (
         <p className="text-sm text-azul/60">No se pudo consultar.</p>
       ) : filas.length === 0 ? (
-        <p className="text-azul/60">Sin existencia para «{q.trim()}».</p>
+        // Si la matrícula se desarmó, el bloque de arriba ya contestó: decir «sin existencia»
+        // debajo sólo confunde.
+        vinoJunto.length > 0 ? null : (
+          <p className="text-azul/60">Sin existencia para «{q.trim()}».</p>
+        )
       ) : (
         <>
           <p className="text-sm text-azul/60">

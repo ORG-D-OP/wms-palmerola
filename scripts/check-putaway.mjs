@@ -119,3 +119,59 @@ const reCerrar = await fails(`select * from complete_putaway($1, $2)`, [
   r.to_location_code,
 ])
 check(reCerrar?.includes('Primero escanea el pallet'), 'una tarea cerrada no se vuelve a cerrar')
+
+// ---------------------------------------------------------------------------------------
+// Lo apartado por otro cuenta igual que lo que ya esta en el carril (0069)
+// ---------------------------------------------------------------------------------------
+// La regla del carril es una sola: un producto y un lote. `complete_putaway` la hacia valer
+// pero el sugeridor no la miraba, asi que mandaba a dos personas al mismo carril con
+// productos distintos y la segunda rebotaba al llegar.
+
+const { id: otroProducto } = await one(
+  `insert into product (sku, name, base_uom) values ('T-99', 'Otro producto', 'ST') returning id`,
+)
+const { id: otroCase } = await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 12)
+   returning id`,
+  [otroProducto],
+)
+
+const primero = await one(
+  `select * from receive_pallet('PAL-9100', $1, $2, 10, $3, 'L-A', '2027-06-30', 'rec-100')`,
+  [productId, caseId, anden],
+)
+const segundo = await one(
+  `select * from receive_pallet('PAL-9101', $1, $2, 10, $3, 'L-B', '2027-06-30', 'rec-101')`,
+  [otroProducto, otroCase, anden],
+)
+
+const carriles = await one(
+  `select
+     (select lane_id from location where code = $1) as uno,
+     (select lane_id from location where code = $2) as dos`,
+  [primero.to_location_code, segundo.to_location_code],
+)
+check(
+  segundo.to_location_code !== null && carriles.uno !== carriles.dos,
+  'a dos productos distintos recibidos a la vez no se les manda al mismo carril',
+)
+
+// Y la prueba de que eso era lo que rompia: el segundo puede guardar donde le dijeron.
+// El primero toma la suya —la cola da la mas vieja— y el segundo la que queda.
+await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+
+await como(otro)
+await one(`select iniciar_turno()`)
+const suya = await one(
+  `select * from claim_next_task(array['PUTAWAY']::task_type[])`,
+)
+check(suya.lpn_id === segundo.lpn_id, 'cada quien se lleva su pallet de la cola')
+await one(`select start_putaway($1, 'PAL-9101')`, [suya.id])
+const guardada = await one(`select * from complete_putaway($1, $2)`, [
+  suya.id,
+  segundo.to_location_code,
+])
+check(
+  guardada.era_la_sugerida === true,
+  'y al llegar no le dicen que ese carril es de otro producto',
+)
