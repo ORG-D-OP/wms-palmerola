@@ -47,6 +47,9 @@ const PERMISSIONS = {
   // que sabe que hay. Su nombre queda en el historial, que es el control, no el permiso.
   'conteo:ejecutar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'conteo:lanzar': ['supervisor', 'admin'],
+  // Las olas no existen porque no se sabe de antemano qué pedidos van a caer mañana: el
+  // reabastecimiento lo lanza el jefe, y lo que el sistema hace es avisarle a tiempo.
+  'reabastecimiento:lanzar': ['supervisor', 'admin'],
   'turno:iniciar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'ingresos:administrar': ['chequeador', 'supervisor', 'admin'],
   'despachos:administrar': ['chequeador', 'supervisor', 'admin'],

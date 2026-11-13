@@ -66,6 +66,13 @@ const TODOS = [
     movil: false,
   },
   {
+    href: '/reabastecer',
+    label: 'Reabastecer',
+    icon: 'moving',
+    permiso: 'reabastecimiento:lanzar',
+    movil: false,
+  },
+  {
     href: '/conteos',
     label: 'Conteos cíclicos',
     icon: 'event_repeat',
