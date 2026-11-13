@@ -437,4 +437,54 @@ check(
   'y suelta lo asignado sin empezar, que ya no es trabajo de quien se fue',
 )
 
+// --- la ultima senal de vida no se sale de su turno ----------------------------------------
+
+// Lo que esto fija: la primera version buscaba la ultima tarea de la persona sin tope por
+// arriba, asi que un turno que quedo abierto el lunes se estiraba hasta la tarea que ella hizo
+// el viernes, en otro turno. Medido contra la base real: el turno de 89.9 horas se arreglo
+// a 92.6, peor de como estaba.
+
+const { id: dosTurnos } = await one(
+  `insert into auth.users (email) values ('dosturnos@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
+    where id = '${dosTurnos}'`,
+)
+const { id: lunes } = await one(
+  `insert into shift_assignment (profile_id, started_at, ended_at)
+   values ($1, now() - interval '4 days', now() - interval '3 days') returning id`,
+  [dosTurnos],
+)
+await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
+     started_at, completed_at)
+   values ('PUTAWAY', 'DONE', $1, 10, $2, now() - interval '4 days',
+     now() - interval '4 days', now() - interval '4 days',
+     now() - interval '4 days' + interval '6 hours')`,
+  [prod, dosTurnos],
+)
+await one(
+  `insert into shift_assignment (profile_id, started_at)
+   values ($1, now() - interval '2 hours')`,
+  [dosTurnos],
+)
+await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
+     started_at, completed_at)
+   values ('PUTAWAY', 'DONE', $1, 10, $2, now() - interval '2 hours',
+     now() - interval '2 hours', now() - interval '2 hours', now() - interval '1 hour')`,
+  [prod, dosTurnos],
+)
+
+const senal = await one(
+  `select round(extract(epoch from (ultima_senal_de($1) - started_at)) / 3600) as horas
+   from shift_assignment where id = $1`,
+  [lunes],
+)
+check(
+  Number(senal.horas) === 6,
+  'la ultima senal de vida de un turno es la de ese turno, no la de uno posterior',
+)
+
 await db.close()

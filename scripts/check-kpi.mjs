@@ -189,3 +189,29 @@ check(rangoAlReves?.includes('al revés'), 'un rango de fechas al reves se recha
 await como(operario)
 const ajeno = await falla(`select * from kpi_por_persona()`)
 check(ajeno?.includes('jefe de bodega'), 'y los numeros de cada persona no los ve cualquiera')
+
+// --- el tope es solo para el turno abierto -------------------------------------------------
+
+// Al cerrado se le cuentan sus horas, las de mas incluidas, porque lo cerro la persona o lo
+// calculo el sistema a su ultima senal de vida (0071). Recortarlo en el tope seria quitarle en
+// silencio las horas de mas a quien se quedo.
+const { id: deMas } = await one(
+  `insert into auth.users (email) values ('demas@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar',
+     full_name = 'El que se quedo' where id = '${deMas}'`,
+)
+await one(
+  `insert into shift_assignment (profile_id, started_at, ended_at)
+   values ($1, now() - interval '14 hours', now() - interval '20 minutes')`,
+  [deMas],
+)
+const horasDeMas = await one(
+  `select round(sum(horas), 1) as horas from kpi_turno_dia where profile_id = $1`,
+  [deMas],
+)
+check(
+  Math.abs(Number(horasDeMas.horas) - 13.67) < 0.2,
+  'a un turno cerrado de 14 horas se le cuentan las horas de mas, no se recorta en el tope',
+)
