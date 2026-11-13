@@ -106,7 +106,7 @@ export function TurnoForm({
 
         <form action={cerrarTurno}>
           <button type="submit" className={BOTON_SUAVE}>
-            Salir
+            Salir de trabajo
           </button>
         </form>
       </div>

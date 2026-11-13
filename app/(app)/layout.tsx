@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <form action={logout}>
               <button
                 type="submit"
-                aria-label="Salir"
+                aria-label="Cerrar sesión"
                 className="flex size-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white"
               >
                 <Icon name="logout" />
