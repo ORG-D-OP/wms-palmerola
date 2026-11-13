@@ -189,7 +189,19 @@ export const BLOQUES: Bloque[] = [
   })),
 ]
 
-export const ANDENES = { norte: 15, sur: 14 }
+/**
+ * Los 24 andenes: 1 al 14 en la franja sur, junto a oficinas, y 15 al 24 en la del norte. En
+ * la del norte la numeración va al revés —el 15 es el de la derecha del todo—, así que el
+ * sitio de un andén del norte se cuenta desde el otro extremo.
+ */
+export const ANDENES = { norte: 10, sur: 14, primeroDelNorte: 15 }
+
+/** De qué franja es un andén y qué lugar ocupa en ella, contando desde la izquierda. */
+export function sitioDelAnden(n: number): { norte: boolean; i: number } | null {
+  if (n < 1 || n > ANDENES.sur + ANDENES.norte) return null
+  if (n <= ANDENES.sur) return { norte: false, i: n }
+  return { norte: true, i: ANDENES.sur + ANDENES.norte + 1 - n }
+}
 
 export const COLOR = {
   azul: '#2c2b8f',
@@ -243,7 +255,7 @@ export type Punto = { x: number; y: number }
 
 const PISO_RE = /^(F\d)-(\d+)-(\d+)$/
 const RACK_RE = /^(R-[A-Z]+)-L(\d+)-B(\d+)-N\d+-P(\d)$/
-const ANDEN_RE = /^STG-AND-([NS])-(\d+)$/
+const ANDEN_RE = /^STG-AND-(\d+)$/
 
 /** Posiciones de fondo de un rack, en orden, con su franja de x. */
 function fondosDe(code: string): { x: number; w: number }[] {
@@ -290,26 +302,35 @@ export function ubicar(code: string): Punto | null {
   }
 
   const anden = code.match(ANDEN_RE)
-  if (anden?.[1] && anden[2]) {
-    const i = Number(anden[2]) - 1
-    return { x: 4 + i * 6.7 + 2.5, y: anden[1] === 'N' ? 3.3 : NAVE.alto - 3.3 }
+  if (anden?.[1]) {
+    const sitio = sitioDelAnden(Number(anden[1]))
+    if (sitio) {
+      return { x: 4 + (sitio.i - 1) * 6.7 + 2.5, y: sitio.norte ? 3.3 : NAVE.alto - 3.3 }
+    }
   }
 
   return null
 }
 
-/** Andén de descarga más cercano en horizontal a un punto. */
+/**
+ * Andén de descarga más cercano en horizontal a un punto. Son los de recepción de snacks y
+ * abarrotería, que es por donde entra lo que hay que guardar.
+ */
+export const ANDENES_DE_RECEPCION = [9, 10, 11, 12, 13, 14]
+
 export function andenMasCercano(p: Punto): string {
-  let mejor = 1
+  let mejor = ANDENES_DE_RECEPCION[0]!
   let dist = Infinity
-  for (let i = 1; i <= ANDENES.norte; i++) {
-    const x = 4 + (i - 1) * 6.7 + 2.5
+  for (const n of ANDENES_DE_RECEPCION) {
+    const sitio = sitioDelAnden(n)
+    if (!sitio) continue
+    const x = 4 + (sitio.i - 1) * 6.7 + 2.5
     if (Math.abs(x - p.x) < dist) {
       dist = Math.abs(x - p.x)
-      mejor = i
+      mejor = n
     }
   }
-  return `STG-AND-N-${String(mejor).padStart(2, '0')}`
+  return `STG-AND-${String(mejor).padStart(2, '0')}`
 }
 
 /** Pasillos libres por donde circula el montacargas, en metros. */

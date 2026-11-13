@@ -86,7 +86,7 @@ const { id: caja } = await one(
    returning id`,
   [producto],
 )
-const { id: anden } = await one(`select id from location where code = 'STG-AND-N-01'`)
+const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 
 // Fuera el piso del almacen: asi la sugerencia cae en rack y la tarea pide alcance.
 await como(jefe)
@@ -384,7 +384,36 @@ check(
   'y al que no dejo rastro se le cuenta el tope del sitio, no las 30 horas que estuvo abierto',
 )
 
-// Al que sigue trabajando no se le corta el turno, aunque pase del tope.
+// Las dos guardas del tope —el que sigue trabajando y el que anda con algo en la mano—
+//
+// Para probarlo hace falta un turno que haya pasado el tope **pero no la medianoche de su
+// dia**, y con un tope de 12 horas esa ventana depende de la hora a la que se corra esto. Asi
+// que a la bodega se le pone un reloj donde ahora mismo es mediodia y un tope de una hora: la
+// medianoche queda a doce horas y el tope, pasado. Se devuelven los dos despues.
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = $2, assigned_at = now(),
+     started_at = now() where id = $1`,
+  [colgada, olvidadizo],
+)
+await db.query(
+  `update site set max_flow = max_flow, max_shift_hours = 1, time_zone = (
+     select case when o <= 0 then 'Etc/GMT+' || (-o)::text else 'Etc/GMT-' || o::text end
+     from (select (12 - extract(hour from now() at time zone 'UTC'))::int as o) s
+   )`.replace('max_flow = max_flow, ', ''),
+)
+await db.query(
+  `update shift_assignment
+     set ended_at = null, auto_closed = false, started_at = now() - interval '2 hours'
+   where id = $1`,
+  [viejo],
+)
+await one(`select cerrar_turnos_vencidos()`)
+check(
+  (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [viejo]))
+    .abierto === true,
+  'con una tarea en curso no se le cierra el turno a nadie',
+)
+// Y al que sigue trabajando de mas tampoco, con el mismo reloj puesto.
 const { id: dePlanta } = await one(
   `insert into auth.users (email) values ('deplanta@ejemplo.test') returning id`,
 )
@@ -394,7 +423,7 @@ await db.query(
 )
 const { id: dobleTurno } = await one(
   `insert into shift_assignment (profile_id, started_at)
-   values ($1, now() - interval '14 hours') returning id`,
+   values ($1, now() - interval '2 hours') returning id`,
   [dePlanta],
 )
 await one(
@@ -411,21 +440,8 @@ check(
   'al que sigue trabajando de mas no se le corta el turno',
 )
 
-// Y con algo en la mano tampoco: un pallet a medio camino necesita que alguien lo resuelva.
 await db.query(
-  `update task set status = 'IN_PROGRESS', assigned_to = $2, assigned_at = now(),
-     started_at = now() where id = $1`,
-  [colgada, olvidadizo],
-)
-await db.query(
-  `update shift_assignment set ended_at = null, auto_closed = false where id = $1`,
-  [viejo],
-)
-await one(`select cerrar_turnos_vencidos()`)
-check(
-  (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [viejo]))
-    .abierto === true,
-  'con una tarea en curso no se le cierra el turno a nadie',
+  `update site set max_shift_hours = 12, time_zone = 'America/Tegucigalpa'`,
 )
 
 // El cierre a mano tambien suelta lo no empezado: faltaba desde la 0025.
@@ -485,6 +501,68 @@ const senal = await one(
 check(
   Number(senal.horas) === 6,
   'la ultima senal de vida de un turno es la de ese turno, no la de uno posterior',
+)
+
+// --- la medianoche cierra todo -------------------------------------------------------------
+
+// Lo pidio Jose: «por si no cierran jornada, pon que a todos se les cierra a las 12 de la
+// noche». El tope de horas solo alcanza a quien entro temprano; el que entra a las dos de la
+// tarde no lo pasa hasta las dos de la madrugada.
+
+const { id: deTarde } = await one(
+  `insert into auth.users (email) values ('detarde@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
+    where id = '${deTarde}'`,
+)
+
+// Entro ayer a media tarde —hora de la bodega— y sigue abierto. No ha pasado el tope de 12
+// horas contado desde que entro... pero si paso la medianoche de su dia.
+const { id: ayer } = await one(
+  `insert into shift_assignment (profile_id, started_at)
+   values ($1, ((current_date - 1 + interval '15 hours') at time zone reloj_de_bodega()))
+   returning id`,
+  [deTarde],
+)
+// Y anda con algo en la mano, que al tope si lo frena pero a la medianoche no.
+await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
+     started_at)
+   values ('PUTAWAY', 'IN_PROGRESS', $1, 10, $2, now() - interval '20 hours',
+     now() - interval '20 hours', now() - interval '20 hours')`,
+  [prod, deTarde],
+)
+
+await one(`select cerrar_turnos_vencidos()`)
+const cortado = await one(
+  `select auto_closed, ended_at = medianoche_de_su_dia(started_at) as a_medianoche
+   from shift_assignment where id = $1`,
+  [ayer],
+)
+check(
+  cortado.auto_closed === true && cortado.a_medianoche === true,
+  'la medianoche cierra el turno aunque la persona ande con una tarea en la mano',
+)
+
+// Y al que entro hoy no lo toca: su medianoche no ha llegado.
+const { id: deHoy } = await one(
+  `insert into auth.users (email) values ('dehoy@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
+    where id = '${deHoy}'`,
+)
+const { id: hoyAbierto } = await one(
+  `insert into shift_assignment (profile_id, started_at) values ($1, now() - interval '5 minutes')
+   returning id`,
+  [deHoy],
+)
+await one(`select cerrar_turnos_vencidos()`)
+check(
+  (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [hoyAbierto]))
+    .abierto === true,
+  'y al que entro hoy no se le toca el turno: su medianoche no ha llegado',
 )
 
 await db.close()

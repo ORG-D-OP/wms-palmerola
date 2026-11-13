@@ -44,7 +44,7 @@ await one(
   [producto, posicion],
 )
 
-const { id: anden } = await one(`select id from dock_door where code = 'AND-S-03'`)
+const { id: anden } = await one(`select id from dock_door where code = 'AND-03'`)
 const { id: camion } = await one(
   `insert into sales_order (code, customer, dock_door_id, transporte, entregas)
    values ('PED-001', 'Walmart', $1, '3916464', array['0314014533','0314015681']) returning id`,
@@ -160,7 +160,7 @@ await one(
   [cajaOtro],
 )
 
-const { id: anden2 } = await one(`select id from dock_door where code = 'AND-S-04'`)
+const { id: anden2 } = await one(`select id from dock_door where code = 'AND-04'`)
 const { id: segundo } = await one(
   `insert into sales_order (code, customer, dock_door_id, transporte)
    values ('PED-010', 'Pricesmart', $1, '3916470') returning id`,

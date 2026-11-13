@@ -141,7 +141,7 @@ check(ajeno?.includes('no está en'), 'una matricula que no esta ahi se rechaza 
 // El recuento del dia a dia
 // ---------------------------------------------------------------------------------------
 
-const { id: dock } = await one(`select id from dock_door where code = 'AND-S-03'`)
+const { id: dock } = await one(`select id from dock_door where code = 'AND-03'`)
 const { id: pedido } = await one(
   `insert into sales_order (code, customer, dock_door_id) values ('PED-C1', 'Cliente', $1)
    returning id`,

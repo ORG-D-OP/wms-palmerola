@@ -31,10 +31,10 @@ const { id: caja } = await one(
 )
 
 const { id: andenIngreso, code: codigoIngreso } = await one(
-  `select id, code from location where code like 'STG-AND-N-%' order by code limit 1`,
+  `select location_id as id, 'STG-' || anden as code from anden_de_recibo order by anden limit 1`,
 )
-const { id: andenSalida } = await one(`select id from dock_door where code = 'AND-S-03'`)
-const { id: posicionSalida } = await one(`select id from location where code = 'STG-AND-S-03'`)
+const { id: andenSalida } = await one(`select id from dock_door where code = 'AND-03'`)
+const { id: posicionSalida } = await one(`select id from location where code = 'STG-AND-03'`)
 
 const { id: camion } = await one(
   `insert into sales_order (code, customer, dock_door_id, transporte)
@@ -52,7 +52,7 @@ await one(
 const falta = await todas(`select * from falta_para_despacho($1)`, [producto])
 check(falta.length === 1 && falta[0].order_id === camion, 'el camión que necesita el producto aparece')
 check(Number(falta[0].falta) === 960, 'con lo que le falta, en unidades')
-check(falta[0].anden === 'AND-S-03', 'y el andén donde está cargando')
+check(falta[0].anden === 'AND-03', 'y el andén donde está cargando')
 
 const { id: otroProducto } = await one(
   `insert into product (sku, name, base_uom) values ('X-2', 'Otro', 'ST') returning id`,
@@ -78,14 +78,14 @@ const opciones = await todas(`select * from crossdock_posible('PAL-X-001')`)
 check(opciones.length === 1 && opciones[0].order_id === camion, 'al operario se le ofrece ese camión')
 check(Number(opciones[0].faltan_cajas) === 40, 'y se le dice cuántas cajas le faltan, en cajas')
 
-const andenAjeno = await falla(`select * from crossdock('PAL-X-001', $1, 'AND-S-01')`, [camion])
+const andenAjeno = await falla(`select * from crossdock('PAL-X-001', $1, 'AND-01')`, [camion])
 check(
-  andenAjeno?.includes('carga en el andén AND-S-03'),
+  andenAjeno?.includes('carga en el andén AND-03'),
   'si el andén escaneado no es el del camión, no pasa nada',
 )
 
-const paso = await one(`select * from crossdock('PAL-X-001', $1, 'STG-AND-S-03')`, [camion])
-check(paso.anden === 'AND-S-03', 'el crossdock lo manda al andén del camión')
+const paso = await one(`select * from crossdock('PAL-X-001', $1, 'STG-AND-03')`, [camion])
+check(paso.anden === 'AND-03', 'el crossdock lo manda al andén del camión')
 check(Number(paso.cajas) === 40, 'con las cajas que trae el pallet')
 check(paso.etiqueta === '3916464', 'y dice a qué transporte se fue')
 
