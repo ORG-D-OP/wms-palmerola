@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import { textoCajas } from '@/lib/cajas'
 
 export type Linea = {
   lineNo: number
@@ -84,8 +85,9 @@ export async function recargarDespacho(id: string): Promise<{ ok: true; camion: 
 /**
  * Marcar en la hoja lo que subió al camión.
  *
- * El chequeador no cuenta cajas aquí: la cantidad ya la dice la línea. Lo que hace es decir
- * «esto está arriba», y lo que queda sin marcar es lo que falta.
+ * Un escaneo marca la línea entera, y por eso el aviso dice **cuántas cajas** acaba de dar por
+ * arriba: «Tostada: 25 cajas arriba». Antes decía sólo «Tostada marcado», así que el
+ * chequeador confirmaba una cantidad que la pantalla no le ponía delante.
  */
 export async function chequear(
   id: string,
@@ -107,11 +109,15 @@ export async function chequear(
   const recargado = await cargar(supabase, id)
   if (!recargado.ok) return recargado
 
+  const linea = recargado.camion.detalle.find((l) => l.lineNo === marcada?.linea)
+
   return {
     ...recargado,
     aviso: marcada?.ya_estaba
       ? `${marcada.nombre} ya estaba marcado.`
-      : `${marcada?.nombre ?? 'Línea'} marcado.`,
+      : linea
+        ? `${marcada?.nombre ?? 'Línea'}: ${textoCajas(linea.surtido, linea.porCaja)} arriba.`
+        : `${marcada?.nombre ?? 'Línea'} marcado.`,
   }
 }
 

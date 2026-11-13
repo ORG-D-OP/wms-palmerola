@@ -230,9 +230,20 @@ export function IngresoForm({
             <p>{ultimo.name}</p>
             <p className="text-sm text-azul/60">{ultimo.cases} cajas</p>
           </div>
+          {/*
+            Aquí no dice «llévalo»: el que recibe no se mueve del andén. Ve bajar el producto,
+            lo chequea y dice si pasa; el viaje de guardarlo le cae a un auxiliar o a un
+            montacarguista, que lo toma de la cola en «Guardar». La posición se enseña porque
+            es lo que el sistema ya reservó para ese pallet, no porque sea una orden para él.
+          */}
           <div>
-            <p className="text-sm text-azul/60">Llévalo a</p>
+            <p className="text-sm text-azul/60">Queda para</p>
             <p className="text-4xl tabular-nums">{ultimo.locationCode ?? 'Sin hueco libre'}</p>
+            <p className="mt-1 text-sm text-azul/60">
+              {ultimo.locationCode
+                ? 'Lo guarda quien tome la tarea.'
+                : 'Avisa al jefe: no hay hueco libre para este producto.'}
+            </p>
           </div>
         </div>
       ) : null}

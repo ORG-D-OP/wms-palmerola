@@ -13,6 +13,12 @@ export type SessionUser = {
   role: UserRole
   /** El rango más lo concedido para cubrir. De aquí salen los permisos. */
   roles: UserRole[]
+  /**
+   * Con qué está trabajando **hoy**, que no es lo mismo que su rango: el chequeador de rango
+   * que baja a ayudar entra a trabajar de auxiliar y le caen viajes; el que está de chequeador
+   * no se mueve del andén. Sin turno abierto, su rango.
+   */
+  workingRole: UserRole
 }
 
 /** cache() evita repetir la consulta cuando varios componentes del mismo render la piden. */
@@ -36,12 +42,20 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const rango = rolDe(profile.role)
   const concedidos = (profile.roles_extra ?? []).map(rolDe)
 
+  const { data: turno } = await supabase
+    .from('shift_assignment')
+    .select('working_role')
+    .eq('profile_id', user.id)
+    .is('ended_at', null)
+    .maybeSingle()
+
   return {
     id: user.id,
     email: user.email ?? null,
     fullName: profile.full_name,
     role: rango,
     roles: [...new Set([rango, ...concedidos])],
+    workingRole: turno?.working_role ? rolDe(turno.working_role) : rango,
   }
 })
 

@@ -5163,6 +5163,10 @@ export type Database = {
         }
         Returns: string
       }
+      tareas_de: {
+        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Returns: Database["public"]["Enums"]["task_type"][]
+      }
       texto_cajas: {
         Args: { p_por_caja: number; p_qty: number }
         Returns: string

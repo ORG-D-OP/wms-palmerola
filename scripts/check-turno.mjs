@@ -318,23 +318,26 @@ const { id: prod } = await one(
    returning id`,
 )
 
-// Entro anteayer, termino una tarea esa misma tarde y no volvio a dar senales.
+// Entro anteayer a las seis de la manana, termino una tarea ocho horas despues y no volvio a
+// dar senales. La hora va clavada y no colgada de `now()`: si el turno empezara a las nueve de
+// la noche, su medianoche llegaria antes que la ultima senal y la cerraria ahi —que es lo
+// correcto, pero ya no es lo que esta prueba mide—.
+const entro = `((current_date - 2 + interval '6 hours') at time zone reloj_de_bodega())`
 const { id: viejo } = await one(
-  `insert into shift_assignment (profile_id, started_at)
-   values ($1, now() - interval '48 hours') returning id`,
+  `insert into shift_assignment (profile_id, started_at) values ($1, ${entro}) returning id`,
   [olvidadizo],
 )
 await one(
   `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
      started_at, completed_at)
-   values ('PUTAWAY', 'DONE', $1, 10, $2, now() - interval '48 hours',
-     now() - interval '48 hours', now() - interval '47 hours', now() - interval '40 hours')`,
+   values ('PUTAWAY', 'DONE', $1, 10, $2, ${entro}, ${entro},
+     ${entro} + interval '1 hour', ${entro} + interval '8 hours')`,
   [prod, olvidadizo],
 )
 const { id: colgada } = await one(
   `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at)
-   values ('PUTAWAY', 'ASSIGNED', $1, 10, $2, now() - interval '41 hours',
-     now() - interval '41 hours') returning id`,
+   values ('PUTAWAY', 'ASSIGNED', $1, 10, $2, ${entro} + interval '2 hours',
+     ${entro} + interval '2 hours') returning id`,
   [prod, olvidadizo],
 )
 
@@ -563,6 +566,76 @@ check(
   (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [hoyAbierto]))
     .abierto === true,
   'y al que entro hoy no se le toca el turno: su medianoche no ha llegado',
+)
+
+// ---------------------------------------------------------------------------------------
+// Al que no se mueve del anden no le caen viajes (0079)
+// ---------------------------------------------------------------------------------------
+
+// El chequeador ve bajar el producto, lo revisa y dice a donde va; el viaje le cae a otro. El
+// sistema le estaba dando tareas de guardar y de surtir porque el reparto mira el rango y el
+// alcance, y el rol del turno no lo volvia a mirar nadie.
+const { id: revisor } = await one(
+  `insert into auth.users (email) values ('chequeador@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'chequeador'
+     where id = '${revisor}'`,
+)
+await como(revisor)
+await one(`select iniciar_turno(null, 'BOTH')`)
+
+const suyas = await one(
+  `select tareas_de('chequeador') = array['COUNT']::task_type[] as solo_conteo,
+          'PUTAWAY' = any(tareas_de('auxiliar')) as aux_guarda,
+          'PICK' = any(tareas_de('montacargista')) as mc_surte`,
+)
+check(suyas.solo_conteo === true, 'de chequeador solo le cae el conteo: ni guardar ni surtir')
+check(suyas.aux_guarda === true, 'al auxiliar le sigue cayendo todo')
+check(suyas.mc_surte === true, 'y al montacarguista tambien')
+
+const { id: porGuardar } = await one(
+  `insert into task (type, status, product_id, qty_base, priority, min_level, flow)
+   values ('PUTAWAY', 'READY', $1, 240, 900, 0, 'INBOUND') returning id`,
+  [producto],
+)
+
+const noLeToca = await fails(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  noLeToca?.includes('no te toca ir a dejar'),
+  'al chequeador no se le da la tarea de guardar, y se le dice por que',
+)
+check(
+  (await one(`select status, assigned_to from task where id = $1`, [porGuardar])).assigned_to === null,
+  'y la tarea queda libre para el que si la puede hacer',
+)
+
+const niSurtir = await fails(`select * from claim_next_task(array['PICK']::task_type[])`)
+check(niSurtir !== null, 'tampoco la de surtir: el lee el tabulado y espera en el anden')
+
+// Pedir sin decir de que tipo tampoco le trae el viaje: lo que no es suyo no se le reparte.
+const aCiegas = await one(`select * from claim_next_task()`)
+check(aCiegas.id === null, 'y pidiendo trabajo a secas no le cae el viaje de otro')
+
+// El conteo si: eso estaba decidido, y es lo que puede hacer entre camion y camion.
+const { id: porContar } = await one(
+  `insert into task (type, status, product_id, qty_base, priority, min_level)
+   values ('COUNT', 'READY', $1, 1, 900, 0) returning id`,
+  [producto],
+)
+const contando = await one(`select * from claim_next_task(array['COUNT']::task_type[])`)
+check(contando.id === porContar, 'el conteo si le cae: le toca a cualquiera')
+
+// Y el chequeador de rango que hoy baja a ayudar de auxiliar guarda pallets como todos: lo que
+// decide es el rol del turno, no el puesto. Si esto se colgara del permiso, se rompe.
+await como(jefe)
+await one(`select * from conceder_roles($1, array['auxiliar']::user_role[])`, [revisor])
+await como(revisor)
+await one(`select trabajar_como('auxiliar')`)
+const bajoAAyudar = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  bajoAAyudar.id === porGuardar,
+  'pero si baja a ayudar de auxiliar, el mismo pallet si le cae',
 )
 
 await db.close()

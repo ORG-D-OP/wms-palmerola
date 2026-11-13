@@ -76,8 +76,8 @@ export default async function DashboardPage() {
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
-  const accesos = atajos(user.roles)
-  const enLaBarra = new Set(navMovil(user.roles).map((i) => i.href))
+  const accesos = atajos(user.roles, user.workingRole)
+  const enLaBarra = new Set(navMovil(user.roles, user.workingRole).map((i) => i.href))
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
