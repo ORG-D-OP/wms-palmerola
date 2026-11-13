@@ -29,8 +29,13 @@ export default function ErrorDeLaApp({
     <main className="flex w-full max-w-md flex-1 flex-col gap-5 p-4 pb-8">
       <h1 className="text-xl">Algo se cayó</h1>
 
+      {/*
+        Aquí no se puede decir qué pasó —en producción Next borra el mensaje y sólo queda el
+        número—, así que tampoco se puede prometer nada sobre lo que quedó hecho. Nombra la
+        causa más común, que es el permiso, sin afirmar que es ésa.
+      */}
       <Aviso>
-        No se pudo hacer eso. No es culpa tuya y no se perdió nada de lo que ya habías escaneado.
+        Eso no se hizo. Puede que no te toque a ti, o que algo se cayera: vuelve a intentarlo.
       </Aviso>
 
       <p className="text-sm text-azul/60">
