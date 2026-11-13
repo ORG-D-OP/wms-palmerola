@@ -466,4 +466,109 @@ await one(`select despachar($1)`, [camionC])
 const salioC = await one(`select status from sales_order where id = $1`, [camionC])
 check(salioC.status === 'SHIPPED', 'y sale completo, sin nota de excepcion')
 
+// --- el camion sale aunque el pallet no se haya vaciado (0076) ----------------------------
+
+/**
+ * Lo que faltaba por probar, y por eso el fallo llego hasta la prueba a clic: surtir **cajas
+ * de un pallet que no se vacia** y cerrar el camion. Lo de arriba despacha los dos casos
+ * buenos —tareas cerradas a mano, sin movimiento, y pallets completos— y ninguno del malo.
+ *
+ * Cuando queda algo en el pallet, lo surtido entra al anden **sin matricula**, y la salida se
+ * armaba con la matricula del movimiento: pedia descontar una combinacion que en el anden no
+ * existe. El camion no salia nunca.
+ *
+ * Los dos camiones de aqui son el caso que no se arregla mirando la existencia: del mismo
+ * pallet sale primero una parte —que se desprende— y despues el resto —que se lo lleva
+ * entero—, los dos al mismo anden. El anden acaba con dos renglones, uno con matricula y otro
+ * sin ella, y los dos movimientos dicen lo mismo. Sin el dato apuntado, uno de los dos sobra.
+ */
+const { id: tostada } = await one(
+  `insert into product (sku, name, base_uom) values ('P-5', 'Tostada', 'ST') returning id`,
+)
+await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 24)`,
+  [tostada],
+)
+const { id: palletD } = await one(
+  `insert into lpn (code, level, source) values ('PAL-TEST-2', 'PALLET', 'NEST') returning id`,
+)
+const { id: enPicking2 } = await one(`select id from location where code = 'F1-002-05'`)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, $3::uuid)`,
+  [tostada, enPicking2, palletD],
+)
+
+const surtirDe = async (pedido, cajas) => {
+  const { id: tarea } = await one(
+    `select a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+     where l.order_id = $1`,
+    [pedido],
+  )
+  await db.query(
+    `update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`,
+    [tarea],
+  )
+  return one(`select * from complete_pick($1, 'P-5', $2)`, [tarea, cajas])
+}
+
+const nuevoCamion = async (codigo, transporte, cajas) => {
+  const { id } = await one(
+    `insert into sales_order (code, dock_door_id, transporte) values ($1, $2, $3) returning id`,
+    [codigo, anden, transporte],
+  )
+  await one(
+    `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+     values ($1, 1, $2, (select id from packaging_level where product_id = $2 and code = 'CASE'), $3)`,
+    [id, tostada, cajas * 24],
+  )
+  await one(`select release_order($1) as n`, [id])
+  return id
+}
+
+const camionE = await nuevoCamion('PED-007', '4000003', 1)
+const suelto = await surtirDe(camionE, 1)
+check(Number(suelto.surtido) === 24, 'se surte una caja del pallet y el pallet no se vacia')
+
+const camionF = await nuevoCamion('PED-008', '4000004', 9)
+const resto = await surtirDe(camionF, 9)
+check(Number(resto.surtido) === 216, 'y despues sale el resto del mismo pallet, entero')
+
+const enAnden = await db.query(
+  `select s.lpn_id, s.qty_base from stock s join location l on l.id = s.location_id
+   where l.code = 'STG-AND-03' and s.product_id = $1 and s.qty_base > 0
+   order by s.lpn_id nulls first`,
+  [tostada],
+)
+check(
+  enAnden.rows.length === 2 &&
+    enAnden.rows[0].lpn_id === null &&
+    enAnden.rows[1].lpn_id === palletD,
+  'en el anden quedan los dos renglones: lo desprendido sin matricula y el resto con ella',
+)
+
+await one(`select despachar($1)`, [camionE])
+const salioE = await one(`select status from sales_order where id = $1`, [camionE])
+check(salioE.status === 'SHIPPED', 'el camion de la caja desprendida sale')
+
+await one(`select despachar($1)`, [camionF])
+const salioF = await one(`select status from sales_order where id = $1`, [camionF])
+check(salioF.status === 'SHIPPED', 'y el del resto del pallet tambien')
+
+const andenVacio = await one(
+  `select coalesce(sum(s.qty_base), 0) as q from stock s join location l on l.id = s.location_id
+   where l.code = 'STG-AND-03' and s.product_id = $1`,
+  [tostada],
+)
+check(Number(andenVacio.q) === 0, 'y el anden queda vacio de ese producto: nada se quedo atras')
+
+const detalle = await db.query(
+  `select sm.detached from stock_movement sm
+   where sm.type = 'PICK' and sm.product_id = $1 order by sm.id`,
+  [tostada],
+)
+check(
+  detalle.rows[0].detached === true && detalle.rows[1].detached === false,
+  'y el movimiento apunta cual se desprendio, en vez de dejarlo a adivinar',
+)
+
 await db.close()
