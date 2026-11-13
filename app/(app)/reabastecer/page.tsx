@@ -54,7 +54,7 @@ export default async function ReabastecerPage() {
 
           <ul className="flex flex-col divide-y divide-borde">
             {filas.map((f) => (
-              <li key={`${f.posicion}-${f.lot ?? ''}`} className="flex flex-col gap-1.5 py-3">
+              <li key={`${f.posicion}-${f.sku}`} className="flex flex-col gap-1.5 py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 truncate">
                     <span className="tabular-nums">{f.posicion}</span>

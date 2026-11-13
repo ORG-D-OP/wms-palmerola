@@ -300,3 +300,60 @@ check(fuera?.includes('entre 1 y 100'), 'un aviso fuera de rango se rechaza')
 await como(operario)
 const ajeno = await fails(`select ajustar_aviso_reabastecimiento('PICKING', 70::smallint)`)
 check(ajeno?.includes('Sólo el jefe'), 'y el liston no lo mueve cualquiera')
+
+// ---------------------------------------------------------------------------------------
+// Lo que el aviso contaba mal (0066)
+// ---------------------------------------------------------------------------------------
+
+await como(jefe)
+await one(`select ajustar_aviso_reabastecimiento('PICKING', 50::smallint)`)
+
+// Una posicion de picking lleva un saldo por lote y por matricula: el resto del lote viejo y
+// el pallet que acaban de bajar son dos filas. Lo que importa es cuanto hay en la posicion.
+const otra = await one(`select id, code from location where code = 'F1-001-07'`)
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 60,
+     p_to_location_id => $2, p_lot => 'VIEJO', p_expiry => '2027-01-31')`,
+  [productId, otra.id],
+)
+const soloViejo = await one(`select pct from picking_bajo where posicion = $1`, [otra.code])
+check(Number(soloViejo?.pct) === 25, 'con un cuarto de lo que cabe la posicion sale en el aviso')
+
+const { id: palletReab } = await one(
+  `insert into lpn (code) values ('SN26REAB01') returning id`,
+)
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 80,
+     p_to_location_id => $2, p_lpn_id => $3, p_lot => 'NUEVO', p_expiry => '2027-03-31')`,
+  [productId, otra.id, palletReab],
+)
+const sumada = await one(
+  `select count(*)::int as n from picking_bajo where posicion = $1`,
+  [otra.code],
+)
+check(sumada.n === 0, 'y el pallet que la reabastece la saca del aviso, aunque sea de otro lote')
+
+// Al vaciarse del todo el saldo se queda en cero en vez de desaparecer, asi que la posicion
+// salia del aviso justo en el peor momento.
+await one(
+  `select post_movement(p_type => 'MOVE', p_product_id => $1, p_qty => 200,
+     p_from_location_id => $2, p_to_location_id => $3, p_lot => 'BAJO',
+     p_expiry => '2027-09-30')`,
+  [productId, hueco.id, anden.id],
+)
+const vacia = await one(
+  `select pct, disponible from picking_bajo where posicion = $1`,
+  [hueco.code],
+)
+check(
+  Number(vacia?.pct) === 0 && Number(vacia?.disponible) === 0,
+  'la posicion que se quedo en nada sigue en el aviso, en cero',
+)
+
+const lista = (await db.query(`select posicion, pct from picking_bajo`)).rows
+check(
+  lista.every((f, i) => i === 0 || Number(lista[i - 1].pct) <= Number(f.pct)) &&
+    Number(lista[0].pct) === 0 &&
+    lista.slice(0, 3).some((f) => f.posicion === hueco.code),
+  'y la lista va de la que peor esta a la que mejor, con las vacias arriba',
+)

@@ -3126,10 +3126,6 @@ export type Database = {
       picking_bajo: {
         Row: {
           disponible: number | null
-          expiry_date: string | null
-          hay_en_origen: number | null
-          lot: string | null
-          lote_origen: string | null
           pct: number | null
           por_caja: number | null
           posicion: string | null
