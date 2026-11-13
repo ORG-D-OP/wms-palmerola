@@ -1,5 +1,6 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { plural } from '@/lib/plural'
 
 export const metadata = { title: 'Indicadores · WMS Palmerola' }
 
@@ -21,7 +22,8 @@ const fecha = (dia: string) =>
  * explicar en vez de sólo compararse.
  *
  * El desglose por persona va aparte, en una función que exige el rango: los números de cada
- * quien no los ve cualquiera.
+ * quien no los ve cualquiera. Y dice cuántos de sus turnos los cerró el sistema, porque esas
+ * horas son un cálculo: sin eso, un número bajo no se distingue de un turno olvidado.
  */
 export default async function KpiPage() {
   await requirePermission('kpi:ver')
@@ -134,6 +136,12 @@ export default async function KpiPage() {
                     ? ''
                     : ` · ${numero(num(p.improductivo_pct))}% improductivo`}
                 </span>
+                {Number(p.turnos_calculados ?? 0) > 0 ? (
+                  <span className="text-xs text-azul/60">
+                    El sistema cerró {plural(Number(p.turnos_calculados), 'turno', 'turnos')} que
+                    nadie cerró al irse: esas horas son un cálculo.
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>

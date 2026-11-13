@@ -299,4 +299,142 @@ check(
   'sin abrir otro turno: es el mismo',
 )
 
+// --- el turno que nadie cerro se cierra solo -----------------------------------------------
+
+// Lo que arregla: nadie cierra el turno al irse, y en la base real quedo uno de 89.9 horas.
+// Mientras sigue abierto, lo que tenia asignado y no empezo es suyo y nadie mas lo puede
+// tomar.
+
+const { id: olvidadizo } = await one(
+  `insert into auth.users (email) values ('olvida@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'montacargista'
+    where id = '${olvidadizo}'`,
+)
+
+const { id: prod } = await one(
+  `insert into product (sku, name, base_uom) values ('TRN-1', 'Jugo de turno', 'ST')
+   returning id`,
+)
+
+// Entro anteayer, termino una tarea esa misma tarde y no volvio a dar senales.
+const { id: viejo } = await one(
+  `insert into shift_assignment (profile_id, started_at)
+   values ($1, now() - interval '48 hours') returning id`,
+  [olvidadizo],
+)
+await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
+     started_at, completed_at)
+   values ('PUTAWAY', 'DONE', $1, 10, $2, now() - interval '48 hours',
+     now() - interval '48 hours', now() - interval '47 hours', now() - interval '40 hours')`,
+  [prod, olvidadizo],
+)
+const { id: colgada } = await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at)
+   values ('PUTAWAY', 'ASSIGNED', $1, 10, $2, now() - interval '41 hours',
+     now() - interval '41 hours') returning id`,
+  [prod, olvidadizo],
+)
+
+check(
+  (await one(`select cerrar_turnos_vencidos() as n`)).n === 1,
+  'el turno que nadie cerro se cierra solo',
+)
+const cerrado = await one(
+  `select auto_closed, round(extract(epoch from (ended_at - started_at)) / 3600) as horas
+   from shift_assignment where id = $1`,
+  [viejo],
+)
+check(
+  Number(cerrado.horas) === 8,
+  'y se cierra a la ultima senal de vida —la tarea que termino—, no a las 48 horas que llevaba',
+)
+check(cerrado.auto_closed === true, 'queda marcado, porque esa hora es un calculo y no un dato')
+check(
+  (await one(`select status, assigned_to from task where id = $1`, [colgada])).status === 'READY',
+  'y lo que tenia asignado sin empezar vuelve a la cola de todos',
+)
+
+// Sin ninguna senal de vida no hay con que calcular: queda el tope de horas, que es la cota.
+const { id: sinRastro } = await one(
+  `insert into auth.users (email) values ('sinrastro@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
+    where id = '${sinRastro}'`,
+)
+const { id: sinTareas } = await one(
+  `insert into shift_assignment (profile_id, started_at)
+   values ($1, now() - interval '30 hours') returning id`,
+  [sinRastro],
+)
+await one(`select cerrar_turnos_vencidos()`)
+check(
+  Number(
+    (
+      await one(
+        `select round(extract(epoch from (ended_at - started_at)) / 3600) as horas
+         from shift_assignment where id = $1`,
+        [sinTareas],
+      )
+    ).horas,
+  ) === 12,
+  'y al que no dejo rastro se le cuenta el tope del sitio, no las 30 horas que estuvo abierto',
+)
+
+// Al que sigue trabajando no se le corta el turno, aunque pase del tope.
+const { id: dePlanta } = await one(
+  `insert into auth.users (email) values ('deplanta@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'chequeador'
+    where id = '${dePlanta}'`,
+)
+const { id: dobleTurno } = await one(
+  `insert into shift_assignment (profile_id, started_at)
+   values ($1, now() - interval '14 hours') returning id`,
+  [dePlanta],
+)
+await one(
+  `insert into task (type, status, product_id, qty_base, assigned_to, created_at, assigned_at,
+     started_at, completed_at)
+   values ('PUTAWAY', 'DONE', $1, 10, $2, now() - interval '2 hours',
+     now() - interval '2 hours', now() - interval '2 hours', now() - interval '10 minutes')`,
+  [prod, dePlanta],
+)
+await one(`select cerrar_turnos_vencidos()`)
+check(
+  (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [dobleTurno]))
+    .abierto === true,
+  'al que sigue trabajando de mas no se le corta el turno',
+)
+
+// Y con algo en la mano tampoco: un pallet a medio camino necesita que alguien lo resuelva.
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = $2, assigned_at = now(),
+     started_at = now() where id = $1`,
+  [colgada, olvidadizo],
+)
+await db.query(
+  `update shift_assignment set ended_at = null, auto_closed = false where id = $1`,
+  [viejo],
+)
+await one(`select cerrar_turnos_vencidos()`)
+check(
+  (await one(`select ended_at is null as abierto from shift_assignment where id = $1`, [viejo]))
+    .abierto === true,
+  'con una tarea en curso no se le cierra el turno a nadie',
+)
+
+// El cierre a mano tambien suelta lo no empezado: faltaba desde la 0025.
+await db.query(`update task set status = 'ASSIGNED' where id = $1`, [colgada])
+await como(olvidadizo)
+check((await one(`select cerrar_turno() as n`)).n === 1, 'el cierre a mano cierra su turno')
+check(
+  (await one(`select status from task where id = $1`, [colgada])).status === 'READY',
+  'y suelta lo asignado sin empezar, que ya no es trabajo de quien se fue',
+)
+
 await db.close()

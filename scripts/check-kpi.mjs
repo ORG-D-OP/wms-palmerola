@@ -167,6 +167,20 @@ check(
   'y a cada quien sus cajas y sus horas',
 )
 
+// Un turno que cerro el sistema se dice, porque esas horas son un calculo: sin eso, un
+// numero bajo no se distingue de un turno que nadie cerro.
+await db.query(
+  `update shift_assignment set auto_closed = true where profile_id = $1 and ended_at is not null`,
+  [jefe],
+)
+const conCalculo = (await db.query(`select * from kpi_por_persona()`)).rows.find(
+  (r) => r.profile_id === jefe,
+)
+check(
+  Number(conCalculo.turnos_calculados) === 1,
+  'el desglose dice cuantos de sus turnos los cerro el sistema',
+)
+
 const rangoAlReves = await falla(
   `select * from kpi_por_persona(current_date, current_date - 5)`,
 )

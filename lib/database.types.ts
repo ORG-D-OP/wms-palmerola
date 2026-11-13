@@ -1939,6 +1939,7 @@ export type Database = {
       }
       shift_assignment: {
         Row: {
+          auto_closed: boolean
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
@@ -1952,6 +1953,7 @@ export type Database = {
           working_role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
+          auto_closed?: boolean
           dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
@@ -1965,6 +1967,7 @@ export type Database = {
           working_role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
+          auto_closed?: boolean
           dock_door_id?: string | null
           ended_at?: string | null
           equipment_id?: string | null
@@ -2017,6 +2020,7 @@ export type Database = {
       }
       site: {
         Row: {
+          close_after_idle_minutes: number
           code: string
           created_at: string
           id: string
@@ -2025,6 +2029,7 @@ export type Database = {
           time_zone: string
         }
         Insert: {
+          close_after_idle_minutes?: number
           code: string
           created_at?: string
           id?: string
@@ -2033,6 +2038,7 @@ export type Database = {
           time_zone?: string
         }
         Update: {
+          close_after_idle_minutes?: number
           code?: string
           created_at?: string
           id?: string
@@ -4046,6 +4052,7 @@ export type Database = {
         }
       }
       cerrar_turno: { Args: never; Returns: number }
+      cerrar_turnos_vencidos: { Args: never; Returns: number }
       claim_next_task: {
         Args: {
           p_types?: Database["public"]["Enums"]["task_type"][]
@@ -4261,6 +4268,7 @@ export type Database = {
         Args: { p_rol: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
       }
+      espera_antes_de_cerrar: { Args: never; Returns: string }
       existencia_de: {
         Args: { p_texto: string }
         Returns: {
@@ -4357,6 +4365,7 @@ export type Database = {
           p_tipo_equipo?: string
         }
         Returns: {
+          auto_closed: boolean
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
@@ -4378,7 +4387,7 @@ export type Database = {
       }
       kpi_dias_atras: { Args: never; Returns: number }
       kpi_por_persona: {
-        Args: { p_desde: string; p_hasta: string }
+        Args: { p_desde?: string; p_hasta?: string }
         Returns: {
           cajas: number
           cajas_por_hora: number
@@ -4389,6 +4398,7 @@ export type Database = {
           profile_id: string
           rol: Database["public"]["Enums"]["user_role"]
           tareas: number
+          turnos_calculados: number
         }[]
       }
       lanzar_conteo: {
@@ -4439,6 +4449,7 @@ export type Database = {
       pausar_turno: {
         Args: { p_motivo?: string }
         Returns: {
+          auto_closed: boolean
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
@@ -4532,6 +4543,7 @@ export type Database = {
       reanudar_turno: {
         Args: never
         Returns: {
+          auto_closed: boolean
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
@@ -4710,6 +4722,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"][]
       }
+      soltar_lo_de: { Args: { p_profile_id: string }; Returns: number }
       soltar_lo_no_empezado: { Args: never; Returns: number }
       soltar_tareas_del_turno: { Args: never; Returns: number }
       start_pick: {
@@ -4836,6 +4849,7 @@ export type Database = {
       trabajar_como: {
         Args: { p_rol: Database["public"]["Enums"]["user_role"] }
         Returns: {
+          auto_closed: boolean
           dock_door_id: string | null
           ended_at: string | null
           equipment_id: string | null
