@@ -12,7 +12,9 @@ export type Job = {
   lpnCode: string | null
   productName: string
   sku: string
+  /** En unidades base: la pantalla lo dice en cajas y sueltas. */
   qty: number
+  porCaja: number
   lot: string | null
   fromCode: string | null
   toCode: string | null
@@ -41,7 +43,7 @@ export async function claimPutaway(): Promise<{ ok: true; job: Job | null } | Fa
     .select(
       `id, qty_base, lot,
        lpn(code),
-       product(sku, name),
+       product(sku, name, packaging_level(code, qty_base_units)),
        from_location:location!task_from_location_id_fkey(code),
        to_location:location!task_to_location_id_fkey(code)`,
     )
@@ -60,6 +62,10 @@ export async function claimPutaway(): Promise<{ ok: true; job: Job | null } | Fa
       productName: data.product?.name ?? '',
       sku: data.product?.sku ?? '',
       qty: Number(data.qty_base),
+      porCaja:
+        Number(
+          (data.product?.packaging_level ?? []).find((n) => n.code === 'CASE')?.qty_base_units ?? 1,
+        ) || 1,
       lot: data.lot,
       fromCode: data.from_location?.code ?? null,
       toCode,

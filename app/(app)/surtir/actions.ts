@@ -11,7 +11,9 @@ export type Pick = {
   taskId: string
   productName: string
   sku: string
+  /** En unidades base: lo que la tarea pide. La pantalla lo dice en cajas y sueltas. */
   qty: number
+  porCaja: number
   lot: string | null
   expiry: string | null
   fromCode: string | null
@@ -43,7 +45,7 @@ export async function claimPick(): Promise<{ ok: true; pick: Pick | null } | Fai
     .select(
       `id, qty_base, lot, expiry_date, lpn_id,
        lpn(code),
-       product(sku, name),
+       product(sku, name, packaging_level(code, qty_base_units)),
        from_location:location!task_from_location_id_fkey(code),
        to_location:location!task_to_location_id_fkey(code)`,
     )
@@ -54,6 +56,10 @@ export async function claimPick(): Promise<{ ok: true; pick: Pick | null } | Fai
 
   const fromCode = data.from_location?.code ?? null
   const qty = Number(data.qty_base)
+  const porCaja =
+    Number(
+      (data.product?.packaging_level ?? []).find((n) => n.code === 'CASE')?.qty_base_units ?? 1,
+    ) || 1
 
   // Un pallet se va entero cuando la tarea pide todo lo que ese pallet tiene en esa
   // posición. Eso cambia la pantalla: se confirma con la matrícula y no se cuenta nada.
@@ -76,6 +82,7 @@ export async function claimPick(): Promise<{ ok: true; pick: Pick | null } | Fai
       productName: data.product?.name ?? '',
       sku: data.product?.sku ?? '',
       qty,
+      porCaja,
       lot: data.lot,
       expiry: data.expiry_date,
       fromCode,
@@ -102,11 +109,14 @@ export async function startPick(taskId: string, code: string) {
   return error ? fallo(error) : { ok: true as const }
 }
 
-const Confirm = Scan.extend({ qty: z.coerce.number().positive().max(100000) })
+const Confirm = Scan.extend({
+  cajas: z.coerce.number().min(0).max(100000),
+  sueltas: z.coerce.number().min(0).max(100000),
+})
 
-export async function completePick(taskId: string, code: string, qty: number) {
+export async function completePick(taskId: string, code: string, cajas: number, sueltas: number) {
   await requirePermission('surtido:ejecutar')
-  const parsed = Confirm.safeParse({ taskId, code, qty })
+  const parsed = Confirm.safeParse({ taskId, code, cajas, sueltas })
   if (!parsed.success) return { ok: false as const, error: 'Revisa los datos.' }
 
   const supabase = await createSupabaseServerClient()
@@ -114,10 +124,11 @@ export async function completePick(taskId: string, code: string, qty: number) {
     .rpc('complete_pick', {
       p_task_id: parsed.data.taskId,
       p_barcode: parsed.data.code,
-      p_qty: parsed.data.qty,
+      p_cajas: parsed.data.cajas,
+      p_sueltas: parsed.data.sueltas,
     })
     .single()
 
   if (error) return fallo(error)
-  return { ok: true as const, surtido: Number(data?.surtido ?? parsed.data.qty) }
+  return { ok: true as const, texto: data?.texto ?? '' }
 }

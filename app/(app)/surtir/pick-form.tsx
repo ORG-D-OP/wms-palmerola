@@ -7,6 +7,7 @@ import { WarehouseCanvas } from '@/components/warehouse-canvas'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { SinTarea } from '@/components/ui/sin-tarea'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
+import { desglose, textoCajas } from '@/lib/cajas'
 import { Icon } from '@/components/ui/icon'
 import { claimPick, completePick, startPick, type Pick } from './actions'
 
@@ -71,18 +72,28 @@ export function PickForm() {
     setError(null)
     const destino = pick.toCode
     startTransition(async () => {
-      const res = await completePick(pick.taskId, codigo, Number(datos.get('qty')))
-      if (!res.ok) return setError(res.error)
+      const res = await completePick(
+        pick.taskId,
+        codigo,
+        Number(datos.get('cajas') ?? 0),
+        Number(datos.get('sueltas') ?? 0),
+      )
+      if (!res.ok) {
+        // Sin limpiar el código no hay forma de volver a escanear: la pantalla se pega.
+        setCodigo(null)
+        return setError(res.error)
+      }
       setRecibo(
         pick.palletEntero
           ? `Pallet completo dejado en ${destino}.`
-          : `${res.surtido} cajas dejadas en ${destino}.`,
+          : `${res.texto} dejadas en ${destino}.`,
       )
       tomar()
     })
   }
 
   const aviso = recibo ? <Logro>{recibo}</Logro> : null
+  const pedido = desglose(pick?.qty ?? 0, pick?.porCaja ?? 1)
 
   if (paso === 'buscando') {
     return (
@@ -109,7 +120,7 @@ export function PickForm() {
       <div className="rounded-xl bg-azul-08 p-3">
         <p>{pick?.productName}</p>
         <p className="text-sm text-azul/60">
-          {pick?.sku} · {pick?.qty} cajas
+          {pick?.sku} · {pick ? textoCajas(pick.qty, pick.porCaja) : ''}
           {pick?.lot ? ` · lote ${pick.lot}` : ''}
           {pick?.expiry ? ` · vence ${pick.expiry}` : ''}
         </p>
@@ -155,7 +166,7 @@ export function PickForm() {
               label={
                 pick?.palletEntero
                   ? 'Escanea la matrícula del pallet'
-                  : 'Escanea el código de la caja'
+                  : 'Escanea el código de la caja o la matrícula'
               }
               disabled={pending}
               onScan={(c) => setCodigo(c.trim())}
@@ -163,21 +174,38 @@ export function PickForm() {
           ) : (
             <form action={confirmar} className="flex flex-col gap-4">
               {pick?.palletEntero ? (
-                <input type="hidden" name="qty" value={pick.qty} />
+                <>
+                  <input type="hidden" name="cajas" value={pedido.cajas} />
+                  <input type="hidden" name="sueltas" value={pedido.sueltas} />
+                </>
               ) : (
-                <label className="flex flex-col gap-1.5">
-                  <span className={ETIQUETA}>Cajas que tomaste</span>
-                  <input
-                    name="qty"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={pick?.qty}
-                    required
-                    defaultValue={pick?.qty}
-                    className={CAMPO}
-                  />
-                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ETIQUETA}>Cajas que tomaste</span>
+                    <input
+                      name="cajas"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      required
+                      defaultValue={pedido.cajas}
+                      className={CAMPO}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ETIQUETA}>Sueltas</span>
+                    <input
+                      name="sueltas"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      required
+                      defaultValue={pedido.sueltas}
+                      disabled={(pick?.porCaja ?? 1) <= 1}
+                      className={CAMPO}
+                    />
+                  </label>
+                </div>
               )}
               <button type="submit" disabled={pending} className={BOTON}>
                 {pending ? 'Guardando...' : pick?.palletEntero ? 'Me llevo el pallet' : 'Confirmar'}

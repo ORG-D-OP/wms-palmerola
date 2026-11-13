@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Lanzar, type Opcion } from './lanzar'
 import { plural } from '@/lib/plural'
+import { textoCajas } from '@/lib/cajas'
 
 export const metadata = { title: 'Conteos · WMS Palmerola' }
 
@@ -25,16 +26,7 @@ const CLASES: Record<string, string> = {
 const diferencia = (r: { diferencia: number | null; por_caja: number | null }) => {
   const unidades = Number(r.diferencia ?? 0)
   if (unidades === 0) return 'cuadra'
-
-  const porCaja = Number(r.por_caja || 1)
-  const sobran = Math.abs(unidades)
-  const cajas = Math.floor(sobran / porCaja)
-  const sueltas = sobran - cajas * porCaja
-  const signo = unidades > 0 ? '+' : '-'
-
-  if (cajas === 0) return `${signo}${sueltas} sueltas`
-  if (sueltas === 0) return `${signo}${cajas} cajas`
-  return `${signo}${cajas} cajas y ${sueltas} sueltas`
+  return `${unidades > 0 ? '+' : '-'}${textoCajas(Math.abs(unidades), Number(r.por_caja || 1))}`
 }
 
 const fecha = (iso: string | null) =>

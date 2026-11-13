@@ -242,13 +242,18 @@ check(
 
 const comoSeDice = await one(
   `select texto_cajas(955, 24) as mixto, texto_cajas(48, 24) as redondo,
-          texto_cajas(7, 24) as poquito`,
+          texto_cajas(7, 24) as poquito, texto_cajas(25, 24) as una,
+          texto_cajas(1, 24) as suelta`,
 )
 check(
   comoSeDice.mixto === '39 cajas y 19 sueltas' &&
     comoSeDice.redondo === '2 cajas' &&
     comoSeDice.poquito === '7 sueltas',
   'una cantidad se dice como en la bodega: cajas, y sueltas solo si las hay',
+)
+check(
+  comoSeDice.una === '1 caja y 1 suelta' && comoSeDice.suelta === '1 suelta',
+  'y en singular cuando es una: «1 cajas y 1 sueltas» no lo dice nadie',
 )
 
 const movCount = await one(
@@ -385,9 +390,14 @@ await db.query(
    values ($1, 'PRUEBACONTEO01', 'CODE128', true)`,
   [caja],
 )
-const surtido = await one(`select * from complete_pick($1, 'PRUEBACONTEO01', $2)`, [
+const { cajas: cajasMenos, sueltas: sueltasMenos } = await one(
+  `select * from desglose((select product_id from task where id = $1), $2)`,
+  [enMano.id, menos],
+)
+const surtido = await one(`select * from complete_pick($1, 'PRUEBACONTEO01', $2, $3)`, [
   enMano.id,
-  menos,
+  cajasMenos,
+  sueltasMenos,
 ])
 check(
   Number(surtido.surtido) === menos,

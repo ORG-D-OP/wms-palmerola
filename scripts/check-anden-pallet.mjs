@@ -108,7 +108,10 @@ await como(dos)
 const movida = await one(`select * from claim_next_task(array['MOVE']::task_type[])`)
 check(movida.id === interna.id, 'una tarea sin anden le cae a cualquiera')
 
-// El jefe lo mueve de anden y la cola cambia con el.
+// El jefe lo mueve de anden y la cola cambia con el. Primero termina lo que trae: la cola
+// devuelve lo que uno ya tiene en la mano antes que nada (0061), y aqui se mira el filtro de
+// anden sobre el trabajo libre.
+await db.query(`update task set status = 'DONE', completed_at = now() where id = $1`, [delA.id])
 const delB = await tarea('PUTAWAY', stgB.id, posicion)
 await como(uno)
 const noLeToca = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
@@ -119,6 +122,7 @@ await db.query(`select asignar_anden($1, $2)`, [uno, andenB.code])
 await como(uno)
 const ahoraSi = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(ahoraSi.id === delB.id, 'el jefe lo mueve de anden y la cola se mueve con el')
+await db.query(`update task set status = 'DONE', completed_at = now() where id = $1`, [delB.id])
 
 await como(jefe)
 await db.query(`select asignar_anden($1, null)`, [dos])
@@ -353,10 +357,24 @@ await db.query(
 const { code: codigoRack } = await one(`select code from location where id = $1`, [posRack])
 await db.query(`select start_pick($1, $2)`, [tareaEntera, codigoRack])
 
-const ajeno = await falla(`select * from complete_pick($1, 'PAL-ENTERO-0', 480)`, [tareaEntera])
+// La pantalla manda cajas y sueltas, no unidades: lo que la persona cuenta.
+const { cajas: cajasEnteras, sueltas: sueltasEnteras } = await one(
+  `select * from desglose((select product_id from task where id = $1), 480)`,
+  [tareaEntera],
+)
+
+const ajeno = await falla(`select * from complete_pick($1, 'PAL-ENTERO-0', $2, $3)`, [
+  tareaEntera,
+  cajasEnteras,
+  sueltasEnteras,
+])
 check(ajeno !== null, 'la matricula de otro pallet no sirve de prueba')
 
-const surtido = await one(`select * from complete_pick($1, 'PAL-SURTIR', 480)`, [tareaEntera])
+const surtido = await one(`select * from complete_pick($1, 'PAL-SURTIR', $2, $3)`, [
+  tareaEntera,
+  cajasEnteras,
+  sueltasEnteras,
+])
 check(
   Number(surtido.surtido) === 480,
   'la matricula del pallet confirma el surtido: no hay que romper el emplayado para leer una caja',

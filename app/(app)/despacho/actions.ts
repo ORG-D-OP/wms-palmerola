@@ -9,6 +9,8 @@ export type Linea = {
   lineNo: number
   sku: string
   name: string
+  porCaja: number
+  /** Todo en unidades base: la pantalla las dice en cajas y sueltas. */
   pedido: number
   apartado: number
   surtido: number
@@ -139,7 +141,7 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       supabase
         .from('order_line')
         .select(
-          'line_no, qty_base, checked_at, product(sku, name), allocation(qty_base, task(status))',
+          'line_no, qty_base, checked_at, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status))',
         )
         .eq('order_id', id)
         .order('line_no'),
@@ -153,6 +155,10 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
     lineNo: l.line_no,
     sku: l.product?.sku ?? '',
     name: l.product?.name ?? '',
+    porCaja:
+      Number(
+        (l.product?.packaging_level ?? []).find((n) => n.code === 'CASE')?.qty_base_units ?? 1,
+      ) || 1,
     pedido: Number(l.qty_base),
     apartado: (l.allocation ?? []).reduce((suma, a) => suma + Number(a.qty_base), 0),
     surtido: (l.allocation ?? [])
