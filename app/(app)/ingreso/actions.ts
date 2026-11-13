@@ -349,3 +349,66 @@ export async function mandarACrossdock(
 
   return { ok: true, anden: data.anden, cajas: Number(data.cajas), etiqueta: data.etiqueta }
 }
+
+/**
+ * El pallet mixto, que es la excepción: se descubre en el andén y se desarma ahí mismo, así
+ * que cada producto sale como su propio pallet con su matrícula y su posición.
+ */
+const ProductoMixto = z.object({
+  codigo: z.string().trim().min(3).max(48),
+  cases: z.coerce.number().positive().max(9999),
+  lot: z.string().trim().max(40).optional(),
+  expiry: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Escribe el vencimiento.'),
+})
+
+const ReciboMixto = z.object({
+  pedido: Pedido,
+  dockLocationId: z.uuid(),
+  palletCode: z.union([z.literal(''), z.string().trim().min(4).max(32)]).optional(),
+  productos: z
+    .array(ProductoMixto)
+    .min(2, 'Un pallet mixto lleva al menos dos productos.')
+    .max(20, 'Son demasiados productos para un pallet.'),
+})
+
+export type Pieza = {
+  lpnCode: string
+  locationCode: string | null
+  sku: string
+  name: string
+  cases: number
+}
+
+export async function recibirMixto(
+  datos: z.input<typeof ReciboMixto>,
+): Promise<{ ok: true; madre: string; piezas: Pieza[] } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = ReciboMixto.safeParse(datos)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Revisa los datos.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.rpc('recibir_mixto', {
+    p_pedido: parsed.data.pedido,
+    p_productos: parsed.data.productos,
+    p_dock_location_id: parsed.data.dockLocationId,
+    p_pallet_code: parsed.data.palletCode || undefined,
+  })
+
+  if (error) return fallo(error)
+  if (!data?.length) return { ok: false, error: 'No se pudo registrar el pallet.' }
+
+  return {
+    ok: true,
+    madre: data[0]!.madre,
+    piezas: data.map((p) => ({
+      lpnCode: p.lpn_code,
+      locationCode: p.to_location_code,
+      sku: p.sku,
+      name: p.product_name,
+      cases: Number(p.cases),
+    })),
+  }
+}

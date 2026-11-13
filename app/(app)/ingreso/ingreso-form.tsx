@@ -237,6 +237,7 @@ export function IngresoForm({ docks }: { docks: Dock[] }) {
               setUltimo(recibido)
               cargar(doc.pedido)
             }}
+            onRecargar={() => cargar(doc.pedido)}
           />
           <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
             Terminé de descargar: cerrar el acta

@@ -74,8 +74,12 @@ export default async function ReabastecerPage() {
                 </div>
 
                 <span className="text-sm text-azul/70">
-                  Le quedan {textoCajas(Number(f.disponible ?? 0), Number(f.por_caja ?? 1))} de{' '}
-                  {textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}
+                  {Number(f.disponible ?? 0) === 0
+                    ? `Está vacía, y caben ${textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}`
+                    : `Le quedan ${textoCajas(
+                        Number(f.disponible ?? 0),
+                        Number(f.por_caja ?? 1),
+                      )} de ${textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}`}
                 </span>
 
                 {f.sacar_de ? (
