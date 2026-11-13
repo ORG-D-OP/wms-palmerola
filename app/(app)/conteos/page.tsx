@@ -127,16 +127,23 @@ export default async function ConteosPage() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg">Últimos recuentos</h2>
           <ul className="flex flex-col divide-y divide-borde text-sm">
+            {/*
+              En dos renglones, no en cuatro columnas: «-20 cajas y 21 sueltas» al lado de la
+              fecha, la posición y el nombre no cabe en un teléfono de 395 px, y lo que se
+              salía de la pantalla era justo el número.
+            */}
             {(ultimos ?? []).map((r) => (
-              <li key={r.id} className="flex items-baseline gap-3 py-2">
-                <span className="w-24 shrink-0 tabular-nums text-azul/60">
-                  {fecha(r.counted_at)}
+              <li key={r.id} className="flex flex-col gap-0.5 py-2">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="shrink-0 tabular-nums">{r.posicion}</span>
+                  <span className="shrink-0 tabular-nums">{diferencia(r)}</span>
                 </span>
-                <span className="w-24 shrink-0 tabular-nums">{r.posicion}</span>
-                <span className="min-w-0 flex-1 truncate text-azul/60">
-                  {r.sku} · {r.persona ?? ''}
+                <span className="flex items-baseline justify-between gap-3 text-azul/60">
+                  <span className="min-w-0 truncate">
+                    {r.sku} · {r.persona ?? ''}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{fecha(r.counted_at)}</span>
                 </span>
-                <span className="shrink-0 tabular-nums">{diferencia(r)}</span>
               </li>
             ))}
           </ul>

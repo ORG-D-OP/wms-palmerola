@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import { porQueNoHayNada } from '@/lib/tareas'
 import type { Cara } from '@/components/rack-face'
 import { caraDe } from '@/lib/warehouse/cara'
 
@@ -30,13 +31,17 @@ function fallo(error: { code?: string; message: string }): Fail {
   return { ok: false, error: toErrorResponse(error).body.error }
 }
 
-export async function claimPutaway(): Promise<{ ok: true; job: Job | null } | Fail> {
+export async function claimPutaway(): Promise<
+  { ok: true; job: Job | null; motivo?: string } | Fail
+> {
   await requirePermission('inventario:mover')
   const supabase = await createSupabaseServerClient()
 
   const { data: task, error } = await supabase.rpc('claim_next_task', { p_types: ['PUTAWAY'] })
   if (error) return fallo(error)
-  if (!task?.id) return { ok: true, job: null }
+  if (!task?.id) {
+    return { ok: true, job: null, motivo: await porQueNoHayNada(supabase, 'PUTAWAY', 'guardar') }
+  }
 
   const { data } = await supabase
     .from('task')

@@ -3499,6 +3499,7 @@ export type Database = {
       picking_bajo: {
         Row: {
           disponible: number | null
+          ocupada_por: string | null
           pct: number | null
           por_caja: number | null
           posicion: string | null

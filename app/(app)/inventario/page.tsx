@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Buscador } from './buscador'
+import { plural } from '@/lib/plural'
 
 export const metadata = { title: 'Inventario · WMS Palmerola' }
 
@@ -100,7 +101,7 @@ export default async function InventarioPage({
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-azul/70">
                   <span className="tabular-nums">
-                    {f.cajas} cajas
+                    {plural(Number(f.cajas ?? 0), 'caja', 'cajas')}
                     {Number(f.sueltas) > 0 ? ` y ${Number(f.sueltas)} sueltas` : ''}
                   </span>
                   {f.lot ? <span>lote {f.lot}</span> : null}

@@ -5,6 +5,7 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { mandarACrossdock, opcionesCrossdock, type OpcionCrossdock } from './actions'
+import { plural } from '@/lib/plural'
 
 /**
  * La salida que se ofrece en el momento en que el sistema acaba de decir dónde guardar.
@@ -101,7 +102,7 @@ export function Crossdock({
           <span>
             <span className="block tabular-nums">{o.anden}</span>
             <span className="block text-xs text-azul/60">
-              {o.etiqueta} · le faltan {o.faltanCajas.toLocaleString('es-HN')} cajas
+              {o.etiqueta} · le faltan {plural(o.faltanCajas, 'caja', 'cajas')}
             </span>
           </span>
           <span className="text-sm underline underline-offset-4">Mandarlo ahí</span>

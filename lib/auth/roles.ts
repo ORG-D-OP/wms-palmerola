@@ -54,7 +54,6 @@ const PERMISSIONS = {
   'ingresos:administrar': ['chequeador', 'supervisor', 'admin'],
   'despachos:administrar': ['chequeador', 'supervisor', 'admin'],
   'areas:administrar': ['supervisor', 'admin'],
-  'flota:administrar': ['supervisor', 'admin'],
   'tareas:reasignar': ['supervisor', 'admin'],
   'kpi:ver': ['supervisor', 'admin', 'solo_lectura'],
   'personal:administrar': ['supervisor', 'admin'],
