@@ -5,6 +5,7 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { buscarProducto, recibirMixto, type Pieza } from './actions'
+import { plural } from '@/lib/plural'
 
 type Renglon = {
   codigo: string
@@ -104,7 +105,7 @@ export function Mixto({
               <span className="min-w-0">
                 <span className="block truncate">{p.name}</span>
                 <span className="block text-sm text-azul/60">
-                  {p.sku} · {p.cases} cajas
+                  {p.sku} · {plural(p.cases, 'caja', 'cajas')}
                 </span>
                 <span className="block font-mono text-xs">{p.lpnCode}</span>
               </span>
@@ -147,7 +148,7 @@ export function Mixto({
               <span className="min-w-0">
                 <span className="block truncate">{r.name}</span>
                 <span className="block text-sm text-azul/60 tabular-nums">
-                  {r.cases} cajas · vence {r.expiry}
+                  {plural(Number(r.cases), 'caja', 'cajas')} · vence {r.expiry}
                   {r.lot ? ` · lote ${r.lot}` : ''}
                 </span>
               </span>

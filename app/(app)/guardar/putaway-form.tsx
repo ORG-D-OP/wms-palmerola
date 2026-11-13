@@ -33,6 +33,8 @@ export function PutawayForm() {
   const [verCara, setVerCara] = useState(false)
   const [guardadoEn, setGuardadoEn] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Por qué no hay nada: casi nunca es que la bodega esté al día. Ver `porQueNoHayNada`.
+  const [motivo, setMotivo] = useState('No hay nada que guardar ahora.')
   const [pending, startTransition] = useTransition()
 
   const tomar = useCallback(() => {
@@ -45,6 +47,7 @@ export function PutawayForm() {
       }
       if (!res.job) {
         setJob(null)
+        if (res.motivo) setMotivo(res.motivo)
         return setPaso('sin')
       }
       setJob(res.job)
@@ -90,7 +93,7 @@ export function PutawayForm() {
     return (
       <div className="flex flex-col gap-4">
         {recibo}
-        <SinTarea texto="No hay nada que guardar ahora." error={error} reintentar={tomar} />
+        <SinTarea texto={motivo} error={error} reintentar={tomar} />
       </div>
     )
   }

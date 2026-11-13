@@ -450,3 +450,60 @@ check(
   apartado.rows.length > 0 && apartado.rows.every((f) => f.lot !== 'VENCIDO'),
   'el reparto salta lo vencido, aunque sea lo primero que pide el FEFO',
 )
+
+// --- la posicion no esta huecoVacio: la tiene otro (0081) --------------------------------------
+
+/**
+ * Un renglon en cero es lo que dice «esta posicion es de este producto», y por eso una
+ * posicion que se vacio sigue saliendo en el aviso. Pero si mientras tanto alguien dejo otro
+ * producto ahi, el aviso mandaba un viaje que el propio escaneo del destino rechaza: decia
+ * «esta huecoVacio, y caben 240 cajas» de una posicion con producto encima.
+ */
+const { id: jabonEstorbo } = await one(
+  `insert into product (sku, name, base_uom) values ('P-OCUPA', 'Jabon que estorba', 'ST')
+   returning id`,
+)
+await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 12)`,
+  [jabonEstorbo],
+)
+const { id: huecoAjeno } = await one(`select id from location where code = 'F1-001-04'`)
+
+// El renglon en cero del producto de picking: la posicion es suya y esta huecoVacio.
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 50,
+     p_to_location_id => $2, p_lot => 'SEVA', p_expiry => '2027-09-30')`,
+  [productId, huecoAjeno],
+)
+await one(
+  `select post_movement(p_type => 'MOVE', p_product_id => $1, p_qty => 50,
+     p_from_location_id => $2, p_to_location_id => (select id from location where code = 'F1-015-06'),
+     p_lot => 'SEVA', p_expiry => '2027-09-30')`,
+  [productId, huecoAjeno],
+)
+
+const huecoVacio = await one(
+  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-001-04' and sku <> 'P-OCUPA'`,
+)
+check(
+  huecoVacio !== undefined && Number(huecoVacio.disponible) === 0 && huecoVacio.ocupada_por === null,
+  'una posicion de picking vacia sale en el aviso y no tiene a nadie ocupandola',
+)
+
+// Y ahora alguien deja otro producto ahi.
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 36,
+     p_to_location_id => $2)`,
+  [jabonEstorbo, huecoAjeno],
+)
+const huecoOcupado = await one(
+  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-001-04' and sku <> 'P-OCUPA'`,
+)
+check(
+  huecoOcupado !== undefined && Number(huecoOcupado.disponible) === 0,
+  'la posicion sigue saliendo: el picking de ese producto de verdad esta en cero',
+)
+check(
+  huecoOcupado?.ocupada_por === 'Jabon que estorba',
+  `pero el aviso nombra al que la tiene en vez de prometer un hueco (${huecoOcupado?.ocupada_por})`,
+)

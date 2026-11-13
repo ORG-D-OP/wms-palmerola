@@ -4,8 +4,10 @@ import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
+import { textoCajas } from '@/lib/cajas'
 
 export type Linea = {
+  id: string
   lineNo: number
   sku: string
   name: string
@@ -15,6 +17,8 @@ export type Linea = {
   apartado: number
   surtido: number
   chequeada: boolean
+  /** Lo que el chequeador dijo que subió de verdad. Nulo mientras no la haya chequeado. */
+  arriba: number | null
 }
 
 export type Camion = {
@@ -84,8 +88,9 @@ export async function recargarDespacho(id: string): Promise<{ ok: true; camion: 
 /**
  * Marcar en la hoja lo que subió al camión.
  *
- * El chequeador no cuenta cajas aquí: la cantidad ya la dice la línea. Lo que hace es decir
- * «esto está arriba», y lo que queda sin marcar es lo que falta.
+ * Un escaneo marca la línea entera, y por eso el aviso dice **cuántas cajas** acaba de dar por
+ * arriba: «Tostada: 25 cajas arriba». Antes decía sólo «Tostada marcado», así que el
+ * chequeador confirmaba una cantidad que la pantalla no le ponía delante.
  */
 export async function chequear(
   id: string,
@@ -107,12 +112,43 @@ export async function chequear(
   const recargado = await cargar(supabase, id)
   if (!recargado.ok) return recargado
 
+  const linea = recargado.camion.detalle.find((l) => l.lineNo === marcada?.linea)
+
   return {
     ...recargado,
     aviso: marcada?.ya_estaba
       ? `${marcada.nombre} ya estaba marcado.`
-      : `${marcada?.nombre ?? 'Línea'} marcado.`,
+      : linea
+        ? `${marcada?.nombre ?? 'Línea'}: ${textoCajas(linea.surtido, linea.porCaja)} arriba.`
+        : `${marcada?.nombre ?? 'Línea'} marcado.`,
   }
+}
+
+/**
+ * Corregir la cantidad que subió: el chequeador cuenta y la hoja decía otra cosa.
+ *
+ * Se manda en cajas, que es como se cuenta un camión. Más de lo que bajó al andén la base no
+ * lo acepta, y lo que no subió se queda en el andén cuando el camión sale.
+ */
+export async function corregirCantidad(
+  orderId: string,
+  lineaId: string,
+  cajas: number,
+): Promise<{ ok: true; camion: Camion } | Fail> {
+  await requirePermission('despachos:administrar')
+
+  if (!Number.isInteger(cajas) || cajas < 0) {
+    return { ok: false, error: 'Escribe cuántas cajas subieron.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('corregir_chequeo', {
+    p_order_line_id: lineaId,
+    p_cajas: cajas,
+  })
+  if (error) return fallo(error)
+
+  return cargar(supabase, orderId)
 }
 
 export async function despachar(
@@ -141,7 +177,7 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       supabase
         .from('order_line')
         .select(
-          'line_no, qty_base, checked_at, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status))',
+          'id, line_no, qty_base, checked_at, checked_qty_base, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status))',
         )
         .eq('order_id', id)
         .order('line_no'),
@@ -152,6 +188,7 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
   if (!resumen) return { ok: false, error: 'Ese camión ya no existe.' }
 
   const detalle: Linea[] = (lineas ?? []).map((l) => ({
+    id: l.id,
     lineNo: l.line_no,
     sku: l.product?.sku ?? '',
     name: l.product?.name ?? '',
@@ -165,6 +202,7 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       .filter((a) => a.task?.status === 'DONE')
       .reduce((suma, a) => suma + Number(a.qty_base), 0),
     chequeada: l.checked_at !== null,
+    arriba: l.checked_qty_base === null ? null : Number(l.checked_qty_base),
   }))
 
   return {

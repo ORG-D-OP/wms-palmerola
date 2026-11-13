@@ -21,13 +21,21 @@ const TODOS = [
     permiso: 'inventario:mover',
     movil: true,
   },
-  { href: '/guardar', label: 'Guardar', icon: 'shelves', permiso: 'inventario:mover', movil: true },
+  {
+    href: '/guardar',
+    label: 'Guardar',
+    icon: 'shelves',
+    permiso: 'inventario:mover',
+    movil: true,
+    viaje: true,
+  },
   {
     href: '/surtir',
     label: 'Surtir',
     icon: 'shopping_basket',
     permiso: 'surtido:ejecutar',
     movil: true,
+    viaje: true,
   },
   { href: '/inventario', label: 'Buscar', icon: 'search', permiso: 'inventario:ver', movil: true },
   {
@@ -57,6 +65,7 @@ const TODOS = [
     icon: 'swap_horiz',
     permiso: 'inventario:mover',
     movil: false,
+    viaje: true,
   },
   {
     href: '/contar',
@@ -101,6 +110,13 @@ const TODOS = [
   icon: string
   permiso: Permission | null
   movil: boolean
+  /**
+   * Pantallas que mandan a caminar: tomar una tarea y llevar un pallet de un lado a otro. Al
+   * que trabaja de chequeador no se le ofrecen, porque no se mueve del andén. Quien manda es
+   * la base —`claim_next_task` no le reparte esas tareas—; esto sólo evita el botón que
+   * siempre contesta que no.
+   */
+  viaje?: boolean
 }[]
 
 export type NavItem = { href: string; label: string; icon: string }
@@ -110,8 +126,24 @@ type Roles = UserRole | readonly UserRole[]
 const permitido = (roles: Roles, permiso: Permission | null) =>
   permiso === null || can(roles, permiso)
 
-export function navParaRol(role: Roles): NavItem[] {
-  return TODOS.filter((i) => permitido(role, i.permiso)).map(({ href, label, icon }) => ({
+/**
+ * El rango dice a qué tiene derecho; el rol del turno, a qué le toca hoy. Un chequeador de
+ * rango que entró a trabajar de auxiliar guarda pallets como todos, y por eso el viaje se mira
+ * aparte del permiso.
+ */
+/**
+ * El rol del turno esconde las pantallas de viaje, pero nunca a quien anda con algo en la
+ * mano: la tarea empezada es suya hasta que la cierre, y `trabajar_como` no deja cambiar de
+ * rol con algo empezado. Sin esto, cambiarse a chequeador a media tarea deja encerrado.
+ */
+export type Trabajo = { rol?: UserRole; enMano?: boolean }
+
+const visible = (roles: Roles, trabajo: Trabajo, item: (typeof TODOS)[number]) =>
+  permitido(roles, item.permiso) &&
+  (!('viaje' in item) || trabajo.rol !== 'chequeador' || trabajo.enMano === true)
+
+export function navParaRol(role: Roles, trabajo: Trabajo = {}): NavItem[] {
+  return TODOS.filter((i) => visible(role, trabajo, i)).map(({ href, label, icon }) => ({
     href,
     label,
     icon,
@@ -119,8 +151,8 @@ export function navParaRol(role: Roles): NavItem[] {
 }
 
 /** Lo que cabe en la barra inferior del teléfono. */
-export function navMovil(role: Roles): NavItem[] {
-  return TODOS.filter((i) => i.movil && permitido(role, i.permiso))
+export function navMovil(role: Roles, trabajo: Trabajo = {}): NavItem[] {
+  return TODOS.filter((i) => i.movil && visible(role, trabajo, i))
     .map(({ href, label, icon }) => ({ href, label, icon }))
     .slice(0, 5)
 }
@@ -138,8 +170,8 @@ export function navMovil(role: Roles): NavItem[] {
  * que no son de mano se enseñan en el teléfono y se esconden en pantalla grande, donde la
  * barra de arriba ya las lleva. La misma fila de enlaces dos veces no ayuda a nadie.
  */
-export function atajos(role: Roles): (NavItem & { movil: boolean })[] {
-  return TODOS.filter((i) => i.href !== '/' && permitido(role, i.permiso)).map(
+export function atajos(role: Roles, trabajo: Trabajo = {}): (NavItem & { movil: boolean })[] {
+  return TODOS.filter((i) => i.href !== '/' && visible(role, trabajo, i)).map(
     ({ href, label, icon, movil }) => ({ href, label, icon, movil }),
   )
 }

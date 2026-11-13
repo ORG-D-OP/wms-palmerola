@@ -13,6 +13,7 @@ import {
   type Producto,
   type Sugerencia,
 } from './actions'
+import { plural } from '@/lib/plural'
 
 const fecha = (iso: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('es-HN') : '—'
@@ -108,7 +109,8 @@ export function CargaForm() {
         </p>
         {ultimo ? (
           <Logro>
-            {ultimo.cases} cajas de {ultimo.sku} en {ultimo.posicion} · {ultimo.matricula}
+            {plural(ultimo.cases, 'caja', 'cajas')} de {ultimo.sku} en {ultimo.posicion} ·{' '}
+            {ultimo.matricula}
           </Logro>
         ) : null}
         {error ? <Aviso>{error}</Aviso> : null}
@@ -133,7 +135,7 @@ export function CargaForm() {
 
         {ultimo ? (
           <Logro>
-            {ultimo.cases} cajas en {ultimo.posicion} · {ultimo.matricula}
+            {plural(ultimo.cases, 'caja', 'cajas')} en {ultimo.posicion} · {ultimo.matricula}
           </Logro>
         ) : null}
         {ultimo?.aviso ? <Aviso>{ultimo.aviso}</Aviso> : null}

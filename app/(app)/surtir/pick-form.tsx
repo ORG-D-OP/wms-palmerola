@@ -31,6 +31,9 @@ export function PickForm() {
   const [codigo, setCodigo] = useState<string | null>(null)
   const [recibo, setRecibo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Por qué no hay nada: no es lo mismo que la bodega esté al día que que lo que queda esté
+  // en alturas que su equipo no alcanza, del otro lado o en otro andén.
+  const [motivo, setMotivo] = useState('No hay nada que surtir ahora.')
   const [pending, startTransition] = useTransition()
 
   const tomar = useCallback(() => {
@@ -44,6 +47,7 @@ export function PickForm() {
       }
       if (!res.pick) {
         setPick(null)
+        if (res.motivo) setMotivo(res.motivo)
         return setPaso('sin')
       }
       setPick(res.pick)
@@ -108,7 +112,7 @@ export function PickForm() {
     return (
       <div className="flex flex-col gap-4">
         {aviso}
-        <SinTarea texto="No hay nada que surtir ahora." error={error} reintentar={tomar} />
+        <SinTarea texto={motivo} error={error} reintentar={tomar} />
       </div>
     )
   }

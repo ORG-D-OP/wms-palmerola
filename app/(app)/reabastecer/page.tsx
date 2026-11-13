@@ -74,13 +74,33 @@ export default async function ReabastecerPage() {
                 </div>
 
                 <span className="text-sm text-azul/70">
-                  {Number(f.disponible ?? 0) === 0
-                    ? `Está vacía, y caben ${textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}`
-                    : `Le quedan ${textoCajas(
+                  {Number(f.disponible ?? 0) > 0
+                    ? `Le quedan ${textoCajas(
                         Number(f.disponible ?? 0),
                         Number(f.por_caja ?? 1),
-                      )} de ${textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}`}
+                      )} de ${textoCajas(Number(f.tope ?? 0), Number(f.por_caja ?? 1))}`
+                    : f.ocupada_por
+                      ? `Sin producto, y caben ${textoCajas(
+                          Number(f.tope ?? 0),
+                          Number(f.por_caja ?? 1),
+                        )}`
+                      : `Está vacía, y caben ${textoCajas(
+                          Number(f.tope ?? 0),
+                          Number(f.por_caja ?? 1),
+                        )}`}
                 </span>
+
+                {/*
+                  Decía «está vacía» de una posición que tenía otro producto, y el viaje lo
+                  rechazaba después el propio escaneo del destino. Si la tiene otro, se nombra:
+                  eso es lo que hay que resolver antes de mover nada.
+                */}
+                {f.ocupada_por ? (
+                  <span className="flex items-center gap-1.5 text-sm text-rojo">
+                    <Icon name="error" className="!text-[18px]" />
+                    La posición la tiene {f.ocupada_por}: hay que sacarlo primero
+                  </span>
+                ) : null}
 
                 {f.sacar_de ? (
                   <span className="flex items-center gap-1.5 text-sm">

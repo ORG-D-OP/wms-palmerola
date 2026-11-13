@@ -7,13 +7,10 @@ import { ROLE_LABELS, esDeTrabajo, type UserRole } from '@/lib/auth/roles'
 import { hora } from '@/lib/warehouse/hora'
 import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno, trabajarComo } from './actions'
 
-export type Equipo = { id: string; code: string; tipo: string; alcance: number; libre: boolean }
-
 /** Los tipos de equipo: lo que se declara al entrar, porque de ahí sale el alcance. */
 export type Tipo = { code: string; name: string; alcance: number }
 
 export type Turno = {
-  equipo: string | null
   tipo: string | null
   alcance: number
   desde: string

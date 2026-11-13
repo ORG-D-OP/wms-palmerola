@@ -124,43 +124,6 @@ export async function cerrarTurno() {
   revalidatePath('/')
 }
 
-const Equipo = z.object({
-  code: z.string().trim().min(1).max(20),
-  tipo: z.string().trim().min(2).max(24),
-})
-
-export async function registrarEquipo(_prev: unknown, datos: FormData) {
-  await requirePermission('flota:administrar')
-
-  const parsed = Equipo.safeParse({ code: datos.get('code'), tipo: datos.get('tipo') })
-  if (!parsed.success) return { ok: false as const, error: 'Revisa el código y el tipo.' }
-
-  const supabase = await createSupabaseServerClient()
-  const { error } = await supabase
-    .from('equipment')
-    .insert({ code: parsed.data.code.toUpperCase(), type_code: parsed.data.tipo })
-
-  if (error) return fallo(error)
-  revalidatePath('/turno')
-  return { ok: true as const }
-}
-
-export async function cambiarEstadoEquipo(datos: FormData) {
-  await requirePermission('flota:administrar')
-
-  const id = z.uuid().safeParse(datos.get('id'))
-  if (!id.success) throw new Error('Equipo inválido.')
-
-  const supabase = await createSupabaseServerClient()
-  const { error } = await supabase
-    .from('equipment')
-    .update({ is_active: datos.get('activo') === '1' })
-    .eq('id', id.data)
-
-  if (error) throw new Error(fallo(error).error)
-  revalidatePath('/turno')
-}
-
 /**
  * El jefe de bodega para a alguien en un andén, o lo suelta para toda la bodega.
  *

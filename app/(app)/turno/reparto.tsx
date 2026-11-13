@@ -12,7 +12,6 @@ export type Persona = {
   rol: UserRole
   disponible: boolean
   motivo: string | null
-  equipo: string | null
   anden: string | null
 }
 
@@ -115,7 +114,6 @@ export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) 
                 <span className="block truncate">{p.nombre}</span>
                 <span className="block text-sm text-azul/60">
                   {ROLE_LABELS[p.rol]}
-                  {p.equipo ? ` · ${p.equipo}` : ''}
                   {p.disponible ? '' : ` · no disponible${p.motivo ? `: ${p.motivo}` : ''}`}
                 </span>
               </span>

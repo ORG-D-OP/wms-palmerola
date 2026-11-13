@@ -1225,6 +1225,7 @@ export type Database = {
         Row: {
           checked_at: string | null
           checked_by: string | null
+          checked_qty_base: number | null
           id: string
           line_no: number
           order_id: string
@@ -1235,6 +1236,7 @@ export type Database = {
         Insert: {
           checked_at?: string | null
           checked_by?: string | null
+          checked_qty_base?: number | null
           id?: string
           line_no: number
           order_id: string
@@ -1245,6 +1247,7 @@ export type Database = {
         Update: {
           checked_at?: string | null
           checked_by?: string | null
+          checked_qty_base?: number | null
           id?: string
           line_no?: number
           order_id?: string
@@ -3496,6 +3499,7 @@ export type Database = {
       picking_bajo: {
         Row: {
           disponible: number | null
+          ocupada_por: string | null
           pct: number | null
           por_caja: number | null
           posicion: string | null
@@ -4496,6 +4500,10 @@ export type Database = {
           uso: string
         }[]
       }
+      corregir_chequeo: {
+        Args: { p_cajas: number; p_order_line_id: string }
+        Returns: number
+      }
       crossdock: {
         Args: { p_anden?: string; p_lpn_code: string; p_order_id: string }
         Returns: {
@@ -5163,6 +5171,11 @@ export type Database = {
         }
         Returns: string
       }
+      surtido_de_linea: { Args: { p_order_line_id: string }; Returns: number }
+      tareas_de: {
+        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Returns: Database["public"]["Enums"]["task_type"][]
+      }
       texto_cajas: {
         Args: { p_por_caja: number; p_qty: number }
         Returns: string
@@ -5197,6 +5210,7 @@ export type Database = {
       verificar_linea: {
         Args: { p_codigo: string; p_order_id: string }
         Returns: {
+          cajas: number
           linea: number
           nombre: string
           sku: string

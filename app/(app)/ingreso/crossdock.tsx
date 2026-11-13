@@ -5,6 +5,7 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { mandarACrossdock, opcionesCrossdock, type OpcionCrossdock } from './actions'
+import { plural } from '@/lib/plural'
 
 /**
  * La salida que se ofrece en el momento en que el sistema acaba de decir dónde guardar.
@@ -73,9 +74,14 @@ export function Crossdock({
   if (elegido) {
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-borde p-4">
+        {/*
+          No dice «llévalo»: el que recibe no se mueve del andén. Queda pendiente decidir si
+          el traslado al andén de carga se convierte en tarea, como el de guardar; mientras
+          tanto el texto no le manda a nadie a caminar.
+        */}
         <p className="text-sm">
-          Llévalo al andén <span className="tabular-nums">{elegido.anden}</span> y escanéalo
-          para confirmar.
+          Va al andén <span className="tabular-nums">{elegido.anden}</span>. Cuando esté allá,
+          se escanea para confirmar.
         </p>
         <ScanInput label={`Andén ${elegido.anden}`} disabled={pending} onScan={pasar} />
         <button type="button" onClick={() => setElegido(null)} className={BOTON_SUAVE}>
@@ -101,7 +107,7 @@ export function Crossdock({
           <span>
             <span className="block tabular-nums">{o.anden}</span>
             <span className="block text-xs text-azul/60">
-              {o.etiqueta} · le faltan {o.faltanCajas.toLocaleString('es-HN')} cajas
+              {o.etiqueta} · le faltan {plural(o.faltanCajas, 'caja', 'cajas')}
             </span>
           </span>
           <span className="text-sm underline underline-offset-4">Mandarlo ahí</span>
