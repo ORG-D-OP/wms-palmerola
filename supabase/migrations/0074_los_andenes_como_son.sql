@@ -103,13 +103,6 @@ where code in ('AND-S-10', 'AND-S-11', 'AND-S-12', 'AND-S-13', 'AND-S-14');
 /**
  * Y el renumerado. Por cada andén hay **cuatro** cosas que renombrar, no una: el andén, su
  * carril de preparación, su posición y el código de barras de esa posición, que se sembró
- * igual al código y es por donde entra el escaneo en media bodega. Van primero las tres de la
- * posición, porque se unen al andén por `'STG-' || code` y en cuanto se renombre el andén esa
- * unión se pierde.
- */
-/**
- * Y el renumerado. Por cada andén hay **cuatro** cosas que renombrar, no una: el andén, su
- * carril de preparación, su posición y el código de barras de esa posición, que se sembró
  * igual al código y es por donde entra el escaneo en media bodega.
  *
  * Las cuatro van en una sola sentencia, con los tres `update` colgando del mismo `with`. No es
