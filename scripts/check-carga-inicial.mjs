@@ -97,7 +97,7 @@ const inventada = await falla(
 )
 check(inventada?.includes('No hay ninguna posición'), 'una posicion inventada se rechaza')
 
-const { code: andenCode } = await one(`select code from location where code like 'STG-AND-N-%' limit 1`)
+const { code: andenCode } = await one(`select 'STG-' || anden as code from anden_de_recibo order by anden limit 1`)
 const enAnden = await one(
   `select * from cargar_inicial('61244C4', 10, $1, 'L-1', '2027-01-31')`,
   [andenCode],

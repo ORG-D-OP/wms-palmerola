@@ -56,7 +56,7 @@ await one(
   [productId, viejo.id],
 )
 
-const { id: dock } = await one(`select id from dock_door where code = 'AND-S-03'`)
+const { id: dock } = await one(`select id from dock_door where code = 'AND-03'`)
 const { id: pedido } = await one(
   `insert into sales_order (code, customer, dock_door_id) values ('PED-001', 'Cliente', $1)
    returning id`,
@@ -177,7 +177,7 @@ check(hecho.texto === '1 caja y 6 sueltas', 'y el recibo lo dice en cajas y suel
 
 const enAnden = await one(
   `select coalesce(sum(s.qty_base), 0) as q from stock s join location l on l.id = s.location_id
-   where l.code = 'STG-AND-S-03'`,
+   where l.code = 'STG-AND-03'`,
 )
 check(Number(enAnden.q) === 30, 'las 30 cajas quedan en el andén de carga')
 

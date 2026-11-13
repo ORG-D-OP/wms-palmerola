@@ -76,12 +76,12 @@ check(sinMotivo?.includes('motivo'), 'un ajuste sin motivo se rechaza')
 
 const sinNota = await fails(
   `select post_movement('ADJUST'::movement_type, $1::uuid, 1::numeric, $2::uuid, null, null,
-                        null, null, 'ROTO'::text)`,
+                        null, null, 'PERDIDA'::text)`,
   [productId, rack.id],
 )
 check(sinNota?.includes('nota'), 'un motivo que exige nota se rechaza sin ella')
 
-await post(['ADJUST', productId, 2, rack.id, null, lpnId, 'L2601', '2027-04-24', 'ROTO', 'Caida de montacargas', caseId, 'adj-1'])
+await post(['ADJUST', productId, 2, rack.id, null, lpnId, 'L2601', '2027-04-24', 'MALAS_PRACTICAS', 'Caida de montacargas', caseId, 'adj-1'])
 const trasAjuste = await one(
   'select qty_base from stock where location_id = $1 and qty_base > 0',
   [rack.id],
@@ -106,3 +106,44 @@ const desdeLedger = await one(
 check(Number(desdeLedger.q) === 142, 'el saldo se reconstruye desde el ledger y coincide')
 
 check(repetido.id != null, 'la clave de idempotencia devuelve el movimiento original')
+
+// --- los motivos de salida son los de la empresa, no los que me invente --------------------
+
+// Los trece de la migracion 0007 me los invente yo. Los que la empresa usa llegaron el 13/11
+// en la hoja «Motivos»: clase Z01 de SAP y un codigo de cuatro digitos. Dos listas de motivos
+// para una sola cosa es peor que ninguna: el de bodega escoge uno y la papeleria pide otro.
+
+const oficiales = await db.query(
+  `select code, sap_code from reason_code
+    where sap_class = 'Z01' and is_active order by sort_order`,
+)
+check(oficiales.rows.length === 6, 'los seis motivos de SAP estan puestos')
+check(
+  oficiales.rows.map((r) => r.sap_code).join(',') === '0001,0003,0004,0005,0007,0008',
+  'con su codigo de SAP y sus ceros, que es como se habla del tema fuera de la bodega',
+)
+check(
+  (
+    await one(
+      `select count(*)::int as n from reason_code
+        where code in ('DANADO','ROTO','GOLPEADO','MOJADO','VENCIDO') and is_active`,
+    )
+  ).n === 0,
+  'y los que me invente para lo mismo ya no se ofrecen',
+)
+check(
+  (await one(`select is_active from reason_code where code = 'PERDIDA'`)).is_active === true,
+  'la perdida desconocida se queda, que esa es del conteo y no es salida por averia',
+)
+
+const sapRepetido = await db
+  .query(
+    `insert into reason_code (code, name, category, affects_inventory, sap_class, sap_code)
+     values ('OTRO_0001', 'Otro', 'MERMA', true, 'Z01', '0001')`,
+  )
+  .then(
+    () => null,
+    (e) => e.message,
+  )
+check(sapRepetido !== null, 'y dos motivos no pueden compartir el mismo codigo de SAP')
+

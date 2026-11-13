@@ -185,7 +185,7 @@ check(enRack?.code?.startsWith('R-'), `con el piso fuera, la sugerencia es rack 
 // El uso no se cambia con producto encima
 // ---------------------------------------------------------------------------------------
 
-const { id: anden } = await one(`select id from location where code = 'STG-AND-N-01'`)
+const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 await one(`select receive_pallet('PAL-A1', $1, $2, 10::numeric, $3, null, null, 'a-1')`, [
   producto,
   caja,

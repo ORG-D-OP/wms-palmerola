@@ -26,7 +26,7 @@ const { id: bloqueadoId } = await one(
   `insert into product (sku, name, base_uom, status)
    values ('BLOQ-1', 'Producto bloqueado', 'ST', 'blocked') returning id`,
 )
-const { id: anden } = await one(`select id from location where code = 'STG-AND-N-01'`)
+const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 
 const sinVencimiento = await fails(
   `select * from receive_pallet('PAL-0001', $1, $2, 144, $3)`,

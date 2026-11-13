@@ -9,13 +9,11 @@ export default async function ReceivingPage() {
 
   const supabase = await createSupabaseServerClient()
   const { data } = await supabase
-    .from('location')
-    .select('id, code')
-    .eq('kind', 'staging')
-    .like('code', 'STG-AND-N-%')
-    .order('code')
+    .from('anden_de_recibo')
+    .select('location_id, anden')
+    .order('anden')
 
-  const docks = (data ?? []).map((d) => ({ id: d.id, code: d.code.replace('STG-', '') }))
+  const docks = (data ?? []).map((d) => ({ id: d.location_id!, code: d.anden! }))
 
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">

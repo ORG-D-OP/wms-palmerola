@@ -25,7 +25,7 @@ const { id: caseId } = await one(
    returning id`,
   [productId],
 )
-const { id: anden } = await one(`select id from location where code = 'STG-AND-N-01'`)
+const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 
 await como(yo)
 const r = await one(

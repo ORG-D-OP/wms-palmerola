@@ -57,7 +57,7 @@ await one(
    returning id`,
 )
 
-const { id: anden } = await one(`select id from location where code like 'STG-AND-N-%' limit 1`)
+const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 
 // --- abrir -------------------------------------------------------------------------------
 
