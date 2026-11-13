@@ -2175,6 +2175,7 @@ export type Database = {
           close_after_idle_minutes: number
           code: string
           created_at: string
+          expiry_block_days: number
           id: string
           max_shift_hours: number
           name: string
@@ -2184,6 +2185,7 @@ export type Database = {
           close_after_idle_minutes?: number
           code: string
           created_at?: string
+          expiry_block_days?: number
           id?: string
           max_shift_hours?: number
           name: string
@@ -2193,6 +2195,7 @@ export type Database = {
           close_after_idle_minutes?: number
           code?: string
           created_at?: string
+          expiry_block_days?: number
           id?: string
           max_shift_hours?: number
           name?: string
@@ -4579,6 +4582,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      dias_antes_de_vencer: { Args: never; Returns: number }
       es_rol_de_trabajo: {
         Args: { p_rol: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -4673,6 +4677,7 @@ export type Database = {
           sku: string
         }[]
       }
+      hoy_de_bodega: { Args: never; Returns: string }
       iniciar_turno: {
         Args: {
           p_flow?: string
@@ -4830,6 +4835,7 @@ export type Database = {
         }[]
       }
       producto_por_codigo: { Args: { p_codigo: string }; Returns: string }
+      productos_por_codigo: { Args: { p_codigo: string }; Returns: string[] }
       puede_trabajar_como: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -5187,6 +5193,7 @@ export type Database = {
       }
       ultima_senal_de: { Args: { p_shift_id: string }; Returns: string }
       unidades_por: { Args: { p_packaging_level_id: string }; Returns: number }
+      vence_demasiado_pronto: { Args: { p_expiry: string }; Returns: boolean }
       verificar_linea: {
         Args: { p_codigo: string; p_order_id: string }
         Returns: {

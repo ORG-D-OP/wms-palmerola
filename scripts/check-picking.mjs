@@ -357,3 +357,96 @@ check(
     lista.slice(0, 3).some((f) => f.posicion === hueco.code),
   'y la lista va de la que peor esta a la que mejor, con las vacias arriba',
 )
+
+// --- lo vencido no se aparta ni se recomienda (0077) --------------------------------------
+
+/**
+ * El reparto es FEFO, y la fecha mas vieja de todas es la del vencido: era lo primero que el
+ * sistema mandaba a cargar. Medido en la base de verdad el 13/11: un camion con 3,480 unidades
+ * apartadas de un producto que habia vencido el dia anterior.
+ */
+await como(jefe)
+
+const dias = await one(`select dias_antes_de_vencer() as n`)
+check(Number(dias.n) === 0, 'el tope arranca en cero: solo lo que ya vencio deja de salir')
+
+const ayer = await one(`select vence_demasiado_pronto(hoy_de_bodega() - 1) as si`)
+const hoy = await one(`select vence_demasiado_pronto(hoy_de_bodega()) as si`)
+const sinFecha = await one(`select vence_demasiado_pronto(null) as si`)
+check(ayer.si === true, 'lo que vencio ayer no puede salir')
+check(hoy.si === false, 'lo que vence hoy todavia sale: el dia exacto, sin recortar')
+check(sinFecha.si === false, 'y sin fecha no se puede decir que este vencido, asi que pasa')
+
+// El tope es del sitio, no una constante: con siete dias, lo que vence en tres tampoco sale.
+await db.query(`update site set expiry_block_days = 7`)
+const enTres = await one(`select vence_demasiado_pronto(hoy_de_bodega() + 3) as si`)
+const enDiez = await one(`select vence_demasiado_pronto(hoy_de_bodega() + 10) as si`)
+check(
+  enTres.si === true && enDiez.si === false,
+  'y subiendo el tope del sitio deja de salir lo que vence antes de ese plazo',
+)
+await db.query(`update site set expiry_block_days = 0`)
+
+// Medio pallet vencido en la misma posicion de picking que el lote bueno.
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 500,
+     p_to_location_id => $2, p_lot => 'VENCIDO', p_expiry => hoy_de_bodega() - 1)`,
+  [productId, hueco.id],
+)
+
+const noCuenta = await one(`select disponible from picking_bajo where posicion = $1`, [hueco.code])
+check(
+  noCuenta !== undefined && Number(noCuenta.disponible) === 0,
+  'lo vencido en picking no cuenta como disponible: la posicion sigue pidiendo producto',
+)
+
+// Y un pallet vencido en el almacen no es de donde sacarlo.
+const { id: palletVencido } = await one(
+  `insert into lpn (code) values ('SN26VENC01') returning id`,
+)
+const enAlmacen = await one(
+  `select l.id, l.code from location l
+   join location_area la on la.location_id = l.id and la.valid_to is null
+   join area a on a.id = la.area_id and a.type_code = 'ALMACEN'
+   where l.retired_at is null and not exists (
+     select 1 from stock s where s.location_id = l.id and s.qty_base > 0
+   )
+   limit 1`,
+)
+await one(
+  `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 240,
+     p_to_location_id => $2, p_lpn_id => $3, p_lot => 'VENCIDO',
+     p_expiry => hoy_de_bodega() - 1)`,
+  [productId, enAlmacen.id, palletVencido],
+)
+
+const deDonde = await one(`select sacar_de, vence_origen from picking_bajo where posicion = $1`, [
+  hueco.code,
+])
+check(
+  deDonde?.sacar_de !== enAlmacen.code,
+  'y el aviso no manda a bajar un pallet vencido a picking',
+)
+
+// Y el reparto no lo toca, ni teniendo la fecha mas vieja de la bodega.
+const { id: pedidoVencido } = await one(
+  `insert into sales_order (code, dock_door_id) values ('PED-VENCE', $1) returning id`,
+  [dock],
+)
+const { id: lineaVencida } = await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, (select id from packaging_level where product_id = $2 and code = 'CASE'), 700)
+   returning id`,
+  [pedidoVencido, productId],
+)
+await one(`select apartar_linea($1) as n`, [lineaVencida])
+
+const apartado = await db.query(
+  `select st.lot, st.expiry_date, a.qty_base from allocation a
+   join stock st on st.id = a.stock_id where a.order_line_id = $1`,
+  [lineaVencida],
+)
+check(
+  apartado.rows.length > 0 && apartado.rows.every((f) => f.lot !== 'VENCIDO'),
+  'el reparto salta lo vencido, aunque sea lo primero que pide el FEFO',
+)
