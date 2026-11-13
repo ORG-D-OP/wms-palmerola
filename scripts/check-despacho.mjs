@@ -56,6 +56,29 @@ await one(
   [camion, producto, caja],
 )
 
+// --- el pedido se carga en un anden de despacho -----------------------------------------
+
+const enRecibo = await falla(
+  `insert into sales_order (code, dock_door_id)
+   values ('PED-MAL', (select dock_door_id from anden_de_recibo order by anden limit 1))`,
+)
+check(
+  enRecibo !== null && /andén de despacho/.test(enRecibo),
+  'un pedido no se puede poner en un anden de recepcion',
+)
+
+const enApagado = await falla(
+  `insert into sales_order (code, dock_door_id)
+   values ('PED-MAL2', (select id from dock_door where not is_active order by code limit 1))`,
+)
+check(enApagado !== null, 'ni en un anden apagado')
+
+const movido = await falla(
+  `update sales_order set dock_door_id = (select dock_door_id from anden_de_recibo order by anden limit 1)
+   where code = 'PED-001'`,
+)
+check(movido !== null, 'ni moviendolo despues de creado')
+
 // --- el transporte identifica, y es uno solo -------------------------------------------
 
 const repetido = await falla(
