@@ -44,22 +44,22 @@ export function Flota({ equipos, tipos }: { equipos: Equipo[]; tipos: Tipo[] }) 
       )}
 
       <form action={accion} className="flex flex-col gap-3 rounded-2xl border border-borde p-4">
-        <div className="flex gap-2">
-          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span className={ETIQUETA}>Código</span>
-            <input name="code" required maxLength={20} placeholder="MC-01" className={CAMPO} />
-          </label>
-          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span className={ETIQUETA}>Tipo</span>
-            <select name="tipo" className={CAMPO}>
-              {tipos.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Código</span>
+          <input name="code" required maxLength={20} placeholder="MC-01" className={CAMPO} />
+        </label>
+        {/* El tipo va en su propio renglón: a media pantalla el nombre se cortaba en
+            «Montacargas de ...» y no se sabía cuál se había escogido. */}
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Tipo</span>
+          <select name="tipo" className={CAMPO}>
+            {tipos.map((t) => (
+              <option key={t.code} value={t.code}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit" disabled={pending} className={BOTON_SUAVE}>
           {pending ? 'Guardando...' : 'Agregar equipo'}
         </button>

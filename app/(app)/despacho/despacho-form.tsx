@@ -259,7 +259,7 @@ function Renglon({ linea }: { linea: Linea }) {
       <span className="shrink-0 text-right tabular-nums">
         <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
         <span className="block text-xs text-azul/60">
-          {textoCajas(linea.surtido, linea.porCaja)} surtidas
+          {linea.surtido > 0 ? `${textoCajas(linea.surtido, linea.porCaja)} surtidas` : 'sin surtir'}
         </span>
       </span>
     </li>

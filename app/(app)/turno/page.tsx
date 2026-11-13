@@ -32,7 +32,7 @@ export default async function TurnoPage() {
       reparte
         ? supabase
             .from('disponibles')
-            .select('id, full_name, role, disponible, pause_note, equipo, anden')
+            .select('id, full_name, role, rol_trabajo, disponible, pause_note, equipo, anden')
             .order('full_name')
         : { data: null },
       reparte
@@ -84,7 +84,9 @@ export default async function TurnoPage() {
             (p): Persona => ({
               id: p.id ?? '',
               nombre: p.full_name ?? '',
-              rol: rolDe(p.role),
+              // Lo que el jefe reparte es trabajo, así que lo que le importa es el rol con
+              // el que cada quien está trabajando ahora, no su rango.
+              rol: rolDe(p.rol_trabajo ?? p.role),
               disponible: p.disponible ?? false,
               motivo: p.pause_note,
               equipo: p.equipo,
