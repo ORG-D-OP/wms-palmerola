@@ -158,4 +158,102 @@ const desconocido = await fails(
 )
 check(desconocido?.includes('no está en el maestro'), 'un codigo que no esta en el maestro se detiene')
 
+// ---------------------------------------------------------------------------------------
+// Chequear es contar: el que recibe corrige las cajas que de verdad bajaron
+// ---------------------------------------------------------------------------------------
+
+const { id: revisor } = await one(
+  `insert into auth.users (email) values ('chequeador@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'chequeador'
+   where id = '${revisor}'`,
+)
+
+await como(auxiliar)
+const sinPermiso = await fails(`select corregir_recibo('12345678', '000100123456', 40)`)
+check(
+  sinPermiso?.includes('la corrige el que chequea'),
+  'el auxiliar recibe pallets pero no corrige la cantidad',
+)
+
+await como(revisor)
+const cero = await fails(`select corregir_recibo('12345678', '000100123456', 0)`)
+check(cero?.includes('el pallet no se recibió'), 'cero cajas no es una correccion: es que no bajo')
+
+const corregidas = await one(`select corregir_recibo('12345678', '000100123456', 46) as cajas`)
+check(Number(corregidas?.cajas) === 46, 'dos cajas de menos se pueden decir')
+
+const tras = await one(
+  `select s.qty_base from stock s join lpn lp on lp.id = s.lpn_id
+   where lp.code = '000100123456'`,
+)
+check(Number(tras?.qty_base) === 46 * 24, 'y la existencia del anden baja a 46 cajas')
+
+const papel = await one(
+  `select qty_cases, received_cases from inbound_pallet where pallet_code = '000100123456'`,
+)
+check(Number(papel?.qty_cases) === 48, 'lo que decia el papel no se toca: el descuadre es el dato')
+check(Number(papel?.received_cases) === 46, 'y al lado queda lo que bajo de verdad')
+
+const viaje = await one(
+  `select t.qty_base, t.status from task t
+   join lpn lp on lp.id = t.lpn_id
+   where lp.code = '000100123456' and t.type = 'PUTAWAY'`,
+)
+check(Number(viaje?.qty_base) === 46 * 24, 'el viaje de guardarlo lleva lo que hay, no lo del papel')
+
+const ajuste = await one(
+  `select type, qty_base, reason_code, from_location_id is not null as salio
+   from stock_movement where type = 'ADJUST' order by id desc limit 1`,
+)
+check(
+  ajuste?.reason_code === 'DIFER_RECIBO' && Number(ajuste?.qty_base) === 2 * 24 && ajuste?.salio,
+  'y el libro mayor guarda el ajuste con su motivo',
+)
+
+const deMas = await one(`select corregir_recibo('12345678', '000100123456', 50) as cajas`)
+check(Number(deMas?.cajas) === 50, 'tambien se puede corregir hacia arriba')
+const arriba = await one(
+  `select s.qty_base from stock s join lpn lp on lp.id = s.lpn_id
+   where lp.code = '000100123456'`,
+)
+check(Number(arriba?.qty_base) === 50 * 24, 'y la existencia sube')
+
+// Y en cuanto alguien se lleva el pallet a guardar, deja de ser un recibo.
+await db.query(
+  `update task set status = 'ASSIGNED', assigned_to = '${revisor}', assigned_at = now()
+   where lpn_id = (select id from lpn where code = '000100123456') and type = 'PUTAWAY'`,
+)
+const yaVa = await fails(`select corregir_recibo('12345678', '000100123456', 44)`)
+check(yaVa?.includes('se arregla contando'), 'con la tarea tomada, la cantidad ya no se corrige aqui')
+
+// Y el pallet que se fue a crossdock no se corrige aqui: a esas alturas la cantidad ya esta
+// prometida a una linea de un camion, y bajarla por detras dejaria a `despachar` sacando mas
+// de lo que hay. El crossdock mueve el pallet a un anden y cancela la tarea de guardarlo, asi
+// que sin esta guarda las otras dos pasaban.
+const { id: andenCarga } = await one(
+  `select dock_door_id as id from anden_de_carga order by anden limit 1`,
+)
+const { id: pedidoSalida } = await one(
+  `insert into sales_order (code, dock_door_id) values ('PED-XDOCK', $1) returning id`,
+  [andenCarga],
+)
+const { id: lineaSalida } = await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, (select id from packaging_level where product_id = $2), 480) returning id`,
+  [pedidoSalida, normal],
+)
+await one(
+  `insert into order_crossdock (order_line_id, product_id, lpn_id, qty_base, from_location_id,
+     to_location_id)
+   select $1, $2, lp.id, 480, $3, $3 from lpn lp where lp.code = '000100123456' returning id`,
+  [lineaSalida, normal, anden],
+)
+const enCrossdock = await fails(`select corregir_recibo('12345678', '000100123456', 30)`)
+check(
+  enCrossdock?.includes('se fue a crossdock'),
+  'y el pallet prometido a un camion ya no se corrige en el ingreso',
+)
+
 await db.close()

@@ -1,4 +1,4 @@
-import { requirePermission, requireUser } from '@/lib/auth/session'
+import { requireDeBodega, requireUser } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { ContarForm, type Pendiente } from './contar-form'
 
@@ -34,7 +34,7 @@ async function enLaCola(): Promise<number> {
 }
 
 export default async function ContarPage() {
-  await requirePermission('conteo:ejecutar')
+  await requireDeBodega('conteo:ejecutar')
   const user = await requireUser()
   const [pendientes, cola] = await Promise.all([misConteos(user.id), enLaCola()])
 

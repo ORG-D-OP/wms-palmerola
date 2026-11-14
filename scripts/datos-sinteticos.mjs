@@ -130,7 +130,7 @@ async function crear() {
   console.log('Pedidos de despacho, sin liberar')
   const ped = await uno(`
     with docs as (
-      insert into sales_order (code, customer, transporte, dock_door_id, status, ship_note)
+      insert into sales_order (code, customer, transporte, dock_door_id, status)
       select 'SINT-TAB' || lpad(g::text, 3, '0'),
              'Cliente sintético ' || g,
              'SINT-TAB' || lpad(g::text, 3, '0'),
@@ -138,8 +138,9 @@ async function crear() {
              -- código los ponía a todos en recepción.
              (select dock_door_id from anden_de_carga
                order by anden offset (g % (select count(*) from anden_de_carga)) limit 1),
-             'DRAFT',
-             'Datos sintéticos'
+             -- Sin nota: ship_note es la razon por la que un camion salio corto, y la
+             -- precision de los despachos la mira. Un pedido de prueba no trae razon.
+             'DRAFT'
       from generate_series(1, ${PEDIDOS}) g
       returning id, code
     ),

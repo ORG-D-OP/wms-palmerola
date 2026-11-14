@@ -39,11 +39,25 @@ export async function registrarse(
   const admin = createSupabaseAdminClient()
   const correo = parsed.data.email.trim().toLowerCase()
 
-  const { data: permitido } = await admin
+  /*
+    El error se mira. Antes esta consulta se quedaba con `data` y tiraba el `error`, así que un
+    «permiso denegado» de la base llegaba a la pantalla con la misma cara que «ese correo no
+    está en la lista» —y eso tapó durante días que a `service_role` le faltaba el SELECT sobre
+    la tabla, con el resultado de que **nadie** podía registrarse—. Si falla la consulta, se
+    dice que falló.
+  */
+  const { data: permitido, error: errorLista } = await admin
     .from('correo_autorizado')
     .select('email')
     .eq('email', correo)
     .maybeSingle()
+
+  if (errorLista) {
+    return {
+      error: 'No se pudo comprobar la lista de correos. Avisa al jefe de bodega.',
+      listo: false,
+    }
+  }
 
   if (!permitido) {
     return {

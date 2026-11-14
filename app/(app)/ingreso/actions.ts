@@ -108,6 +108,8 @@ const Recibo = z.object({
 
 export type Recibido = {
   lpnCode: string
+  /** La matricula escaneada: con ella se corrige la cantidad si el papel no acerto. */
+  palletCode: string | null
   locationCode: string | null
   sku: string
   name: string
@@ -143,6 +145,7 @@ export async function recibirPallet(
     ok: true,
     recibido: {
       lpnCode: data.lpn_code,
+      palletCode: parsed.data.palletCode.toUpperCase(),
       locationCode: data.to_location_code,
       sku: data.sku,
       name: data.product_name,
@@ -151,6 +154,43 @@ export async function recibirPallet(
       pallets: data.pallets,
     },
   }
+}
+
+/**
+ * Las cajas que bajaron de verdad, cuando el papel no acerto.
+ *
+ * Es la mitad de ingreso de lo que el despacho ya hace con «Corregir la cantidad»: el escaneo
+ * da por buena la cantidad de la hoja, que es el caso normal, y esto la cambia mientras el
+ * pallet siga en el anden y nadie se lo haya llevado a guardar.
+ */
+const Correccion = z.object({
+  pedido: Pedido,
+  palletCode: z.string().trim().min(4).max(32),
+  cajas: z.coerce
+    .number()
+    .positive('Si no bajo ninguna caja, avisa al jefe de bodega.')
+    .max(100_000),
+})
+
+export async function corregirRecibo(
+  datos: z.input<typeof Correccion>,
+): Promise<{ ok: true; cajas: number } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = Correccion.safeParse(datos)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Revisa la cantidad.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.rpc('corregir_recibo', {
+    p_pedido: parsed.data.pedido,
+    p_pallet_code: parsed.data.palletCode,
+    p_cajas: parsed.data.cajas,
+  })
+
+  if (error) return fallo(error)
+  return { ok: true, cajas: Number(data) }
 }
 
 // ---------------------------------------------------------------------------------------
@@ -256,6 +296,7 @@ export async function recibirSinAviso(
     ok: true,
     recibido: {
       lpnCode: data.lpn_code,
+      palletCode: parsed.data.palletCode?.toUpperCase() || null,
       locationCode: data.to_location_code,
       sku: data.sku,
       name: data.product_name,

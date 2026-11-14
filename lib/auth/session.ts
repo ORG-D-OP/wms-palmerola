@@ -86,3 +86,25 @@ export async function requirePermission(permission: Permission): Promise<Session
   if (!can(user.roles, permission)) throw new ForbiddenError()
   return user
 }
+
+/**
+ * Las pantallas que mandan a caminar por la bodega: guardar, surtir, reordenar y contar.
+ *
+ * El chequeador no sale del andén —verifica lo que entra y lo que sale, y meter o sacar
+ * producto les toca a los auxiliares y a los montacarguistas—, así que estas pantallas no son
+ * suyas mientras trabaje de eso. Esconder el enlace no basta: escribiendo la dirección a mano
+ * se abrían igual.
+ *
+ * Quien trae algo en la mano pasa: una tarea empezada es suya hasta que la cierre, y
+ * `trabajar_como` no deja cambiar de rol con algo empezado.
+ */
+export async function requireDeBodega(permission: Permission): Promise<SessionUser> {
+  const user = await requirePermission(permission)
+  if (user.workingRole === 'chequeador' && !user.tareasEnMano) {
+    throw new ForbiddenError(
+      'De chequeador tu trabajo es el andén: verificar lo que entra y lo que sale. ' +
+        'Meter y sacar producto les toca a los auxiliares y a los montacarguistas.',
+    )
+  }
+  return user
+}

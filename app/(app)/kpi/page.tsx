@@ -116,10 +116,13 @@ export default async function KpiPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-lg">Por persona, la última semana</h2>
         {gente.length === 0 ? (
-          <p className="text-sm text-azul/60">Nadie ha trabajado tareas en estos siete días.</p>
+          <p className="text-sm text-azul/60">Nadie ha trabajado en estos siete días.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-borde">
-            {gente.map((p) => (
+            {gente.map((p) => {
+              const anden = Number(p.lineas_chequeadas ?? 0) + Number(p.pallets_recibidos ?? 0)
+              const soloAnden = anden > 0 && Number(p.tareas ?? 0) === 0
+              return (
               <li key={p.profile_id} className="flex flex-col gap-1 py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 truncate">{p.nombre}</span>
@@ -136,6 +139,19 @@ export default async function KpiPage() {
                     ? ''
                     : ` · ${numero(num(p.improductivo_pct))}% improductivo`}
                 </span>
+                {anden > 0 ? (
+                  <span className="text-sm text-azul/60 tabular-nums">
+                    En el andén:{' '}
+                    {plural(Number(p.lineas_chequeadas), 'línea chequeada', 'líneas chequeadas')} ·{' '}
+                    {plural(Number(p.pallets_recibidos), 'pallet recibido', 'pallets recibidos')}
+                  </span>
+                ) : null}
+                {soloAnden ? (
+                  <span className="text-xs text-azul/60">
+                    Trabajó el andén: lo suyo se mide en lo que chequea y recibe, no en tareas ni
+                    en cajas por hora.
+                  </span>
+                ) : null}
                 {Number(p.turnos_calculados ?? 0) > 0 ? (
                   <span className="text-xs text-azul/60">
                     El sistema cerró {plural(Number(p.turnos_calculados), 'turno', 'turnos')} que
@@ -143,7 +159,8 @@ export default async function KpiPage() {
                   </span>
                 ) : null}
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </section>

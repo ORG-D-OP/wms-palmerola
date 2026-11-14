@@ -134,14 +134,17 @@ check(aMedias?.includes('Faltan'), 'con tareas abiertas el camion no sale')
 
 // --- cerrar -----------------------------------------------------------------------------
 
-await db.query(
-  `update task set status = 'DONE', completed_at = now()
-   where type = 'PICK' and id in (
-     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
-     where l.order_id = $1
-   )`,
+// Surtido de verdad, con su movimiento: marcar la tarea DONE a mano dejaria la linea sin un
+// solo PICK apuntado, y entonces el camion sale vacio por mucho que la tarea diga «hecha».
+const { id: tareaUno } = await one(
+  `select a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+   where l.order_id = $1`,
   [camion],
 )
+await db.query(`update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`, [
+  tareaUno,
+])
+await one(`select * from complete_pick($1, 'P-1', 1::numeric, 16::numeric)`, [tareaUno])
 
 const surtido = await one(`select status from sales_order where id = $1`, [camion])
 check(surtido.status === 'PICKED', 'cuando la ultima tarea termina, el pedido queda surtido')
@@ -352,10 +355,22 @@ await como(jefe)
 const sinRazon = await falla(`select despachar($1, true, null)`, [segundo])
 check(sinRazon?.includes('por qué'), 'cerrar un camion incompleto pide una razon')
 
+// Llega jugo a picking y la linea 2 se aparta: ahora el camion tiene un viaje de verdad sin
+// hacer, que es lo que el cierre forzado tiene que soltar. Sin esto, la prueba medía el
+// apartado que el surtido de la linea 1 ya habia consumido.
+await one(`select reasignar_area_por_codigo('F1-003-%', 'PICKING') as n`)
+const { id: posJugo } = await one(`select id from location where code = 'F1-003-01'`)
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 60::numeric, null, $2::uuid)`,
+  [otro, posJugo],
+)
+const apartadas = await one(`select apartar_lo_que_falta($1) as n`, [segundo])
+check(Number(apartadas.n) > 0, 'cuando llega el producto, lo que faltaba se aparta')
+
 await db.query(
   `update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id in (
      select a.task_id from order_line l join allocation a on a.order_line_id = l.id
-     where l.order_id = $1
+     where l.order_id = $1 and l.line_no = 2
    )`,
   [segundo],
 )
@@ -368,15 +383,15 @@ check(
 await db.query(
   `update task set status = 'READY', assigned_to = null where id in (
      select a.task_id from order_line l join allocation a on a.order_line_id = l.id
-     where l.order_id = $1
+     where l.order_id = $1 and l.line_no = 2
    )`,
   [segundo],
 )
 const apartadoAntes = await one(
   `select sum(qty_allocated) as n from stock where product_id = $1`,
-  [producto],
+  [otro],
 )
-check(Number(apartadoAntes.n) > 0, 'antes de cerrar, lo del camion esta apartado')
+check(Number(apartadoAntes.n) === 60, 'antes de cerrar, lo del camion esta apartado')
 
 await one(`select despachar($1, true, 'no habia producto y el cliente lo recibe asi')`, [segundo])
 const cerrado = await one(`select status, ship_note from sales_order where id = $1`, [segundo])
@@ -385,10 +400,10 @@ check(cerrado.ship_note?.includes('no habia producto'), 'y la razon queda escrit
 
 const apartadoDespues = await one(
   `select coalesce(sum(qty_allocated), 0) as n from stock where product_id = $1`,
-  [producto],
+  [otro],
 )
 check(
-  Number(apartadoAntes.n) - Number(apartadoDespues.n) === 24,
+  Number(apartadoAntes.n) - Number(apartadoDespues.n) === 60,
   'lo que quedo sin surtir se suelta: no se queda apartado para un camion que ya se fue',
 )
 
@@ -506,14 +521,25 @@ check(deDonde.code === 'PICKING', 'con producto en picking, las cajas sueltas sa
 // --- el camion corto no se queda pegado (0052) --------------------------------------------
 
 // El camion C sigue corto por 15, y su unica tarea —el pallet entero— ya se puede terminar.
-await db.query(
-  `update task set status = 'DONE', completed_at = now()
-   where id in (
-     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
-     where l.order_id = $1
-   )`,
-  [camionC],
-)
+const surtirPendientes = async (pedido, cajas, sueltas = 0) => {
+  const { rows } = await db.query(
+    `select a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+     join task t on t.id = a.task_id
+     where l.order_id = $1 and t.status <> 'DONE'`,
+    [pedido],
+  )
+  for (const { id } of rows) {
+    await db.query(`update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`, [
+      id,
+    ])
+    await one(`select * from complete_pick($1, 'P-4', $2::numeric, $3::numeric)`, [
+      id,
+      cajas,
+      sueltas,
+    ])
+  }
+}
+await surtirPendientes(camionC, 6)
 
 const cortoAun = await one(`select status from sales_order where id = $1`, [camionC])
 check(
@@ -540,14 +566,7 @@ check(Number(noDuplica.n) === 0, 'pasar de nuevo sobre un camion completo no apa
 const yaSalio = await falla(`select apartar_lo_que_falta($1)`, [camion])
 check(yaSalio?.includes('no está abierto'), 'y un camion que ya salio no se toca')
 
-await db.query(
-  `update task set status = 'DONE', completed_at = now()
-   where status <> 'DONE' and id in (
-     select a.task_id from order_line l join allocation a on a.order_line_id = l.id
-     where l.order_id = $1
-   )`,
-  [camionC],
-)
+await surtirPendientes(camionC, 1, 5)
 const surtidoC = await one(`select status from sales_order where id = $1`, [camionC])
 check(surtidoC.status === 'PICKED', 'con la ultima caja surtida si queda surtido')
 
@@ -719,7 +738,17 @@ const yaSalido = await one(
    where type = 'SHIP' and product_id = $1`,
   [tostada],
 )
-await one(`select despachar($1)`, [camionPorCantidad])
+// Bajar la cantidad chequeada deja el camion corto sin pasar por el `p_forzar`, y corto es
+// corto: pide razon igual. Antes salia sin que nadie preguntara nada.
+const cortoPorCantidad = await falla(`select despachar($1)`, [camionPorCantidad])
+check(
+  cortoPorCantidad?.includes('hace falta decir por qué'),
+  'el camion al que le bajaron la cantidad pide razon aunque nadie lo fuerce',
+)
+const noCompleto = await one(`select camion_completo($1) as c`, [camionPorCantidad])
+check(noCompleto?.c === false, 'y no cuenta como completo en la precision del dia')
+
+await one(`select despachar($1, false, 'bajaron ocho cajas, no diez')`, [camionPorCantidad])
 const salioPorCantidad = await one(
   `select (select status from sales_order where id = $1) as status,
           (select coalesce(sum(qty_base), 0) from stock_movement

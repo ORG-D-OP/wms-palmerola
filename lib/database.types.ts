@@ -559,6 +559,7 @@ export type Database = {
           product_id: string
           qty_cases: number
           received_at: string | null
+          received_cases: number | null
           received_lpn_id: string | null
         }
         Insert: {
@@ -570,6 +571,7 @@ export type Database = {
           product_id: string
           qty_cases: number
           received_at?: string | null
+          received_cases?: number | null
           received_lpn_id?: string | null
         }
         Update: {
@@ -581,6 +583,7 @@ export type Database = {
           product_id?: string
           qty_cases?: number
           received_at?: string | null
+          received_cases?: number | null
           received_lpn_id?: string | null
         }
         Relationships: [
@@ -3405,6 +3408,15 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_andenes: {
+        Row: {
+          dia: string | null
+          lineas_chequeadas: number | null
+          pallets_recibidos: number | null
+          profile_id: string | null
+        }
+        Relationships: []
+      }
       kpi_despacho_dia: {
         Row: {
           camiones: number | null
@@ -4287,6 +4299,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      camion_completo: { Args: { p_order_id: string }; Returns: boolean }
       carga_inicial_de: {
         Args: { p_codigo: string }
         Returns: {
@@ -4468,6 +4481,10 @@ export type Database = {
           location_code: string
         }[]
       }
+      comprobar_codigo_de_tarea: {
+        Args: { p_codigo: string; p_task_id: string }
+        Returns: undefined
+      }
       conceder_roles: {
         Args: {
           p_id: string
@@ -4502,6 +4519,10 @@ export type Database = {
       }
       corregir_chequeo: {
         Args: { p_cajas: number; p_order_line_id: string }
+        Returns: number
+      }
+      corregir_recibo: {
+        Args: { p_cajas: number; p_pallet_code: string; p_pedido: string }
         Returns: number
       }
       crossdock: {
@@ -4722,7 +4743,9 @@ export type Database = {
           horas_trabajando: number
           horas_turno: number
           improductivo_pct: number
+          lineas_chequeadas: number
           nombre: string
+          pallets_recibidos: number
           profile_id: string
           rol: Database["public"]["Enums"]["user_role"]
           tareas: number
@@ -4831,6 +4854,10 @@ export type Database = {
           p_type: Database["public"]["Enums"]["movement_type"]
         }
         Returns: number
+      }
+      producto_escaneado: {
+        Args: { p_codigo: string; p_task_id: string }
+        Returns: string
       }
       producto_para_recibir: {
         Args: { p_codigo: string }

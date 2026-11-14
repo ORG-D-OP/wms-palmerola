@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requirePermission } from '@/lib/auth/session'
+import { requireDeBodega } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
 
 export type Linea = {
@@ -40,7 +40,7 @@ const Codigo = z.string().trim().min(3).max(32)
 
 /** Lo que el sistema cree que hay ahí. Es lo que la persona va a desmentir o confirmar. */
 export async function verLugar(codigo: string): Promise<{ ok: true; lineas: Linea[] } | Fail> {
-  await requirePermission('conteo:ejecutar')
+  await requireDeBodega('conteo:ejecutar')
 
   const parsed = Codigo.safeParse(codigo)
   if (!parsed.success) return { ok: false, error: 'Escanea la posición o la matrícula del pallet.' }
@@ -88,7 +88,7 @@ const Recuento = z.object({
 export async function recontar(
   datos: z.input<typeof Recuento>,
 ): Promise<{ ok: true; resultado: Resultado } | Fail> {
-  await requirePermission('conteo:ejecutar')
+  await requireDeBodega('conteo:ejecutar')
 
   const parsed = Recuento.safeParse(datos)
   if (!parsed.success) {
@@ -127,7 +127,7 @@ export async function recontar(
 }
 
 export async function cerrarConteo(tarea: string): Promise<{ ok: true } | Fail> {
-  await requirePermission('conteo:ejecutar')
+  await requireDeBodega('conteo:ejecutar')
 
   const parsed = z.string().uuid().safeParse(tarea)
   if (!parsed.success) return { ok: false, error: 'Esa tarea no existe.' }
@@ -151,7 +151,7 @@ export async function cerrarConteo(tarea: string): Promise<{ ok: true } | Fail> 
 export async function tomarConteo(): Promise<
   { ok: true; tarea: string | null; posicion: string | null } | Fail
 > {
-  await requirePermission('conteo:ejecutar')
+  await requireDeBodega('conteo:ejecutar')
 
   const supabase = await createSupabaseServerClient()
   const { data: tarea, error } = await supabase.rpc('claim_next_task', { p_types: ['COUNT'] })

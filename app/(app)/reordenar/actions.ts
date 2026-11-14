@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requirePermission } from '@/lib/auth/session'
+import { requireDeBodega } from '@/lib/auth/session'
 import { toErrorResponse } from '@/lib/errors'
 
 export type Cosa = {
@@ -38,7 +38,7 @@ const Codigo = z.string().trim().min(3).max(32)
 
 /** Lo que hay en la posición o en el pallet que acaban de escanear. */
 export async function verLugar(codigo: string): Promise<{ ok: true; cosas: Cosa[] } | Fail> {
-  await requirePermission('inventario:mover')
+  await requireDeBodega('inventario:mover')
 
   const parsed = Codigo.safeParse(codigo)
   if (!parsed.success) return { ok: false, error: 'Escanea la posición o la matrícula del pallet.' }
@@ -81,7 +81,7 @@ const Movida = z.object({
 export async function mover(
   datos: z.input<typeof Movida>,
 ): Promise<{ ok: true; hecho: Hecho } | Fail> {
-  await requirePermission('inventario:mover')
+  await requireDeBodega('inventario:mover')
 
   const parsed = Movida.safeParse(datos)
   if (!parsed.success) return { ok: false, error: 'Escanea el lugar de donde sale y a dónde va.' }

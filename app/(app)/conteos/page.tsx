@@ -53,7 +53,10 @@ export default async function ConteosPage() {
   const [{ data: zonas }, { data: areas }, { data: abiertos }, { data: gente }, { data: ultimos }] =
     await Promise.all([
       supabase.from('zone').select('code, name, kind').order('code'),
-      supabase.from('area').select('code, name').eq('is_active', true).order('code'),
+      // Sólo las áreas que tienen posiciones. El desplegable ofrecía las siete, las cuatro
+      // virtuales incluidas —calidad, desguace, cross-dock y contenedores—, y un conteo de un
+      // área sin una sola posición no cuenta nada.
+      supabase.from('area_occupancy').select('code, name, total').gt('total', 0).order('code'),
       supabase.from('conteos_pendientes').select('task_id, posicion, assigned_to, status'),
       supabase.from('inexactitud').select('*').order('conteos', { ascending: false }),
       supabase
@@ -92,10 +95,18 @@ export default async function ConteosPage() {
       {pendientes.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg">Abierto ahora</h2>
+          {/*
+            Decía «1 posición por contar, 1 esperando en la cola»: la misma cosa dos veces con
+            palabras distintas. Lo que importa es cuántas quedan sin dueño, y eso se dice una.
+          */}
           <p className="text-sm text-azul/70">
-            {plural(pendientes.length, 'posición', 'posiciones')} por
-            contar
-            {sinDueno > 0 ? `, ${sinDueno} esperando en la cola` : ', todas repartidas'}.
+            {plural(pendientes.length, 'posición', 'posiciones')} por contar
+            {sinDueno === 0
+              ? ', todas repartidas'
+              : sinDueno === pendientes.length
+                ? ', ninguna repartida todavía'
+                : `, ${sinDueno} sin repartir`}
+            .
           </p>
         </section>
       ) : null}

@@ -11,24 +11,28 @@ import {
   abrirSinAviso,
   buscarIngreso,
   cerrarSinAviso,
+  corregirRecibo,
   recibirPallet,
   type Documento,
   type Recibido,
 } from './actions'
 import { plural } from '@/lib/plural'
+import { fecha } from '@/lib/fechas'
+import { nombrePosicion } from '@/lib/posiciones'
 
 type Dock = { id: string; code: string }
 
 export function IngresoForm({
   docks,
-  puedeSinAviso,
+  deAnden,
 }: {
   docks: Dock[]
   /**
-   * Abrir un ingreso sin aviso es de chequeador para arriba, y el auxiliar sí recibe pallets
-   * de uno ya abierto. Sin esto el botón se le ofrecía a quien el servidor iba a rechazar.
+   * El que manda en el andén: abre un ingreso sin aviso y corrige las cajas que bajaron. El
+   * auxiliar sí recibe pallets de un ingreso ya abierto, pero no hace ninguna de esas dos.
+   * Sin esto los botones se le ofrecían a quien el servidor iba a rechazar.
    */
-  puedeSinAviso: boolean
+  deAnden: boolean
 }) {
   const [dockId, setDockId] = useState(docks[0]?.id ?? '')
   const [doc, setDoc] = useState<Documento | null>(null)
@@ -36,6 +40,7 @@ export function IngresoForm({
   const [verLista, setVerLista] = useState(false)
   const [abriendoCiego, setAbriendoCiego] = useState(false)
   const [enCrossdock, setEnCrossdock] = useState(false)
+  const [corrigiendo, setCorrigiendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -71,6 +76,31 @@ export function IngresoForm({
     })
   }
 
+  /**
+   * Las cajas que bajaron de verdad.
+   *
+   * El escaneo de la matrícula da por buena la cantidad de la hoja, porque el caso normal es
+   * que la hoja acierte y el andén no está para teclear. Pero chequear es contar, y cuando no
+   * cuadra hace falta decirlo aquí mismo: después el pallet se va a una posición y ya no es un
+   * recibo, es un ajuste de inventario.
+   */
+  const corregir = (cajas: number) => {
+    if (!doc || !ultimo?.palletCode) return
+    setError(null)
+    startTransition(async () => {
+      const res = await corregirRecibo({
+        pedido: doc.pedido,
+        palletCode: ultimo.palletCode!,
+        cajas,
+      })
+      if (!res.ok) return setError(res.error)
+      // Sin recargar el documento: `cargar` borra la tarjeta, y es justo lo que el que recibe
+      // acaba de corregir y quiere ver. Los pallets recibidos no cambian al corregir cajas.
+      setUltimo({ ...ultimo, cases: res.cajas })
+      setCorrigiendo(false)
+    })
+  }
+
   const escanearPallet = (code: string) => {
     if (!doc || !code.trim()) return
     setError(null)
@@ -82,6 +112,7 @@ export function IngresoForm({
       })
       if (!res.ok) return setError(res.error)
       setUltimo(res.recibido)
+      setCorrigiendo(false)
       setDoc({
         ...doc,
         recibidos: res.recibido.recibidos,
@@ -102,7 +133,7 @@ export function IngresoForm({
           <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={CAMPO}>
             {docks.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.code}
+                {nombrePosicion(d.code)}
               </option>
             ))}
           </select>
@@ -123,7 +154,7 @@ export function IngresoForm({
           camión; después solo se escanean las etiquetas de los pallets.
         </p>
 
-        {puedeSinAviso ? (
+        {deAnden ? (
           <div className="border-t border-borde pt-5">
             {abriendoCiego ? (
               <form action={abrirCiego} className="flex flex-col gap-3">
@@ -230,6 +261,47 @@ export function IngresoForm({
             <p className="text-sm text-azul/60">{ultimo.sku}</p>
             <p>{ultimo.name}</p>
             <p className="text-sm text-azul/60">{plural(ultimo.cases, 'caja', 'cajas')}</p>
+            {deAnden && ultimo.palletCode && !doc.sinAviso ? (
+              corrigiendo ? (
+                <form
+                  action={(datos) => corregir(Number(datos.get('cajas')))}
+                  className="mt-3 flex flex-col gap-2 text-left"
+                >
+                  <label className="flex flex-col gap-1.5">
+                    <span className={ETIQUETA}>¿Cuántas cajas bajaron?</span>
+                    <input
+                      name="cajas"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      step={1}
+                      required
+                      autoFocus
+                      defaultValue={ultimo.cases}
+                      className={CAMPO}
+                    />
+                  </label>
+                  <button type="submit" disabled={pending} className={BOTON}>
+                    {pending ? 'Guardando...' : 'Son estas'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCorrigiendo(false)}
+                    className={BOTON_SUAVE}
+                  >
+                    Mejor no
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCorrigiendo(true)}
+                  className="mt-1 text-sm underline underline-offset-4"
+                >
+                  No son {plural(ultimo.cases, 'caja', 'cajas')}
+                </button>
+              )
+            ) : null}
           </div>
           {/*
             Aquí no dice «llévalo»: el que recibe no se mueve del andén. Ve bajar el producto,
@@ -239,7 +311,9 @@ export function IngresoForm({
           */}
           <div>
             <p className="text-sm text-azul/60">Queda para</p>
-            <p className="text-4xl tabular-nums">{ultimo.locationCode ?? 'Sin hueco libre'}</p>
+            <p className="text-4xl tabular-nums">
+              {ultimo.locationCode ? nombrePosicion(ultimo.locationCode) : 'Sin hueco libre'}
+            </p>
             <p className="mt-1 text-sm text-azul/60">
               {ultimo.locationCode
                 ? 'Lo guarda quien tome la tarea.'
@@ -268,7 +342,7 @@ export function IngresoForm({
             }}
             onRecargar={() => cargar(doc.pedido)}
           />
-          {puedeSinAviso ? (
+          {deAnden ? (
             <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
               Terminé de descargar: cerrar el acta
             </button>
@@ -326,7 +400,7 @@ export function IngresoForm({
                     <span className="block text-xs text-azul/60">
                       {l.sku} · {plural(l.cases, 'caja', 'cajas')}
                       {l.lot ? ` · lote ${l.lot}` : ''}
-                      {l.expiry ? ` · vence ${l.expiry}` : ''}
+                      {l.expiry ? ` · vence ${fecha(l.expiry)}` : ''}
                     </span>
                   </span>
                 </li>
