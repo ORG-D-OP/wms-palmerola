@@ -271,6 +271,31 @@ check(
   'con un pallet a medio camino no se cambia de rol',
 )
 
+// El encierro de verdad, caminado en produccion el 14/11 con la cuenta del jefe de bodega:
+// empezo un guardado trabajando de montacarguista, se salio de trabajo y volvio a entrar. Al
+// volver, `iniciar_turno` no escribe rol, asi que el rol del turno es otra vez su rango, y las
+// dos puertas se cierran a la vez: la cola le dice «con tu rango no te caen tareas solas» y el
+// cambio de rol le dice «termina primero lo que tienes empezado». Sin salida y con un pallet
+// detenido en el anden. Lo que trae en la mano se le entrega siempre, antes de preguntarle de
+// que trabaja hoy.
+await one(`select cerrar_turno()`)
+await one(`select iniciar_turno()`)
+check(
+  (await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [jefe])).rol_trabajo
+    === 'supervisor',
+  'al volver a entrar sin escoger rol, el rol del turno es su rango otra vez',
+)
+const enLaMano = await one(`select id, status from claim_next_task()`)
+check(
+  enLaMano.id === rec.task_id && enLaMano.status === 'IN_PROGRESS',
+  'y con el rango puesto la cola le devuelve lo que trae empezado en vez de encerrarlo',
+)
+const siguePidiendo = await fails(`select claim_next_task(array['PICK']::task_type[])`)
+check(
+  siguePidiendo?.includes('Con tu rango no te caen tareas solas'),
+  'pero tareas nuevas siguen sin caerle: el porton del rango no se toco',
+)
+
 await db.query(
   `update task set status = 'ASSIGNED', assigned_to = $1 where id = $2`,
   [jefe, rec.task_id],
