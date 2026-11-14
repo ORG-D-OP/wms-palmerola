@@ -74,6 +74,11 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
   const chequeadas = camion.detalle.filter((l) => l.chequeada).length
   const faltantes = camion.detalle.filter((l) => l.apartado < l.pedido)
   const completo = chequeadas === camion.detalle.length && camion.pendientes === 0
+  /**
+   * Y si alguna línea sale por debajo de lo que pedía, el camión va corto aunque esté todo
+   * chequeado: es justo lo que pasa cuando el chequeador baja una cantidad. Eso pide razón.
+   */
+  const corto = camion.detalle.some((l) => (l.arriba ?? l.surtido) < l.pedido)
 
   const marcar = (codigo: string) =>
     empezar(async () => {
@@ -129,7 +134,10 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
       )}
 
       <p className="text-sm text-azul/60">
-        {chequeadas} de {plural(camion.detalle.length, 'línea', 'líneas')} chequeadas
+        {chequeadas} de{' '}
+        {camion.detalle.length === 1
+          ? '1 línea chequeada'
+          : `${camion.detalle.length} líneas chequeadas`}
         {faltantes.length > 0 ? ` · ${faltantes.length} sin producto suficiente` : ''}
       </p>
 
@@ -185,7 +193,7 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
             <button
               type="button"
               disabled={pending || !completo}
-              onClick={() => cerrar()}
+              onClick={() => (corto ? setCerrandoCorto(true) : cerrar())}
               className={BOTON}
             >
               {pending ? 'Despachando...' : 'Marcar camión despachado'}
@@ -194,9 +202,9 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
               <>
                 <p className="text-sm text-azul/60">
                   {camion.pendientes > 0
-                    ? `Quedan ${plural(camion.pendientes, 'tarea', 'tareas')} de surtido ${
-                        camion.pendientes === 1 ? 'abierta' : 'abiertas'
-                      }.`
+                    ? camion.pendientes === 1
+                      ? 'Queda 1 tarea de surtido abierta.'
+                      : `Quedan ${camion.pendientes} tareas de surtido abiertas.`
                     : 'Falta chequear líneas.'}{' '}
                   El camión se cierra cuando esté todo arriba.
                 </p>
@@ -208,6 +216,10 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
                   Cerrarlo igual, sin todo
                 </button>
               </>
+            ) : corto ? (
+              <p className="text-sm text-azul/60">
+                Alguna línea sale con menos de lo que pedía. Al cerrarlo hay que decir por qué.
+              </p>
             ) : null}
           </div>
         )

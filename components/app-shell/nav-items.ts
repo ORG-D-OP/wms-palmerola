@@ -73,6 +73,7 @@ const TODOS = [
     icon: 'checklist',
     permiso: 'conteo:ejecutar',
     movil: false,
+    viaje: true,
   },
   {
     href: '/reabastecer',

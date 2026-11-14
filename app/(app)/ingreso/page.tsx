@@ -20,7 +20,7 @@ export default async function IngresoPage() {
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
       <h1 className="text-xl">Recibir camión</h1>
       {docks.length > 0 ? (
-        <IngresoForm docks={docks} puedeSinAviso={can(user.roles, 'ingresos:administrar')} />
+        <IngresoForm docks={docks} deAnden={can(user.roles, 'ingresos:administrar')} />
       ) : (
         <p className="text-sm text-azul/60">No hay andenes de descarga configurados.</p>
       )}

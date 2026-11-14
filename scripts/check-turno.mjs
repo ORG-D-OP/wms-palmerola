@@ -368,9 +368,13 @@ await db.query(
   `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
     where id = '${sinRastro}'`,
 )
+// A las seis de la manana de anteayer, y clavado: colgado de `now()` esta prueba cambia de
+// resultado segun la hora a la que se corra, porque si el turno empieza de noche su medianoche
+// llega antes que el tope de 12 horas y entonces lo que manda es la medianoche.
 const { id: sinTareas } = await one(
   `insert into shift_assignment (profile_id, started_at)
-   values ($1, now() - interval '30 hours') returning id`,
+   values ($1, ((current_date - 2 + interval '6 hours') at time zone reloj_de_bodega()))
+   returning id`,
   [sinRastro],
 )
 await one(`select cerrar_turnos_vencidos()`)
@@ -522,9 +526,12 @@ await db.query(
 
 // Entro ayer a media tarde —hora de la bodega— y sigue abierto. No ha pasado el tope de 12
 // horas contado desde que entro... pero si paso la medianoche de su dia.
+// A las tres de la tarde de **anteayer**: su medianoche llega nueve horas despues y el tope a
+// las doce, asi que manda la medianoche, y las dos ya pasaron a cualquier hora del dia. Con
+// `current_date - 1` esto solo valia en la media hora siguiente a la medianoche de la bodega.
 const { id: ayer } = await one(
   `insert into shift_assignment (profile_id, started_at)
-   values ($1, ((current_date - 1 + interval '15 hours') at time zone reloj_de_bodega()))
+   values ($1, ((current_date - 2 + interval '15 hours') at time zone reloj_de_bodega()))
    returning id`,
   [deTarde],
 )
@@ -586,11 +593,14 @@ await como(revisor)
 await one(`select iniciar_turno(null, 'BOTH')`)
 
 const suyas = await one(
-  `select tareas_de('chequeador') = array['COUNT']::task_type[] as solo_conteo,
+  `select cardinality(tareas_de('chequeador')) as al_chequeador,
           'PUTAWAY' = any(tareas_de('auxiliar')) as aux_guarda,
           'PICK' = any(tareas_de('montacargista')) as mc_surte`,
 )
-check(suyas.solo_conteo === true, 'de chequeador solo le cae el conteo: ni guardar ni surtir')
+check(
+  Number(suyas.al_chequeador) === 0,
+  'de chequeador no le cae ninguna tarea: su trabajo es el anden, y contar es salir de ahi',
+)
 check(suyas.aux_guarda === true, 'al auxiliar le sigue cayendo todo')
 check(suyas.mc_surte === true, 'y al montacarguista tambien')
 
@@ -602,7 +612,7 @@ const { id: porGuardar } = await one(
 
 const noLeToca = await fails(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(
-  noLeToca?.includes('no te toca ir a dejar'),
+  noLeToca?.includes('tu trabajo es el anden') || noLeToca?.includes('tu trabajo es el andén'),
   'al chequeador no se le da la tarea de guardar, y se le dice por que',
 )
 check(
@@ -623,8 +633,15 @@ const { id: porContar } = await one(
    values ('COUNT', 'READY', $1, 1, 900, 0) returning id`,
   [producto],
 )
-const contando = await one(`select * from claim_next_task(array['COUNT']::task_type[])`)
-check(contando.id === porContar, 'el conteo si le cae: le toca a cualquiera')
+const niContar = await fails(`select * from claim_next_task(array['COUNT']::task_type[])`)
+check(
+  niContar !== null,
+  'ni el conteo: contar es irse a una posicion de racks, y el no sale del anden',
+)
+check(
+  (await one(`select status from task where id = $1`, [porContar])).status === 'READY',
+  'y la tarea de conteo queda libre para el que si puede caminar',
+)
 
 // Y el chequeador de rango que hoy baja a ayudar de auxiliar guarda pallets como todos: lo que
 // decide es el rol del turno, no el puesto. Si esto se colgara del permiso, se rompe.

@@ -181,4 +181,20 @@ check(auxLee?.includes('permiso'), 'ni ve la lista')
 const auxQuita = await falla(`select quitar_correo('nuevo@dinant.com')`)
 check(auxQuita?.includes('permiso'), 'ni quita a nadie de ella')
 
+// --- la puerta de entrada: el registro lee la lista con la llave secreta (0083) -----------
+
+/**
+ * El registro ocurre **sin sesion**, asi que lee la lista de correos dados de alta con la llave
+ * secreta, que entra a la base como `service_role`. Sobre `correo_autorizado` ese rol tenia
+ * `REFERENCES, TRIGGER, TRUNCATE` y **ni un SELECT**, asi que la consulta no devolvia nada
+ * nunca y la pantalla contestaba «ese correo no esta dado de alta» a todo el mundo: nadie podia
+ * crear una cuenta. Y el codigo tiraba el `error`, por eso parecia otra cosa.
+ */
+const laLlave = await one(
+  `select has_table_privilege('service_role', 'correo_autorizado', 'SELECT') as lee,
+          has_table_privilege('service_role', 'profile', 'SELECT') as lee_perfil`,
+)
+check(laLlave.lee === true, 'la llave secreta puede leer la lista de correos dados de alta')
+check(laLlave.lee_perfil === true, 'igual que el perfil, que ya lo tenia desde la 0008')
+
 await db.close()
