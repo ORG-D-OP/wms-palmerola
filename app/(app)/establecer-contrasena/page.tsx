@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth/session'
 import { PasswordForm } from './password-form'
 
-export const metadata = { title: 'Contrasena · WMS Palmerola' }
+export const metadata = { title: 'Contraseña · WMS Palmerola' }
 
 export default async function SetPasswordPage() {
   const user = await requireUser()
