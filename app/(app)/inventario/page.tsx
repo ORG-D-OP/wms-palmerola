@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Buscador } from './buscador'
 import { plural } from '@/lib/plural'
+import { fecha } from '@/lib/fechas'
 
 export const metadata = { title: 'Inventario · WMS Palmerola' }
 
@@ -105,7 +106,7 @@ export default async function InventarioPage({
                     {Number(f.sueltas) > 0 ? ` y ${Number(f.sueltas)} sueltas` : ''}
                   </span>
                   {f.lot ? <span>lote {f.lot}</span> : null}
-                  {f.expiry_date ? <span>vence {f.expiry_date}</span> : null}
+                  {f.expiry_date ? <span>vence {fecha(f.expiry_date)}</span> : null}
                   {f.lpn_code ? <span className="font-mono text-xs">{f.lpn_code}</span> : null}
                   {Number(f.qty_allocated) > 0 ? (
                     <span className="tabular-nums">

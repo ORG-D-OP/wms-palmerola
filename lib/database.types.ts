@@ -4481,6 +4481,10 @@ export type Database = {
           location_code: string
         }[]
       }
+      comprobar_codigo_de_tarea: {
+        Args: { p_codigo: string; p_task_id: string }
+        Returns: undefined
+      }
       conceder_roles: {
         Args: {
           p_id: string
@@ -4850,6 +4854,10 @@ export type Database = {
           p_type: Database["public"]["Enums"]["movement_type"]
         }
         Returns: number
+      }
+      producto_escaneado: {
+        Args: { p_codigo: string; p_task_id: string }
+        Returns: string
       }
       producto_para_recibir: {
         Args: { p_codigo: string }

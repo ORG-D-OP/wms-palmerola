@@ -138,7 +138,7 @@ async function crear() {
              -- código los ponía a todos en recepción.
              (select dock_door_id from anden_de_carga
                order by anden offset (g % (select count(*) from anden_de_carga)) limit 1),
-             -- Sin nota: `ship_note` es la razon por la que un camion salio corto, y la
+             -- Sin nota: ship_note es la razon por la que un camion salio corto, y la
              -- precision de los despachos la mira. Un pedido de prueba no trae razon.
              'DRAFT'
       from generate_series(1, ${PEDIDOS}) g

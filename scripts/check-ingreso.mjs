@@ -228,4 +228,32 @@ await db.query(
 const yaVa = await fails(`select corregir_recibo('12345678', '000100123456', 44)`)
 check(yaVa?.includes('se arregla contando'), 'con la tarea tomada, la cantidad ya no se corrige aqui')
 
+// Y el pallet que se fue a crossdock no se corrige aqui: a esas alturas la cantidad ya esta
+// prometida a una linea de un camion, y bajarla por detras dejaria a `despachar` sacando mas
+// de lo que hay. El crossdock mueve el pallet a un anden y cancela la tarea de guardarlo, asi
+// que sin esta guarda las otras dos pasaban.
+const { id: andenCarga } = await one(
+  `select dock_door_id as id from anden_de_carga order by anden limit 1`,
+)
+const { id: pedidoSalida } = await one(
+  `insert into sales_order (code, dock_door_id) values ('PED-XDOCK', $1) returning id`,
+  [andenCarga],
+)
+const { id: lineaSalida } = await one(
+  `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+   values ($1, 1, $2, (select id from packaging_level where product_id = $2), 480) returning id`,
+  [pedidoSalida, normal],
+)
+await one(
+  `insert into order_crossdock (order_line_id, product_id, lpn_id, qty_base, from_location_id,
+     to_location_id)
+   select $1, $2, lp.id, 480, $3, $3 from lpn lp where lp.code = '000100123456' returning id`,
+  [lineaSalida, normal, anden],
+)
+const enCrossdock = await fails(`select corregir_recibo('12345678', '000100123456', 30)`)
+check(
+  enCrossdock?.includes('se fue a crossdock'),
+  'y el pallet prometido a un camion ya no se corrige en el ingreso',
+)
+
 await db.close()

@@ -114,6 +114,27 @@ export async function startPick(taskId: string, code: string) {
   return error ? fallo(error) : { ok: true as const }
 }
 
+/**
+ * Que el codigo sea el de esta tarea, dicho en el escaneo y no tres pasos despues.
+ *
+ * Es la misma comprobacion que hace el Confirmar —las dos llaman a la misma funcion—, solo que
+ * aqui no hay nada tecleado que perder. Y el mensaje nombra los dos productos: con dos que
+ * comparten la barra y se distinguen por el gramaje, saber cual se leyo es la mitad del
+ * trabajo.
+ */
+export async function comprobarCodigo(taskId: string, code: string) {
+  await requirePermission('surtido:ejecutar')
+  const parsed = Scan.safeParse({ taskId, code })
+  if (!parsed.success) return { ok: false as const, error: 'Código inválido.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('comprobar_codigo_de_tarea', {
+    p_task_id: parsed.data.taskId,
+    p_codigo: parsed.data.code,
+  })
+  return error ? fallo(error) : { ok: true as const }
+}
+
 const Confirm = Scan.extend({
   cajas: z.coerce.number().min(0).max(100000),
   sueltas: z.coerce.number().min(0).max(100000),

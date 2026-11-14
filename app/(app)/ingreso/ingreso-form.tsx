@@ -17,6 +17,8 @@ import {
   type Recibido,
 } from './actions'
 import { plural } from '@/lib/plural'
+import { fecha } from '@/lib/fechas'
+import { nombrePosicion } from '@/lib/posiciones'
 
 type Dock = { id: string; code: string }
 
@@ -131,7 +133,7 @@ export function IngresoForm({
           <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={CAMPO}>
             {docks.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.code}
+                {nombrePosicion(d.code)}
               </option>
             ))}
           </select>
@@ -259,7 +261,7 @@ export function IngresoForm({
             <p className="text-sm text-azul/60">{ultimo.sku}</p>
             <p>{ultimo.name}</p>
             <p className="text-sm text-azul/60">{plural(ultimo.cases, 'caja', 'cajas')}</p>
-            {deAnden && ultimo.palletCode ? (
+            {deAnden && ultimo.palletCode && !doc.sinAviso ? (
               corrigiendo ? (
                 <form
                   action={(datos) => corregir(Number(datos.get('cajas')))}
@@ -309,7 +311,9 @@ export function IngresoForm({
           */}
           <div>
             <p className="text-sm text-azul/60">Queda para</p>
-            <p className="text-4xl tabular-nums">{ultimo.locationCode ?? 'Sin hueco libre'}</p>
+            <p className="text-4xl tabular-nums">
+              {ultimo.locationCode ? nombrePosicion(ultimo.locationCode) : 'Sin hueco libre'}
+            </p>
             <p className="mt-1 text-sm text-azul/60">
               {ultimo.locationCode
                 ? 'Lo guarda quien tome la tarea.'
@@ -396,7 +400,7 @@ export function IngresoForm({
                     <span className="block text-xs text-azul/60">
                       {l.sku} · {plural(l.cases, 'caja', 'cajas')}
                       {l.lot ? ` · lote ${l.lot}` : ''}
-                      {l.expiry ? ` · vence ${l.expiry}` : ''}
+                      {l.expiry ? ` · vence ${fecha(l.expiry)}` : ''}
                     </span>
                   </span>
                 </li>

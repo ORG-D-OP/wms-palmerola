@@ -224,7 +224,14 @@ export default async function AreasPage({
               patron={patron}
               zona={zona}
               nivel={nivel}
-              areas={(areas ?? []).map((a) => ({ code: a.code, name: a.name }))}
+              // Sin las virtuales. Calidad, desguace, cross-dock y contenedores son áreas
+              // «sin posiciones físicas» —lo dice esta misma pantalla dos renglones arriba—,
+              // así que mover posiciones de rack a una de ellas no significa nada.
+              areas={(areas ?? [])
+                .filter(
+                  (a) => !(ocupacion ?? []).some((o) => o.code === a.code && o.is_virtual),
+                )
+                .map((a) => ({ code: a.code, name: a.name }))}
               usos={(usos ?? []).map((u) => ({ code: u.code, name: u.name }))}
             />
 

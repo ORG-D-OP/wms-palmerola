@@ -17,6 +17,7 @@ import {
 } from './actions'
 import { plural } from '@/lib/plural'
 import { desglose, textoCajas } from '@/lib/cajas'
+import { nombrePosicion } from '@/lib/posiciones'
 
 /**
  * Despachar un camión: la hoja, convertida en lista de chequeo.
@@ -112,7 +113,8 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
           </span>
         </div>
         <p className="text-sm text-azul/60">
-          {camion.cliente ?? 'sin cliente'} · {camion.anden ?? 'sin andén'} ·{' '}
+          {camion.cliente ?? 'sin cliente'} ·{' '}
+          {camion.anden ? nombrePosicion(camion.anden) : 'sin andén'} ·{' '}
           {plural(camion.lineas, 'línea', 'líneas')}
         </p>
         {camion.entregas.length > 0 ? (

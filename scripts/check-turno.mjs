@@ -623,9 +623,13 @@ check(
 const niSurtir = await fails(`select * from claim_next_task(array['PICK']::task_type[])`)
 check(niSurtir !== null, 'tampoco la de surtir: el lee el tabulado y espera en el anden')
 
-// Pedir sin decir de que tipo tampoco le trae el viaje: lo que no es suyo no se le reparte.
-const aCiegas = await one(`select * from claim_next_task()`)
-check(aCiegas.id === null, 'y pidiendo trabajo a secas no le cae el viaje de otro')
+// Pedir sin decir de que tipo tampoco le trae el viaje, y se le dice por que: devolver «no hay
+// nada» seria mentirle, porque hay de sobra y no es suyo.
+const aCiegas = await fails(`select * from claim_next_task()`)
+check(
+  aCiegas?.includes('tu trabajo es el anden') || aCiegas?.includes('tu trabajo es el andén'),
+  'y pidiendo trabajo a secas tampoco le cae el viaje de otro',
+)
 
 // El conteo si: eso estaba decidido, y es lo que puede hacer entre camion y camion.
 const { id: porContar } = await one(

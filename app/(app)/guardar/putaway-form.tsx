@@ -10,6 +10,7 @@ import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
 import { claimPutaway, completePutaway, startPutaway, type Job } from './actions'
 import { textoCajas } from '@/lib/cajas'
+import { nombrePosicion } from '@/lib/posiciones'
 
 type Paso = 'buscando' | 'tomar' | 'llevar' | 'sin'
 
@@ -114,7 +115,7 @@ export function PutawayForm() {
         <>
           <div className="text-center">
             <p className="text-sm text-azul/60">Ve a</p>
-            <p className="text-3xl tabular-nums">{job?.fromCode}</p>
+            <p className="text-3xl tabular-nums">{nombrePosicion(job?.fromCode)}</p>
             <p className="mt-4 text-sm text-azul/60">Toma el pallet</p>
             <p className="text-2xl tabular-nums">{job?.lpnCode}</p>
           </div>
@@ -124,7 +125,9 @@ export function PutawayForm() {
         <>
           <div className="text-center">
             <p className="text-sm text-azul/60">Llévalo a</p>
-            <p className="text-5xl tabular-nums">{job?.toCode ?? 'Elige un hueco'}</p>
+            <p className="text-5xl tabular-nums">
+              {job?.toCode ? nombrePosicion(job.toCode) : 'Elige un hueco'}
+            </p>
           </div>
 
           {job?.toCode ? (

@@ -6,6 +6,7 @@ import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { buscarProducto, recibirMixto, type Pieza } from './actions'
 import { plural } from '@/lib/plural'
+import { fecha } from '@/lib/fechas'
 
 type Renglon = {
   codigo: string
@@ -148,7 +149,7 @@ export function Mixto({
               <span className="min-w-0">
                 <span className="block truncate">{r.name}</span>
                 <span className="block text-sm text-azul/60 tabular-nums">
-                  {plural(Number(r.cases), 'caja', 'cajas')} · vence {r.expiry}
+                  {plural(Number(r.cases), 'caja', 'cajas')} · vence {fecha(r.expiry)}
                   {r.lot ? ` · lote ${r.lot}` : ''}
                 </span>
               </span>

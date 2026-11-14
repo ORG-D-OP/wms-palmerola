@@ -9,7 +9,9 @@ import { SinTarea } from '@/components/ui/sin-tarea'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { desglose, textoCajas } from '@/lib/cajas'
 import { Icon } from '@/components/ui/icon'
-import { claimPick, completePick, startPick, type Pick } from './actions'
+import { claimPick, completePick, comprobarCodigo, startPick, type Pick } from './actions'
+import { fecha } from '@/lib/fechas'
+import { nombrePosicion } from '@/lib/posiciones'
 
 type Paso = 'buscando' | 'ir' | 'tomar' | 'sin'
 
@@ -29,6 +31,8 @@ export function PickForm() {
   const [pick, setPick] = useState<Pick | null>(null)
   const [verCara, setVerCara] = useState(false)
   const [codigo, setCodigo] = useState<string | null>(null)
+  // Lo que ya tecleó, para que un rebote no se lo borre.
+  const [tecleado, setTecleado] = useState<{ cajas: number; sueltas: number } | null>(null)
   const [recibo, setRecibo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Por qué no hay nada: no es lo mismo que la bodega esté al día que que lo que queda esté
@@ -40,6 +44,7 @@ export function PickForm() {
     startTransition(async () => {
       setError(null)
       setCodigo(null)
+      setTecleado(null)
       const res = await claimPick()
       if (!res.ok) {
         setPaso('sin')
@@ -71,20 +76,35 @@ export function PickForm() {
     })
   }
 
+  /**
+   * El código se comprueba aquí, en el escaneo, y no al Confirmar.
+   *
+   * Antes se guardaba tal cual y el rebote llegaba tres pasos después, con la cantidad ya
+   * escrita: el escaneo es el momento de decir «ése no es». Y el mensaje nombra lo que se leyó.
+   */
+  const escanearCodigo = (c: string) => {
+    if (!pick) return
+    setError(null)
+    startTransition(async () => {
+      const res = await comprobarCodigo(pick.taskId, c.trim())
+      if (!res.ok) return setError(res.error)
+      setCodigo(c.trim())
+    })
+  }
+
   const confirmar = (datos: FormData) => {
     if (!pick || !codigo) return
     setError(null)
-    const destino = pick.toCode
+    const destino = nombrePosicion(pick.toCode)
+    const cajas = Number(datos.get('cajas') ?? 0)
+    const sueltas = Number(datos.get('sueltas') ?? 0)
     startTransition(async () => {
-      const res = await completePick(
-        pick.taskId,
-        codigo,
-        Number(datos.get('cajas') ?? 0),
-        Number(datos.get('sueltas') ?? 0),
-      )
+      const res = await completePick(pick.taskId, codigo, cajas, sueltas)
       if (!res.ok) {
-        // Sin limpiar el código no hay forma de volver a escanear: la pantalla se pega.
+        // Sin limpiar el código no hay forma de volver a escanear: la pantalla se pega. Pero
+        // lo tecleado se guarda: hacer contar dos veces las mismas cajas es trabajo inventado.
         setCodigo(null)
+        setTecleado({ cajas, sueltas })
         return setError(res.error)
       }
       setRecibo(
@@ -126,7 +146,7 @@ export function PickForm() {
         <p className="text-sm text-azul/60">
           {pick?.sku} · {pick ? textoCajas(pick.qty, pick.porCaja) : ''}
           {pick?.lot ? ` · lote ${pick.lot}` : ''}
-          {pick?.expiry ? ` · vence ${pick.expiry}` : ''}
+          {pick?.expiry ? ` · vence ${fecha(pick.expiry)}` : ''}
         </p>
       </div>
 
@@ -134,7 +154,7 @@ export function PickForm() {
         <>
           <div className="text-center">
             <p className="text-sm text-azul/60">Ve a</p>
-            <p className="text-5xl tabular-nums">{pick?.fromCode}</p>
+            <p className="text-5xl tabular-nums">{nombrePosicion(pick?.fromCode)}</p>
           </div>
           {pick?.palletEntero ? (
             <p className="text-center">Llévate el pallet completo: {pick.lpnCode}</p>
@@ -162,7 +182,7 @@ export function PickForm() {
         <>
           <div className="text-center">
             <p className="text-sm text-azul/60">Llévalo a</p>
-            <p className="text-3xl tabular-nums">{pick?.toCode}</p>
+            <p className="text-3xl tabular-nums">{nombrePosicion(pick?.toCode)}</p>
           </div>
 
           {!codigo ? (
@@ -173,7 +193,7 @@ export function PickForm() {
                   : 'Escanea el código de la caja o la matrícula'
               }
               disabled={pending}
-              onScan={(c) => setCodigo(c.trim())}
+              onScan={escanearCodigo}
             />
           ) : (
             <form action={confirmar} className="flex flex-col gap-4">
@@ -192,7 +212,7 @@ export function PickForm() {
                       inputMode="numeric"
                       min={0}
                       required
-                      defaultValue={pedido.cajas}
+                      defaultValue={tecleado?.cajas ?? pedido.cajas}
                       className={CAMPO}
                     />
                   </label>
@@ -204,7 +224,7 @@ export function PickForm() {
                       inputMode="numeric"
                       min={0}
                       required
-                      defaultValue={pedido.sueltas}
+                      defaultValue={tecleado?.sueltas ?? pedido.sueltas}
                       disabled={(pick?.porCaja ?? 1) <= 1}
                       className={CAMPO}
                     />
