@@ -197,4 +197,48 @@ const laLlave = await one(
 check(laLlave.lee === true, 'la llave secreta puede leer la lista de correos dados de alta')
 check(laLlave.lee_perfil === true, 'igual que el perfil, que ya lo tenia desde la 0008')
 
+// ---------------------------------------------------------------------------------------
+// Una politica de lectura sin su permiso de tabla es una tabla ilegible que no se nota
+// ---------------------------------------------------------------------------------------
+
+/**
+ * Dos veces el mismo olvido: `correo_autorizado` dejo el registro roto para todos (0083), y
+ * `order_crossdock` dejo la pantalla de indicadores sin el dia entero (0089). En este proyecto
+ * el permiso de tabla se da a mano y la politica se escribe aparte, asi que se pueden separar.
+ *
+ * No se nota porque casi todo pasa por funciones `security definer`, que no miran permisos.
+ * Esta comprobacion es la que lo nota: si alguien escribe una politica de lectura y olvida el
+ * permiso, aqui falla, no el sabado en la bodega.
+ */
+const sinPermiso = await db.query(`
+  select distinct c.relname as tabla
+  from pg_policy pol
+  join pg_class c on c.oid = pol.polrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and pol.polcmd in ('r', '*')
+    and exists (
+      select 1 from pg_roles r
+      where r.oid = any(pol.polroles) and r.rolname = 'authenticated'
+    )
+    and not has_table_privilege('authenticated', c.oid, 'SELECT')
+  order by 1`)
+check(
+  sinPermiso.rows.length === 0,
+  `ninguna tabla tiene politica de lectura sin permiso de tabla (${sinPermiso.rows
+    .map((r) => r.tabla)
+    .join(', ')})`,
+)
+
+// Y lo mismo para el rol de la llave secreta, que es con el que corre el registro.
+const sinPermisoServicio = await db.query(`
+  select t.tabla
+  from (values ('correo_autorizado'), ('profile')) as t(tabla)
+  where not has_table_privilege('service_role', 'public.' || t.tabla, 'SELECT')
+  order by 1`)
+check(
+  sinPermisoServicio.rows.length === 0,
+  'y la llave secreta puede leer las tablas que el registro necesita antes de haber sesion',
+)
+
 await db.close()
