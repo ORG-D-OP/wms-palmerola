@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSessionUser } from '@/lib/auth/session'
@@ -18,7 +17,6 @@ export default async function LoginPage({
   return (
     <main className="flex flex-1 flex-col bg-azul md:flex-row">
       <section className="flex shrink-0 flex-col justify-center gap-4 p-8 md:flex-1">
-        <Image src="/logo-dinant.png" alt="Dinant" width={160} height={37} priority />
         <h1 className="text-3xl text-white">WMS Palmerola</h1>
         <p className="max-w-sm text-white/70">
           Sistema de gestión de almacén. Creamos mejores días, siempre.

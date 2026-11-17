@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { requireUser } from '@/lib/auth/session'
 import { ROLE_LABELS } from '@/lib/auth/roles'
 import { navMovil, navParaRol } from '@/components/app-shell/nav-items'
@@ -16,7 +15,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <header className="sticky top-0 z-10 bg-azul text-white">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-4 py-3">
-          <Image src="/logo-dinant.png" alt="Dinant" width={96} height={22} priority />
           <TopNav items={items} />
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right leading-tight sm:block">
