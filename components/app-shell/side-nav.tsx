@@ -35,7 +35,7 @@ export function SideNav({ sueltos, grupos }: { sueltos: NavItem[]; grupos: NavGr
       <ul>{sueltos.map(enlace)}</ul>
       {grupos.map((g) => (
         <div key={g.titulo}>
-          <h2 className="mt-5 mb-1.5 px-2.5 text-[11px] tracking-wider text-white/50 uppercase">
+          <h2 className="mt-5 mb-1.5 px-2.5 text-xs text-white/50">
             {g.titulo}
           </h2>
           <ul>{g.items.map(enlace)}</ul>
