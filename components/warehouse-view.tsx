@@ -79,7 +79,7 @@ export function WarehouseView({
         )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-azul/60 xl:col-start-1 xl:row-start-1 xl:flex-col xl:items-start xl:gap-3 xl:rounded-2xl xl:border xl:border-borde xl:p-4">
-          <h3 className="hidden text-[11px] tracking-wider text-azul/50 uppercase xl:block">
+          <h3 className="hidden text-xs text-azul/50 xl:block">
             Leyenda
           </h3>
           <span className="flex items-center gap-1.5">

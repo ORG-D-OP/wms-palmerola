@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { requireUser } from '@/lib/auth/session'
 import { ROLE_LABELS } from '@/lib/auth/roles'
 import { navAgrupado, navMovil } from '@/components/app-shell/nav-items'
@@ -23,7 +24,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1 flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-dvh w-61 shrink-0 flex-col bg-azul text-white md:flex">
-        <p className="px-5 py-4 text-lg">WMS Palmerola</p>
+        <div className="flex flex-col gap-1.5 px-5 py-5">
+          <Image src="/logo-dinant.png" alt="Dinant" width={112} height={32} priority />
+          <p className="text-sm text-white/60">WMS Palmerola</p>
+        </div>
 
         <SideNav sueltos={sueltos} grupos={grupos} />
 
@@ -43,6 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 bg-azul text-white md:hidden">
           <div className="flex w-full items-center gap-4 px-4 py-3">
+            <Image src="/logo-dinant.png" alt="Dinant" width={96} height={27} priority />
+
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden text-right leading-tight sm:block">
                 <p className="truncate text-sm">{user.fullName}</p>
