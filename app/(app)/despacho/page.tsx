@@ -14,7 +14,7 @@ export default async function DespachoPage() {
   const user = await requirePermission('inventario:mover')
 
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Despachar camión</h1>
       <DespachoForm puedeCerrar={can(user.roles, 'despachos:administrar')} />
     </main>

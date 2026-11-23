@@ -83,7 +83,7 @@ export default async function ConteosPage() {
   const sinDueno = pendientes.filter((t) => !t.assigned_to).length
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:max-w-3xl">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Conteos cíclicos</h1>
 
       <Lanzar

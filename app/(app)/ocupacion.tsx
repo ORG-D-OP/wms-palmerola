@@ -40,20 +40,22 @@ export function Ocupacion({ estados, permite3D }: { estados: Estados; permite3D:
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg">Ocupación del almacén</h2>
+      <div className="contents xl:flex xl:items-start xl:gap-8">
+        <h2 className="text-lg">Ocupación del almacén</h2>
 
-      <div className="max-w-md">
-        <ScanInput
-          label="Mira un rack: escanea o escribe su código"
-          disabled={pending}
-          onScan={buscar}
-        />
+        <div className="max-w-md xl:flex-1">
+          <ScanInput
+            label="Mira un rack: escanea o escribe su código"
+            disabled={pending}
+            onScan={buscar}
+          />
+        </div>
       </div>
 
       {error ? <Aviso>{error}</Aviso> : null}
 
       {cara ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:max-w-5xl">
           <RackFace cara={cara} destino={marcada ?? undefined} />
           <button
             type="button"

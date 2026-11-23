@@ -17,7 +17,7 @@ export default async function RetornablesPage() {
   const espacios = data ?? []
 
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Pallets vacíos y corrugado</h1>
       <RetornablesForm />
 
