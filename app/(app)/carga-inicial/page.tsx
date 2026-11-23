@@ -14,7 +14,7 @@ export default async function CargaInicialPage() {
     .eq('reason_code', 'CARGA_INICIAL')
 
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <header className="flex flex-col gap-2">
         <h1 className="text-xl">Carga inicial</h1>
         <p className="text-sm text-azul/60">

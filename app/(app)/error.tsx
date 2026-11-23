@@ -26,7 +26,7 @@ export default function ErrorDeLaApp({
   reset: () => void
 }) {
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-5 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-5 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Algo se cayó</h1>
 
       {/*

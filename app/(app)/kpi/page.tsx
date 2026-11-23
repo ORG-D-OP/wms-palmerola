@@ -41,7 +41,7 @@ export default async function KpiPage() {
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Indicadores</h1>
 
       {!hoy ? (

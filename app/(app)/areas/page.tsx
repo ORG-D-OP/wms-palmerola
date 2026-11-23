@@ -112,7 +112,7 @@ export default async function AreasPage({
   const ocupadas = filas.filter((f) => f.ocupada).length
 
   return (
-    <main className="flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8 xl:max-w-5xl">
       <div>
         <h1 className="text-xl">Áreas y usos</h1>
         <p className="text-sm text-azul/60">

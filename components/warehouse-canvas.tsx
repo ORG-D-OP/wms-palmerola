@@ -377,7 +377,7 @@ export function WarehouseCanvas({
     <div className="relative overflow-hidden rounded-2xl border border-borde bg-white">
       <canvas
         ref={canvasRef}
-        className="block h-[clamp(18rem,52vw,34rem)] w-full cursor-grab touch-none active:cursor-grabbing"
+        className="block h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-grab touch-none active:cursor-grabbing"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
           punterosRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })

@@ -50,7 +50,7 @@ export default async function ReabastecerPage({
   const pct = area?.replenish_pct ?? 50
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:max-w-3xl">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Reabastecer picking</h1>
 
       <Umbral area={area?.code ?? 'PICKING'} pct={pct} />

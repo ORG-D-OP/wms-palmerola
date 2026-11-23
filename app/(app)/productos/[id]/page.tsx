@@ -28,7 +28,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const niveles = producto.pallet_config[0]?.max_stack ?? 1
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <div>
         <Link href="/productos" className="text-sm underline underline-offset-4">
           Productos
