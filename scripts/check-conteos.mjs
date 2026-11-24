@@ -59,7 +59,7 @@ await como(jefe)
 // Reordenar: dos escaneos
 // ---------------------------------------------------------------------------------------
 
-const origen = await posicion('F1-001-01')
+const origen = await posicion('F3-001-01')
 const { id: pallet } = await one(
   `insert into lpn (code, level, source) values ('WMS-00009001', 'PALLET', 'PROVISIONAL')
    returning id`,
@@ -70,30 +70,30 @@ await one(
   [producto, origen.id, pallet],
 )
 
-const sinNada = await fails(`select * from reordenar('F1-005-01', 'F1-005-02')`)
+const sinNada = await fails(`select * from reordenar('F3-005-01', 'F3-005-02')`)
 check(sinNada?.includes('no hay nada que mover'), 'de una posicion vacia no se mueve nada')
 
-const aLaNada = await fails(`select * from reordenar('F1-001-01', 'ZZZ-999')`)
+const aLaNada = await fails(`select * from reordenar('F3-001-01', 'ZZZ-999')`)
 check(aLaNada?.includes('No existe la posición'), 'un destino inventado se rechaza por su nombre')
 
-const alMismo = await fails(`select * from reordenar('F1-001-01', 'F1-001-01')`)
+const alMismo = await fails(`select * from reordenar('F3-001-01', 'F3-001-01')`)
 check(alMismo?.includes('Ya está en'), 'mover algo a donde ya esta se rechaza, no se duplica')
 
-const movido = await one(`select * from reordenar('F1-001-01', 'F1-001-02')`)
+const movido = await one(`select * from reordenar('F3-001-01', 'F3-001-02')`)
 check(
   movido.pallet === 'WMS-00009001' && Number(movido.cantidad) === 240,
   'el reordenamiento saca el producto y la cantidad de la existencia, sin teclear nada',
 )
 check(
-  movido.de === 'F1-001-01' && movido.a === 'F1-001-02',
+  movido.de === 'F3-001-01' && movido.a === 'F3-001-02',
   'y dice de donde salio y a donde fue',
 )
-check(Number((await saldo('F1-001-01')).qty) === 0, 'el origen queda en cero')
-check(Number((await saldo('F1-001-02')).qty) === 240, 'y el destino con las 240')
+check(Number((await saldo('F3-001-01')).qty) === 0, 'el origen queda en cero')
+check(Number((await saldo('F3-001-02')).qty) === 240, 'y el destino con las 240')
 
-const porMatricula = await one(`select * from reordenar('WMS-00009001', 'F1-001-03')`)
+const porMatricula = await one(`select * from reordenar('WMS-00009001', 'F3-001-03')`)
 check(
-  porMatricula.de === 'F1-001-02' && porMatricula.a === 'F1-001-03',
+  porMatricula.de === 'F3-001-02' && porMatricula.a === 'F3-001-03',
   'la matricula del pallet sirve de primer escaneo: el sistema ya sabe donde esta',
 )
 
@@ -107,7 +107,7 @@ const { id: pallet2 } = await one(
   `insert into lpn (code, level, source) values ('WMS-00009002', 'PALLET', 'PROVISIONAL')
    returning id`,
 )
-await db.query(`update location set max_pallets_stacked = 3 where code = 'F1-001-03'`)
+await db.query(`update location set max_pallets_stacked = 3 where code = 'F3-001-03'`)
 await db.query(
   `insert into pallet_config (product_id, pallet_type_code, cases_per_layer, layers,
      cases_per_pallet, allows_stacking, max_stack, is_default)
@@ -117,10 +117,10 @@ await db.query(
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid,
      $3::uuid, 'L1'::text, '2027-06-30'::date)`,
-  [producto, (await posicion('F1-001-03')).id, pallet2],
+  [producto, (await posicion('F3-001-03')).id, pallet2],
 )
 
-const ambiguo = await fails(`select * from reordenar('F1-001-03', 'F1-001-04')`)
+const ambiguo = await fails(`select * from reordenar('F3-001-03', 'F3-001-04')`)
 check(
   ambiguo?.includes('Escanea la matrícula del pallet'),
   'con dos pallets en la posicion pide la matricula, no mueve el que se le antoje',
@@ -130,11 +130,11 @@ check(
   'y nombra los dos pallets que hay, para que el que escanea sepa cuales son',
 )
 
-const elegido = await one(`select * from reordenar('F1-001-03', 'F1-001-04', 'WMS-00009002')`)
+const elegido = await one(`select * from reordenar('F3-001-03', 'F3-001-04', 'WMS-00009002')`)
 check(elegido.pallet === 'WMS-00009002', 'con la matricula mueve justo ese pallet')
-check(Number((await saldo('F1-001-03')).qty) === 240, 'y el otro se queda donde estaba')
+check(Number((await saldo('F3-001-03')).qty) === 240, 'y el otro se queda donde estaba')
 
-const ajeno = await fails(`select * from reordenar('F1-001-03', 'F1-001-04', 'WMS-00000999')`)
+const ajeno = await fails(`select * from reordenar('F3-001-03', 'F3-001-04', 'WMS-00000999')`)
 check(ajeno?.includes('no está en'), 'una matricula que no esta ahi se rechaza diciendolo')
 
 // ---------------------------------------------------------------------------------------
@@ -155,11 +155,11 @@ const { id: linea } = await one(
 
 // Picking para que el surtido pueda tomar cajas sueltas, y una segunda posicion con existencia
 // de donde sacar lo que falte cuando el recuento baje la cantidad.
-await db.query(`select reasignar_area_por_codigo('F1-00%', 'PICKING')`)
+await db.query(`select reasignar_area_por_codigo('F3-00%', 'PICKING')`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, null,
      'L1'::text, '2027-06-30'::date)`,
-  [producto, (await posicion('F1-002-01')).id],
+  [producto, (await posicion('F3-002-01')).id],
 )
 
 await db.query(`select apartar_linea($1)`, [linea])
@@ -178,7 +178,7 @@ const apartadoAqui = await todas(
 check(apartadoAqui.length >= 1, 'y el apartado apunta a una posicion concreta')
 
 // Y de paso, lo que el reordenamiento promete y no estaba probado: lo apartado no se mueve.
-const apartadoNoSeMueve = await fails(`select * from reordenar($1, 'F1-005-02')`, [
+const apartadoNoSeMueve = await fails(`select * from reordenar($1, 'F3-005-02')`, [
   apartadoAqui[0].code,
 ])
 check(
@@ -187,15 +187,15 @@ check(
 )
 
 await como(miron)
-const sinPermiso = await fails(`select * from recontar('F1-001-03', 5)`)
+const sinPermiso = await fails(`select * from recontar('F3-001-03', 5)`)
 check(sinPermiso?.includes('No tienes permiso'), 'quien solo mira no cambia cantidades')
 
 await como(auxiliar)
 
-const cero = await fails(`select * from recontar('F1-001-03', null)`)
+const cero = await fails(`select * from recontar('F3-001-03', null)`)
 check(cero?.includes('cuántas cajas hay'), 'sin cantidad no hay recuento')
 
-const vacia = await fails(`select * from recontar('F1-009-09', 3)`)
+const vacia = await fails(`select * from recontar('F3-009-09', 3)`)
 check(
   vacia?.includes('carga inicial'),
   'contar donde el sistema no tiene nada manda a la carga inicial, que es lo que es',
@@ -280,8 +280,8 @@ check(
 )
 
 // Un conteo que cuadra tambien cuenta: sin el no hay con que dividir.
-const hayAhi = Number((await saldo('F1-001-03')).qty) / 24
-const cuadra = await one(`select * from recontar('F1-001-03', $1)`, [hayAhi])
+const hayAhi = Number((await saldo('F3-001-03')).qty) / 24
+const cuadra = await one(`select * from recontar('F3-001-03', $1)`, [hayAhi])
 check(Number(cuadra.diferencia) === 0, 'un recuento que cuadra no mueve nada')
 const conteosDe = await one(`select conteos, descuadres from inexactitud where profile_id = $1`, [
   auxiliar,
@@ -301,23 +301,23 @@ const movimientos = await one(
 check(movimientos.n === 1, 'y el que cuadro no dejo movimiento, porque no movio nada')
 
 // Hacia arriba tambien: habia mas de lo que decia.
-const masDeLoQueDecia = await one(`select * from recontar('F1-001-03', $1)`, [hayAhi + 2])
+const masDeLoQueDecia = await one(`select * from recontar('F3-001-03', $1)`, [hayAhi + 2])
 check(Number(masDeLoQueDecia.diferencia) === 2, 'el recuento tambien sube la cantidad')
 check(
-  Number((await saldo('F1-001-03')).qty) === (hayAhi + 2) * 24,
+  Number((await saldo('F3-001-03')).qty) === (hayAhi + 2) * 24,
   'y el saldo sube con el: dos cajas mas son 48 unidades mas',
 )
 
 // Las sueltas se cuentan aparte. Confirmar lo que pinta la pantalla no puede borrarlas:
 // una posicion de picking casi nunca tiene un numero redondo de cajas.
-const redondas = Number((await saldo('F1-001-03')).qty) / 24
-await one(`select * from recontar('F1-001-03', $1, 7)`, [redondas])
-const vista = await one(`select cajas, sueltas from inventario where location_code = 'F1-001-03'`)
+const redondas = Number((await saldo('F3-001-03')).qty) / 24
+await one(`select * from recontar('F3-001-03', $1, 7)`, [redondas])
+const vista = await one(`select cajas, sueltas from inventario where location_code = 'F3-001-03'`)
 check(
   Number(vista.cajas) === redondas && Number(vista.sueltas) === 7,
   'una posicion puede quedar en cajas enteras mas unidades sueltas',
 )
-const confirmado = await one(`select * from recontar('F1-001-03', $1, $2)`, [
+const confirmado = await one(`select * from recontar('F3-001-03', $1, $2)`, [
   vista.cajas,
   vista.sueltas,
 ])
@@ -326,14 +326,14 @@ check(
   'y confirmar lo que la pantalla pinta cuadra, en vez de comerse las sueltas',
 )
 check(
-  Number((await saldo('F1-001-03')).qty) === redondas * 24 + 7,
+  Number((await saldo('F3-001-03')).qty) === redondas * 24 + 7,
   'el saldo se queda igual: las siete sueltas siguen ahi',
 )
 check(
   Number(confirmado.decia) === redondas && Number(confirmado.decia_sueltas) === 7,
   'y lo que decia el sistema vuelve en cajas y sueltas, no en un 5.29 que nadie lee',
 )
-const enNegativo = await fails(`select * from recontar('F1-001-03', 1, -1)`)
+const enNegativo = await fails(`select * from recontar('F3-001-03', 1, -1)`)
 check(
   enNegativo?.includes('menos que cero'),
   'contar sueltas en negativo no tiene sentido y se rechaza',
