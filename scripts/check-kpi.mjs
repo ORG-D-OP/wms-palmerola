@@ -110,32 +110,40 @@ check(
 
 // --- las cajas por hora y lo improductivo --------------------------------------------------
 
+// Las diez de la mañana de ayer en la bodega, clavadas por lo mismo que arriba: colgado de
+// `now()`, entre medianoche y las dos de la mañana el turno y la tarea caían en el día de
+// ayer mientras la consulta pedía el de hoy, y la fila venía vacía.
+const ayer = await one(
+  `select ((current_date - 1 + interval '10 hours') at time zone reloj_de_bodega()) as cuando,
+          (current_date - 1)::text as dia`,
+)
+
 await one(
   `insert into shift_assignment (profile_id, started_at, ended_at)
-   values ($1, now() - interval '2 hours', now() - interval '1 hour')`,
-  [jefe],
+   values ($1, $2::timestamptz, $2::timestamptz + interval '1 hour')`,
+  [jefe, ayer.cuando],
 )
 await one(
   `insert into task (type, status, product_id, qty_base, packaging_level_id, assigned_to,
      created_at, assigned_at, started_at, completed_at)
    values ('PICK', 'DONE', $1, 1440, $2, $3,
-     now() - interval '2 hours', now() - interval '2 hours',
-     now() - interval '2 hours', now() - interval '90 minutes')`,
-  [producto, caja, jefe],
+     $4::timestamptz, $4::timestamptz, $4::timestamptz,
+     $4::timestamptz + interval '30 minutes')`,
+  [producto, caja, jefe, ayer.cuando],
 )
 
-const hoy = await one(
-  `select cajas, horas_turno, cajas_por_hora, improductivo_pct
-   from kpi_dia where dia = (now() at time zone reloj_de_bodega())::date`,
+const dia = await one(
+  `select cajas, horas_turno, cajas_por_hora, improductivo_pct from kpi_dia where dia = $1::date`,
+  [ayer.dia],
 )
-check(Number(hoy.cajas) === 60, 'el dia suma las cajas de sus tareas')
-check(Number(hoy.horas_turno) === 1, 'y las horas de turno de su gente')
+check(Number(dia.cajas) === 60, 'el dia suma las cajas de sus tareas')
+check(Number(dia.horas_turno) === 1, 'y las horas de turno de su gente')
 check(
-  Number(hoy.cajas_por_hora) === 60,
+  Number(dia.cajas_por_hora) === 60,
   'las cajas por hora se miden contra la hora del turno, que es la que se paga',
 )
 check(
-  Number(hoy.improductivo_pct) === 50,
+  Number(dia.improductivo_pct) === 50,
   'y la media hora que no estuvo en una tarea sale como improductiva',
 )
 
@@ -155,20 +163,20 @@ for (const [code, nota, chequeadas] of [
 ]) {
   const { id } = await one(
     `insert into sales_order (code, dock_door_id, status, shipped_at, ship_note)
-     values ($1, $2, 'SHIPPED', now() - interval '1 hour', $3) returning id`,
-    [code, anden, nota],
+     values ($1, $2, 'SHIPPED', $3::timestamptz, $4) returning id`,
+    [code, anden, ayer.cuando, nota],
   )
   await one(
     `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base,
        checked_qty_base, checked_at, checked_by)
-     values ($1, 1, $2, $3, 240, $4, now() - interval '1 hour', $5)`,
-    [id, producto, caja, chequeadas, jefe],
+     values ($1, 1, $2, $3, 240, $4, $5::timestamptz, $6)`,
+    [id, producto, caja, chequeadas, ayer.cuando, jefe],
   )
 }
 
 const precision = await one(
-  `select camiones, completos, precision_pct
-   from kpi_dia where dia = (now() at time zone reloj_de_bodega())::date`,
+  `select camiones, completos, precision_pct from kpi_dia where dia = $1::date`,
+  [ayer.dia],
 )
 check(Number(precision.camiones) === 2, 'los camiones del dia se cuentan')
 check(
