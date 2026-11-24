@@ -7,6 +7,7 @@ import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { ESTADO } from './estado'
 import {
+  abrirEnAnden,
   buscarDespacho,
   chequear,
   corregirCantidad,
@@ -36,7 +37,13 @@ import { nombrePosicion } from '@/lib/posiciones'
  * pide una razón: un faltante que nadie escribió es un descuadre que aparece la semana que
  * viene sin dueño.
  */
-export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
+export function DespachoForm({
+  puedeCerrar,
+  andenes,
+}: {
+  puedeCerrar: boolean
+  andenes: string[]
+}) {
   const [camion, setCamion] = useState<Camion | null>(null)
   const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
@@ -67,6 +74,48 @@ export function DespachoForm({ puedeCerrar }: { puedeCerrar: boolean }) {
           escanearla se reparte el surtido entre los que estén en el andén.
         </p>
         {error ? <Aviso>{error}</Aviso> : null}
+      </div>
+    )
+  }
+
+  /**
+   * El camión que vino de un Excel de SAP no trae andén, y sin andén no se reparte nada. Se
+   * pregunta aquí, que es donde la persona lo está viendo: el camión está delante de ella.
+   */
+  if (camion.estado === 'DRAFT') {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1 rounded-2xl border border-borde p-4">
+          <span className="text-lg tabular-nums">{camion.transporte ?? camion.code}</span>
+          <p className="text-sm text-azul/60">
+            {camion.cliente ?? 'sin cliente'} · {plural(camion.lineas, 'línea', 'líneas')}
+          </p>
+        </div>
+
+        <p className="text-sm text-azul/60">
+          ¿En qué andén está este camión? SAP no lo dice. Al elegirlo se reparte el surtido
+          entre los que estén ahí.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {andenes.map((anden) => (
+            <button
+              key={anden}
+              type="button"
+              disabled={pending}
+              onClick={() => empezar(async () => resolver(await abrirEnAnden(camion.id, anden)))}
+              className={BOTON_SUAVE}
+            >
+              {nombrePosicion(anden)}
+            </button>
+          ))}
+        </div>
+
+        {error ? <Aviso>{error}</Aviso> : null}
+
+        <button type="button" onClick={() => setCamion(null)} className={BOTON_SUAVE}>
+          Otro camión
+        </button>
       </div>
     )
   }

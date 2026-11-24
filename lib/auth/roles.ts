@@ -58,6 +58,9 @@ const PERMISSIONS = {
   'kpi:ver': ['supervisor', 'admin', 'solo_lectura'],
   'personal:administrar': ['supervisor', 'admin'],
   'maestros:editar': ['admin'],
+  // Los Excel de SAP los sube quien esta pendiente de la operacion, no solo el administrador:
+  // son cada media hora y el administrador no esta en la bodega a esa hora.
+  'datos:cargar': ['supervisor', 'admin'],
   'usuarios:administrar': ['admin'],
 } satisfies Record<string, readonly UserRole[]>
 

@@ -275,6 +275,51 @@ export type Database = {
         }
         Relationships: []
       }
+      carga_sap: {
+        Row: {
+          detail: Json
+          file_name: string
+          id: string
+          kind: string
+          rows_read: number
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          detail?: Json
+          file_name: string
+          id?: string
+          kind: string
+          rows_read: number
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          detail?: Json
+          file_name?: string
+          id?: string
+          kind?: string
+          rows_read?: number
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carga_sap_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carga_sap_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       correo_autorizado: {
         Row: {
           created_at: string
@@ -1686,6 +1731,77 @@ export type Database = {
           },
         ]
       }
+      product_forecast: {
+        Row: {
+          cases: number
+          cases_per_pallet: number | null
+          id: string
+          name: string | null
+          pallets: number
+          period: number
+          product_id: string | null
+          sku: string
+          updated_at: string
+          year: number
+          zona: string
+        }
+        Insert: {
+          cases: number
+          cases_per_pallet?: number | null
+          id?: string
+          name?: string | null
+          pallets: number
+          period: number
+          product_id?: string | null
+          sku: string
+          updated_at?: string
+          year: number
+          zona: string
+        }
+        Update: {
+          cases?: number
+          cases_per_pallet?: number | null
+          id?: string
+          name?: string | null
+          pallets?: number
+          period?: number
+          product_id?: string | null
+          sku?: string
+          updated_at?: string
+          year?: number
+          zona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_label_profile: {
         Row: {
           assessed_at: string | null
@@ -2081,6 +2197,83 @@ export type Database = {
           },
         ]
       }
+      sap_stock: {
+        Row: {
+          almacen: string | null
+          blocked_base: number
+          centro: string
+          free_base: number
+          id: string
+          name: string | null
+          pending_base: number
+          product_id: string | null
+          sku: string
+          taken_on: string
+          transit_base: number
+          uom: string
+          updated_at: string
+        }
+        Insert: {
+          almacen?: string | null
+          blocked_base?: number
+          centro: string
+          free_base?: number
+          id?: string
+          name?: string | null
+          pending_base?: number
+          product_id?: string | null
+          sku: string
+          taken_on: string
+          transit_base?: number
+          uom: string
+          updated_at?: string
+        }
+        Update: {
+          almacen?: string | null
+          blocked_base?: number
+          centro?: string
+          free_base?: number
+          id?: string
+          name?: string | null
+          pending_base?: number
+          product_id?: string | null
+          sku?: string
+          taken_on?: string
+          transit_base?: number
+          uom?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sap_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sap_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "sap_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sap_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_assignment: {
         Row: {
           auto_closed: boolean
@@ -2178,33 +2371,45 @@ export type Database = {
       }
       site: {
         Row: {
+          abc_a_pct: number
+          abc_b_pct: number
           close_after_idle_minutes: number
           code: string
           created_at: string
           expiry_block_days: number
+          forecast_zone: string
           id: string
           max_shift_hours: number
           name: string
+          sap_centro: string
           time_zone: string
         }
         Insert: {
+          abc_a_pct?: number
+          abc_b_pct?: number
           close_after_idle_minutes?: number
           code: string
           created_at?: string
           expiry_block_days?: number
+          forecast_zone?: string
           id?: string
           max_shift_hours?: number
           name: string
+          sap_centro?: string
           time_zone?: string
         }
         Update: {
+          abc_a_pct?: number
+          abc_b_pct?: number
           close_after_idle_minutes?: number
           code?: string
           created_at?: string
           expiry_block_days?: number
+          forecast_zone?: string
           id?: string
           max_shift_hours?: number
           name?: string
+          sap_centro?: string
           time_zone?: string
         }
         Relationships: []
@@ -3620,6 +3825,47 @@ export type Database = {
         }
         Relationships: []
       }
+      producto_abc: {
+        Row: {
+          cajas: number | null
+          clase: string | null
+          name: string | null
+          pallets: number | null
+          pct_acumulado: number | null
+          product_id: string | null
+          sku: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_detail"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventario"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_forecast_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_readiness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rack_elevacion: {
         Row: {
           apartada: boolean | null
@@ -4108,6 +4354,17 @@ export type Database = {
           },
         ]
       }
+      ultima_carga: {
+        Row: {
+          detail: Json | null
+          file_name: string | null
+          kind: string | null
+          persona: string | null
+          rows_read: number | null
+          uploaded_at: string | null
+        }
+        Relationships: []
+      }
       zone_occupancy: {
         Row: {
           code: string | null
@@ -4310,6 +4567,8 @@ export type Database = {
           vence: string
         }[]
       }
+      cargar_despachos: { Args: { p_filas: Json }; Returns: Json }
+      cargar_ingresos: { Args: { p_filas: Json }; Returns: Json }
       cargar_inicial: {
         Args: {
           p_codigo: string
@@ -4328,6 +4587,12 @@ export type Database = {
           sku: string
         }[]
       }
+      cargar_inventario_sap: {
+        Args: { p_fecha: string; p_filas: Json }
+        Returns: Json
+      }
+      cargar_pronostico: { Args: { p_filas: Json }; Returns: Json }
+      cargar_salidas: { Args: { p_filas: Json }; Returns: Json }
       cerrar_conteo: {
         Args: { p_task_id: string }
         Returns: {
@@ -4424,6 +4689,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      clase_abc: { Args: { p_product_id: string }; Returns: string }
       close_task: {
         Args: {
           p_reason?: string
@@ -4821,6 +5087,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      poner_anden: {
+        Args: { p_anden: string; p_order_id: string }
+        Returns: undefined
+      }
       posiciones_a_contar: {
         Args: { p_area?: string; p_nivel?: number; p_zona?: string }
         Returns: {
@@ -4871,6 +5141,7 @@ export type Database = {
       }
       producto_por_codigo: { Args: { p_codigo: string }; Returns: string }
       productos_por_codigo: { Args: { p_codigo: string }; Returns: string[] }
+      puede_cargar_sap: { Args: never; Returns: boolean }
       puede_trabajar_como: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -5053,6 +5324,15 @@ export type Database = {
           por_caja: number
           tareas: number
         }[]
+      }
+      registrar_carga: {
+        Args: {
+          p_detail: Json
+          p_file_name: string
+          p_kind: string
+          p_rows_read: number
+        }
+        Returns: undefined
       }
       release_order: { Args: { p_order_id: string }; Returns: number }
       reloj_de_bodega: { Args: never; Returns: string }
@@ -5250,6 +5530,7 @@ export type Database = {
           first_broken_id: number
         }[]
       }
+      zona_del_pronostico: { Args: never; Returns: string }
     }
     Enums: {
       abc_class: "A" | "B" | "C"

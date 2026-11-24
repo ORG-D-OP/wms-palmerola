@@ -4,7 +4,7 @@
 //
 // El archivo no va al repositorio: vive en datos/, que esta en .gitignore.
 import { loadEnv } from './lib/env.mjs'
-import { readXlsx } from './lib/xlsx.mjs'
+import { abrirArchivo } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/codigos-ean.xlsx'
 const HOJA = process.argv[3] ?? 'Codigos EAN-UPC'
@@ -55,7 +55,7 @@ const api = async (path, method = 'GET', body) => {
   return json
 }
 
-const filas = readXlsx(ARCHIVO, HOJA).slice(1)
+const filas = (await (await abrirArchivo(ARCHIVO)).filas(HOJA)).slice(1)
 console.log(`${filas.length} filas en ${ARCHIVO} / ${HOJA}`)
 
 const sinProducto = []
