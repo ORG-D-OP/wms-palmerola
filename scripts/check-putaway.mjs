@@ -58,25 +58,73 @@ await one(`select start_putaway($1, $2)`, [tarea.id, r.lpn_code])
 const inexistente = await fails(`select * from complete_putaway($1, 'NO-EXISTE')`, [tarea.id])
 check(inexistente?.includes('No existe la posición'), 'una posicion inventada se rechaza')
 
-// Un carril con otro producto no puede recibir este pallet.
+// Un carril con otro producto no puede recibir este pallet. F2 porque la zona F1 es la del
+// no alimento y ahi saltaria antes la regla del grupo.
 const { id: intruso } = await one(
   `insert into product (sku, name, base_uom) values ('T-2', 'Otro', 'ST') returning id`,
 )
 const vecina = await one(
   `select l.code from location l
-   where l.lane_id = (select lane_id from location where code = 'F1-002-01')
-     and l.code <> 'F1-002-01' limit 1`,
+   where l.lane_id = (select lane_id from location where code = 'F2-002-01')
+     and l.code <> 'F2-002-01' limit 1`,
 )
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 10::numeric, null,
      (select id from location where code = $2))`,
   [intruso, vecina.code],
 )
-const carrilOcupado = await fails(`select * from complete_putaway($1, 'F1-002-01')`, [tarea.id])
+const carrilOcupado = await fails(`select * from complete_putaway($1, 'F2-002-01')`, [tarea.id])
 check(
   carrilOcupado?.includes('otro producto o lote'),
   'no deja guardar en un carril con otro producto',
 )
+
+// En rack el carril es la bahia, no la corrida entera: el fondo esta cerrado y la bahia de al
+// lado no.
+const bahia = 'R-SNK-L01-B03-N2-P1'
+const elFondo = 'R-SNK-L01-B03-N2-P2'
+const otraBahia = 'R-SNK-L01-B04-N2-P1'
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 10::numeric, null,
+     (select id from location where code = $2))`,
+  [intruso, bahia],
+)
+const fondoCerrado = await fails(`select * from complete_putaway($1, $2)`, [tarea.id, elFondo])
+check(
+  fondoCerrado?.includes('frente y el fondo'),
+  'el fondo de una bahia con otro producto esta cerrado',
+)
+const vecinaLibre = await one(
+  `select suggest_putaway_location($1) is not null as hay`,
+  [productId],
+)
+check(vecinaLibre.hay === true, 'con una bahia tomada el rack sigue teniendo sitio')
+const bahiaDeAlLado = await one(
+  `select count(*)::int as n from location l
+   where l.code = $1 and not exists (
+     select 1 from stock s join location o on o.id = s.location_id
+     where o.carril = l.carril and s.qty_base > 0)`,
+  [otraBahia],
+)
+check(bahiaDeAlLado.n === 1, 'la bahia de al lado no se contagia')
+
+// Lo que no es alimento tiene su zona, y la zona no admite alimento.
+const { id: quimico } = await one(
+  `insert into product (sku, name, base_uom, contamination_class)
+   values ('T-3', 'Jabon de prueba', 'ST', 'QUIMICO') returning id`,
+)
+const paraQuimico = await one(`select grupo from location where code = 'F1-002-01'`)
+check(paraQuimico.grupo === 'NO_ALIMENTO', 'la zona F1 es la del no alimento')
+const alimentoEnF1 = await fails(`select * from complete_putaway($1, 'F1-002-01')`, [tarea.id])
+check(
+  alimentoEnF1?.includes('sólo va lo que no es alimento'),
+  'un alimento no entra en la zona del no alimento',
+)
+const sitioQuimico = await one(
+  `select l.grupo from location l where l.id = suggest_putaway_location($1)`,
+  [quimico],
+)
+check(sitioQuimico.grupo === 'NO_ALIMENTO', 'al quimico se le manda a su zona')
 
 const cerrada = await one(`select * from complete_putaway($1, $2)`, [tarea.id, r.to_location_code])
 check(cerrada.era_la_sugerida === true, 'cerrar en la posicion sugerida queda marcado como tal')

@@ -33,11 +33,18 @@ const producto = async (sku, niveles) => {
 const apilable = await producto('AP-2', 2)
 const suelto = await producto('AP-1', 1)
 
+// De almacen y de alimento, que es lo que son estos productos de prueba: la zona F1 y los
+// cuatro primeros carriles de abarroteria son del no alimento (migracion 0097).
+const deAlmacen = `
+  select l.id, l.code from location l
+  join location_area lar on lar.location_id = l.id and lar.valid_to is null
+  join area a on a.id = lar.area_id
+  where a.code = 'ALMACEN' and coalesce(l.grupo, 'ALIMENTO') = 'ALIMENTO'`
 const { id: piso, code: pisoCode } = await one(
-  `select id, code from location where kind = 'floor_stack' order by code limit 1`,
+  `${deAlmacen} and l.kind = 'floor_stack' order by l.code limit 1`,
 )
 const { id: rack } = await one(
-  `select id from location where kind <> 'floor_stack' order by code limit 1`,
+  `${deAlmacen} and l.kind not in ('floor_stack', 'staging') order by l.code limit 1`,
 )
 
 const caben = async (location, product) =>
@@ -75,7 +82,7 @@ check(
 )
 
 const { id: otroPiso, code: otroCode } = await one(
-  `select id, code from location where kind = 'floor_stack' and code <> $1 order by code limit 1`,
+  `${deAlmacen} and l.kind = 'floor_stack' and l.code <> $1 order by l.code limit 1`,
   [pisoCode],
 )
 await dejar(otroPiso, suelto, 'PAL-B1')

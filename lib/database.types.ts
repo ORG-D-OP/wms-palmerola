@@ -732,12 +732,16 @@ export type Database = {
       location: {
         Row: {
           barcode: string
+          bay: number | null
+          carril: string | null
           code: string
           coord_x: number | null
           coord_y: number | null
           coord_z: number | null
           created_at: string
           depth_index: number
+          dist_despacho_m: number | null
+          grupo: string | null
           id: string
           kind: Database["public"]["Enums"]["location_type"]
           lane_id: string
@@ -755,12 +759,16 @@ export type Database = {
         }
         Insert: {
           barcode: string
+          bay?: number | null
+          carril?: string | null
           code: string
           coord_x?: number | null
           coord_y?: number | null
           coord_z?: number | null
           created_at?: string
           depth_index?: number
+          dist_despacho_m?: number | null
+          grupo?: string | null
           id?: string
           kind: Database["public"]["Enums"]["location_type"]
           lane_id: string
@@ -778,12 +786,16 @@ export type Database = {
         }
         Update: {
           barcode?: string
+          bay?: number | null
+          carril?: string | null
           code?: string
           coord_x?: number | null
           coord_y?: number | null
           coord_z?: number | null
           created_at?: string
           depth_index?: number
+          dist_despacho_m?: number | null
+          grupo?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["location_type"]
           lane_id?: string
@@ -2369,6 +2381,57 @@ export type Database = {
           },
         ]
       }
+      siembra_sap: {
+        Row: {
+          apilado: number | null
+          base_pallet: number | null
+          case_id: string | null
+          clase: string | null
+          estado: string | null
+          fase: number | null
+          location_id: string | null
+          lote: string | null
+          matricula: string | null
+          n: number | null
+          product_id: string | null
+          rango: number | null
+          sku: string | null
+          vence: string | null
+        }
+        Insert: {
+          apilado?: number | null
+          base_pallet?: number | null
+          case_id?: string | null
+          clase?: string | null
+          estado?: string | null
+          fase?: number | null
+          location_id?: string | null
+          lote?: string | null
+          matricula?: string | null
+          n?: number | null
+          product_id?: string | null
+          rango?: number | null
+          sku?: string | null
+          vence?: string | null
+        }
+        Update: {
+          apilado?: number | null
+          base_pallet?: number | null
+          case_id?: string | null
+          clase?: string | null
+          estado?: string | null
+          fase?: number | null
+          location_id?: string | null
+          lote?: string | null
+          matricula?: string | null
+          n?: number | null
+          product_id?: string | null
+          rango?: number | null
+          sku?: string | null
+          vence?: string | null
+        }
+        Relationships: []
+      }
       site: {
         Row: {
           abc_a_pct: number
@@ -2382,6 +2445,7 @@ export type Database = {
           max_shift_hours: number
           name: string
           sap_centro: string
+          segrega_no_alimento: boolean
           time_zone: string
         }
         Insert: {
@@ -2396,6 +2460,7 @@ export type Database = {
           max_shift_hours?: number
           name: string
           sap_centro?: string
+          segrega_no_alimento?: boolean
           time_zone?: string
         }
         Update: {
@@ -2410,6 +2475,7 @@ export type Database = {
           max_shift_hours?: number
           name?: string
           sap_centro?: string
+          segrega_no_alimento?: boolean
           time_zone?: string
         }
         Relationships: []
@@ -4849,12 +4915,16 @@ export type Database = {
         Args: { p_codigo: string }
         Returns: {
           barcode: string
+          bay: number | null
+          carril: string | null
           code: string
           coord_x: number | null
           coord_y: number | null
           coord_z: number | null
           created_at: string
           depth_index: number
+          dist_despacho_m: number | null
+          grupo: string | null
           id: string
           kind: Database["public"]["Enums"]["location_type"]
           lane_id: string
@@ -4941,6 +5011,7 @@ export type Database = {
         Args: { p_zone_code: string }
         Returns: number
       }
+      grupo_del_producto: { Args: { p_product_id: string }; Returns: string }
       has_role: {
         Args: { roles: Database["public"]["Enums"]["user_role"][] }
         Returns: boolean

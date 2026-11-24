@@ -146,24 +146,31 @@ check(
 // El motor obedece el area, el uso y el alcance
 // ---------------------------------------------------------------------------------------
 
-const primera = await one(`select suggest_putaway_location($1) as id`, [producto])
-const nombre = await one(`select code from location where id = $1`, [primera.id])
-check(nombre?.code === 'F1-001-01', `sin nada guardado la primera sugerencia es el piso (${nombre?.code})`)
+// Los codigos no se escriben a mano: el orden de la sugerencia sale del recorrido del plano y
+// de la clase del producto, y lo que se comprueba aqui es que el area y el uso se obedecen.
+const nombre = await one(
+  `select code, kind from location where id = suggest_putaway_location($1)`,
+  [producto],
+)
+check(nombre?.kind === 'floor_stack', `sin nada guardado la primera sugerencia es el piso (${nombre?.code})`)
 
-await one(`select reasignar_area_por_codigo('F1-001-01', 'PICKING')`)
+await one(`select reasignar_area_por_codigo($1, 'PICKING')`, [nombre.code])
 const segunda = await one(
   `select code from location where id = suggest_putaway_location($1)`,
   [producto],
 )
-check(segunda?.code === 'F1-001-02', 'un pallet completo no se manda a picking')
+check(segunda?.code !== nombre.code, 'un pallet completo no se manda a picking')
 
-const movidas = await one(`select reasignar_uso_por_codigo('F1-001-02', 'CORRUGADO') as n`)
+const movidas = await one(`select reasignar_uso_por_codigo($1, 'CORRUGADO') as n`, [segunda.code])
 check(movidas.n === 1, 'el uso se cambia por rango de codigo')
 const tercera = await one(
   `select code from location where id = suggest_putaway_location($1)`,
   [producto],
 )
-check(tercera?.code === 'F1-001-03', 'una posicion de corrugado no recibe producto')
+check(
+  tercera?.code !== segunda.code && tercera?.code !== nombre.code,
+  'una posicion de corrugado no recibe producto',
+)
 
 // Sacar el piso del almacen deja solo rack: es el escenario del montacarguista.
 for (const bloque of ['F1-', 'F2-', 'F3-', 'F4-', 'F5-', 'F6-', 'F7-']) {
@@ -220,7 +227,7 @@ const vecina = await one(
 )
 check(vecina.n === 0, 'un pallet en el nivel 1 no pinta ocupados los otros cinco niveles')
 
-const otroUso = await one(`select estado from posicion_estado where code = 'F1-001-02'`)
+const otroUso = await one(`select estado from posicion_estado where code = $1`, [segunda.code])
 check(otroUso?.estado === 'OTRO_USO', 'la posicion de corrugado se pinta distinta')
 
 // ---------------------------------------------------------------------------------------
