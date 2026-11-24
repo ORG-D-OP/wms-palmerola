@@ -57,4 +57,52 @@ check(pila[0].n === 6, 'la pila de una bahia de abarrotes son sus 6 niveles')
 const { rows: estado } = await db.query(`select count(*)::int as n from posicion_estado`)
 check(estado[0].n === 0, 'con la bodega vacia el mapa no pinta nada distinto')
 
+// El tablero no pide la planta por la vista: PostgREST corta en mil filas y la bodega tiene
+// 5,581 posiciones. La pide por `planta()`, que es una sola fila (migracion 0098).
+const { rows: mapa } = await db.query(`
+  select jsonb_array_length(planta()->'ocupadas') as ocupadas
+`)
+check(Number(mapa[0].ocupadas) === 0, 'con la bodega vacia no hay ninguna posicion ocupada')
+
+// La segmentacion: una cara de picking tiene que salir en el mapa con su codigo de cuadro.
+await db.query(`
+  update location_area set valid_to = now()
+  where valid_to is null
+    and location_id = (select id from location where code = 'F1-001-01')
+`)
+await db.query(`
+  insert into location_area (location_id, area_id, valid_from)
+  select l.id, a.id, now()
+  from location l cross join area a
+  where l.code = 'F1-001-01' and a.code = 'PICKING'
+`)
+const { rows: seg } = await db.query(`
+  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) ? 'F1-001-01' as esta,
+         jsonb_array_length(planta()->'no_alimento') as no_alimento
+`)
+check(seg[0].esta === true, 'la planta dice cual cuadro es cara de picking')
+
+const { rows: cuadros } = await db.query(`
+  select jsonb_array_elements_text(planta()->'areas'->'PICKING') as code
+`)
+check(
+  cuadros.every((c) => enPlanta.has(c.code)),
+  'los cuadros que manda la planta son cuadros del dibujo',
+)
+
+// Tocar un cuadro de rack trae su pila entera; tocar uno de piso, esa posicion y nada mas.
+const { rows: bahia } = await db.query(`select * from que_hay_en('R-ABA-L01-B01-P1')`)
+check(bahia.length === 6, `un cuadro de rack son sus 6 niveles (son ${bahia.length})`)
+check(
+  bahia.every((f) => f.sku === null),
+  'con la bodega vacia el cuadro sale libre, no vacio de filas',
+)
+
+const { rows: suelo } = await db.query(`select * from que_hay_en('F1-001-01')`)
+check(suelo.length === 1, 'un cuadro de piso es una sola posicion')
+check(
+  (await db.query(`select * from que_hay_en('F1')`)).rows.length === 0,
+  'un bloque entero no es un cuadro: no devuelve nada',
+)
+
 await db.close()

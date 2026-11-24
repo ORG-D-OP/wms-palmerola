@@ -14,9 +14,8 @@ import {
   type Sugerencia,
 } from './actions'
 import { plural } from '@/lib/plural'
+import { fecha } from '@/lib/fechas'
 
-const fecha = (iso: string | null) =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('es-HN') : '—'
 
 /** Lo que ya está cargado de este producto, del que vence antes al que vence después. */
 function Cargado({ filas }: { filas: Existente[] }) {

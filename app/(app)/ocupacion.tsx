@@ -4,11 +4,12 @@ import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { RackFace, type Cara } from '@/components/rack-face'
 import { WarehouseView } from '@/components/warehouse-view'
-import type { Ocupacion as Estados } from '@/components/warehouse-canvas'
+import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
-import { buscarCara } from './actions'
+import { fecha } from '@/lib/fechas'
+import { buscarCara, queHayEn, type Hueco } from './actions'
 
 /**
  * La ocupación del almacén, en dos vistas que responden a dos preguntas distintas.
@@ -18,10 +19,19 @@ import { buscarCara } from './actions'
  * arriba los seis niveles son un solo cuadro. Se cambia buscando el rack, porque en el
  * tablero no hay uno «al que vas»: hay el que uno quiera mirar.
  */
-export function Ocupacion({ estados, permite3D }: { estados: Estados; permite3D: boolean }) {
+export function Ocupacion({
+  estados,
+  segmentos,
+  permite3D,
+}: {
+  estados: Estados
+  segmentos: Segmentos
+  permite3D: boolean
+}) {
   const [cara, setCara] = useState<Cara | null>(null)
   const [marcada, setMarcada] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [cuadro, setCuadro] = useState<{ code: string; huecos: Hueco[] } | null>(null)
   const [pending, empezar] = useTransition()
 
   const buscar = (texto: string) => {
@@ -35,6 +45,16 @@ export function Ocupacion({ estados, permite3D }: { estados: Estados; permite3D:
       }
       setCara(res.cara)
       setMarcada(res.marcada)
+    })
+  }
+
+  const tocar = (code: string) => {
+    setCuadro(null)
+    empezar(async () => {
+      const res = await queHayEn(code)
+      if (!res.ok) return setError(res.error)
+      setError(null)
+      setCuadro({ code, huecos: res.huecos })
     })
   }
 
@@ -75,9 +95,87 @@ export function Ocupacion({ estados, permite3D }: { estados: Estados; permite3D:
             Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles y el
             tono dice cuántos están ocupados; para verlos uno por uno, busca el rack arriba.
           </p>
-          <WarehouseView ocupacion={estados} permite3D={permite3D} />
+          {cuadro ? <Cuadro cuadro={cuadro} onCerrar={() => setCuadro(null)} /> : null}
+          <WarehouseView
+            ocupacion={estados}
+            segmentos={segmentos}
+            permite3D={permite3D}
+            onTocar={(t) => tocar(t.celda)}
+          />
         </>
       )}
     </section>
+  )
+}
+
+/**
+ * Lo que hay debajo del cuadro que se tocó.
+ *
+ * En piso es una posición y en rack son sus niveles, porque desde arriba se ven como un solo
+ * cuadro. Las posiciones vacías también salen: la mitad de las veces lo que uno va a mirar al
+ * mapa es dónde queda sitio.
+ */
+function Cuadro({
+  cuadro,
+  onCerrar,
+}: {
+  cuadro: { code: string; huecos: Hueco[] }
+  onCerrar: () => void
+}) {
+  const primero = cuadro.huecos[0]
+  const llenos = cuadro.huecos.filter((h) => h.sku !== null)
+
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl border border-borde p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base">{cuadro.code}</h3>
+          <p className="text-sm text-azul/60">
+            {primero
+              ? `${primero.area ?? 'sin área'} · ${
+                  primero.grupo === 'NO_ALIMENTO' ? 'no alimento' : 'alimento'
+                }${primero.dist_despacho_m ? ` · ${primero.dist_despacho_m} m a despacho` : ''}`
+              : 'No hay ninguna posición con ese código'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCerrar}
+          aria-label="Cerrar"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-borde text-azul"
+        >
+          <Icon name="close" />
+        </button>
+      </div>
+
+      {cuadro.huecos.length === 0 ? null : llenos.length === 0 ? (
+        <p className="text-sm text-azul/60">Está libre.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {cuadro.huecos.map((h, i) => (
+            <li
+              key={`${h.location_code}-${h.lpn_code ?? i}`}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-borde/50 pt-2 text-sm first:border-0 first:pt-0"
+            >
+              <span className="font-medium">{h.location_code}</span>
+              {h.sku ? (
+                <>
+                  <span>
+                    {h.sku} · {h.nombre}
+                  </span>
+                  <span className="text-azul/60">
+                    {h.cajas ? `${h.cajas} cajas` : `${h.qty_base} unidades`}
+                    {h.lot ? ` · lote ${h.lot}` : ''} · vence {fecha(h.expiry_date)}
+                    {h.lpn_code ? ` · ${h.lpn_code}` : ''}
+                  </span>
+                </>
+              ) : (
+                <span className="text-azul/60">libre</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

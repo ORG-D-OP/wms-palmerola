@@ -3,19 +3,29 @@ import { requireUser } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { atajos, navMovil } from '@/components/app-shell/nav-items'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Ocupacion as Estados } from '@/components/warehouse-canvas'
+import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
 import { Icon } from '@/components/ui/icon'
 import { Ocupacion } from './ocupacion'
 import { Trabajo, type Trabajo as EstadoTrabajo } from './trabajo'
 
-/** Con la bodega llena son 5,581 códigos cortos; con la bodega vacía, ninguno. */
-const TOPE_POSICIONES = 6000
+/**
+ * La planta entera cabe en una fila. Pedirla por la vista `posicion_estado` no servía: son
+ * 5,581 posiciones y PostgREST corta en `max_rows`, mil, así que el mapa pintaba una de cada
+ * cuatro y la bodega llena se veía casi vacía (migración 0098).
+ */
+type Planta = {
+  ocupadas?: string[]
+  apartadas?: string[]
+  otros?: string[]
+  no_alimento?: string[]
+  areas?: Record<string, string[]>
+}
 
 async function getDatos() {
   const supabase = await createSupabaseServerClient()
 
-  const [estados, zonas, areas, productos, tareas] = await Promise.all([
-    supabase.from('posicion_estado').select('code, estado').limit(TOPE_POSICIONES),
+  const [planta, zonas, areas, productos, tareas] = await Promise.all([
+    supabase.rpc('planta'),
     supabase
       .from('zone_occupancy')
       .select('code, kind, ocupadas, total')
@@ -32,9 +42,15 @@ async function getDatos() {
       .in('status', ['READY', 'ASSIGNED', 'IN_PROGRESS']),
   ])
 
-  const ocupacion = Object.fromEntries(
-    (estados.data ?? []).map((p) => [p.code ?? '', p.estado ?? 'OCUPADA']),
-  ) as Estados
+  const mapa = (planta.data ?? {}) as Planta
+  const ocupacion: Estados = {}
+  for (const code of mapa.otros ?? []) ocupacion[code] = 'OTRO_USO'
+  for (const code of mapa.apartadas ?? []) ocupacion[code] = 'APARTADA'
+  for (const code of mapa.ocupadas ?? []) ocupacion[code] = 'OCUPADA'
+  const segmentos: Segmentos = {
+    no_alimento: mapa.no_alimento ?? [],
+    areas: mapa.areas ?? {},
+  }
 
   const totales = (zonas.data ?? []).reduce(
     (acc, z) => ({ ocupadas: acc.ocupadas + (z.ocupadas ?? 0), total: acc.total + (z.total ?? 0) }),
@@ -43,6 +59,7 @@ async function getDatos() {
 
   return {
     ocupacion,
+    segmentos,
     totales,
     areas: (areas.data ?? []).filter((a) => (a.total ?? 0) > 0),
     productos: productos.count ?? 0,
@@ -69,10 +86,8 @@ async function getTrabajo(profileId: string): Promise<EstadoTrabajo | null> {
 
 export default async function DashboardPage() {
   const user = await requireUser()
-  const [{ ocupacion, totales, areas, productos, tareas }, trabajo] = await Promise.all([
-    getDatos(),
-    getTrabajo(user.id),
-  ])
+  const [{ ocupacion, segmentos, totales, areas, productos, tareas }, trabajo] =
+    await Promise.all([getDatos(), getTrabajo(user.id)])
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
@@ -148,7 +163,11 @@ export default async function DashboardPage() {
         </dl>
 
         <div className="contents xl:col-start-1 xl:row-start-1 xl:row-end-4 xl:block">
-          <Ocupacion estados={ocupacion} permite3D={can(user.roles, 'kpi:ver')} />
+          <Ocupacion
+            estados={ocupacion}
+            segmentos={segmentos}
+            permite3D={can(user.roles, 'kpi:ver')}
+          />
         </div>
 
         {areas.length > 0 ? (

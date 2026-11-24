@@ -1,5 +1,6 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { todas } from '@/lib/supabase/paginar'
 import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
 import { BotonCamara } from '@/components/ui/boton-camara'
@@ -7,8 +8,6 @@ import { Cambios } from './cambios'
 import { Plano } from './plano'
 
 export const metadata = { title: 'Áreas · WMS Palmerola' }
-
-const TOPE = 6000
 
 /** Los niveles que hay: el 0 es el piso y de ahí para arriba los del rack. */
 const NIVELES = [0, 1, 2, 3, 4, 5, 6]
@@ -85,24 +84,26 @@ export default async function AreasPage({
   const codigos = partir(patron)
   const criterios = (codigos.length > 0 ? 1 : 0) + (zona ? 1 : 0) + (nivel ? 1 : 0)
 
-  let consulta = supabase
-    .from('posicion_detalle')
-    .select('code, area_code, area_name, usage_code, usage_name, ocupada, apartada, level')
-    .order('code')
-    .limit(TOPE)
-  // El `or` de PostgREST quiere `*` donde el SQL lleva `%`.
-  if (codigos.length > 0) {
-    consulta = consulta.or(codigos.map((c) => `code.like.${c}*`).join(','))
-  }
   const clase = clases.find((k) => k === zona)
-  if (zona) {
-    consulta = clase ? consulta.eq('zone_kind', clase) : consulta.eq('zone_code', zona)
+  // Se arma en cada tanda: un constructor de supabase-js no se ejecuta dos veces.
+  const armar = (desde: number, hasta: number) => {
+    let consulta = supabase
+      .from('posicion_detalle')
+      .select('code, area_code, area_name, usage_code, usage_name, ocupada, apartada, level')
+      .order('code')
+      .range(desde, hasta)
+    // El `or` de PostgREST quiere `*` donde el SQL lleva `%`.
+    if (codigos.length > 0) {
+      consulta = consulta.or(codigos.map((c) => `code.like.${c}*`).join(','))
+    }
+    if (zona) {
+      consulta = clase ? consulta.eq('zone_kind', clase) : consulta.eq('zone_code', zona)
+    }
+    if (nivel) consulta = consulta.eq('level', Number(nivel))
+    return consulta
   }
-  if (nivel) consulta = consulta.eq('level', Number(nivel))
 
-  const { data: alcance } = criterios > 0 ? await consulta : { data: null }
-
-  const filas = alcance ?? []
+  const filas = criterios > 0 ? await todas(armar) : []
   const porArea = contar(
     filas.map((f) => ({ clave: f.area_code ?? 'SIN', nombre: f.area_name ?? 'Sin área' })),
   )

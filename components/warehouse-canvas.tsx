@@ -23,6 +23,16 @@ export type Estado = 'OCUPADA' | 'APARTADA' | 'OTRO_USO'
  */
 export type Ocupacion = Record<string, Estado>
 
+/**
+ * La segmentación de la planimetría, por cuadro de la planta: qué cuadros son del no
+ * alimento y qué cuadros tiene cada área que no sea el almacén. Es lo que se redibuja cada
+ * semana y lo que no se puede deducir mirando la ocupación.
+ */
+export type Segmentos = { no_alimento: string[]; areas: Record<string, string[]> }
+
+/** Qué cuenta el mapa: cuánto hay, o de quién es cada hueco. */
+export type Modo = 'ocupacion' | 'planimetria'
+
 type Conteo = { ocupadas: number; apartadas: number; otros: number }
 
 /** Lo que hay en cada cuadro de la planta; en rack, la pila entera de niveles. */
@@ -56,6 +66,16 @@ function tono(c: Conteo | undefined, niveles: number) {
 }
 
 /**
+ * El color de la planimetría: el tinte dice el grupo —azul el alimento, celeste lo que no lo
+ * es— y la fuerza dice el oficio: subido, la cara de picking; apagado, la reserva. Son los dos
+ * cortes que uno necesita para ubicarse, y caben en un solo color por cuadro.
+ */
+function tonoPlanimetria(code: string, noAlimento: Set<string>, picking: Set<string>) {
+  const base = noAlimento.has(code) ? '0, 155, 221' : '44, 43, 143'
+  return `rgba(${base}, ${picking.has(code) ? 0.62 : 0.16})`
+}
+
+/**
  * La planta se dibuja una sola vez en un canvas fuera de pantalla a esta resolución y
  * después solo se escala: cada cuadro es un drawImage, no 3,469 rectángulos.
  */
@@ -65,9 +85,17 @@ const ESCALA_MAX = 22
 
 type Vista = { x: number; y: number; escala: number }
 
-function pintarEstatico(ctx: CanvasRenderingContext2D, ocupacion: Ocupacion) {
+function pintarEstatico(
+  ctx: CanvasRenderingContext2D,
+  ocupacion: Ocupacion,
+  modo: Modo,
+  segmentos?: Segmentos,
+) {
   const k = PX_POR_METRO
   const cuadros = porCuadro(ocupacion)
+  const noAlimento = new Set(segmentos?.no_alimento ?? [])
+  const picking = new Set(segmentos?.areas?.PICKING ?? [])
+  const plano = modo === 'planimetria' && segmentos !== undefined
   ctx.fillStyle = COLOR.blanco
   ctx.fillRect(0, 0, NAVE.ancho * k, NAVE.alto * k)
 
@@ -97,7 +125,9 @@ function pintarEstatico(ctx: CanvasRenderingContext2D, ocupacion: Ocupacion) {
     }
     const niveles = b.niveles ?? 1
     for (const c of b.celdas) {
-      ctx.fillStyle = tono(cuadros.get(c.code), niveles)
+      ctx.fillStyle = plano
+        ? tonoPlanimetria(c.code, noAlimento, picking)
+        : tono(cuadros.get(c.code), niveles)
       ctx.fillRect(c.x * k, c.y * k, c.w * k, c.h * k)
     }
   }
@@ -215,22 +245,39 @@ export type Toque = {
   prefijo: string
 }
 
-/** Qué celda de la planta está debajo de un punto, en metros de la nave. */
+/**
+ * Qué celda de la planta está debajo de un punto, en metros de la nave.
+ *
+ * Entre cuadro y cuadro hay un hueco dibujado —la separación que deja ver que son
+ * posiciones distintas— y ese hueco es casi la mitad de la superficie del bloque. Pedir que
+ * el dedo caiga dentro del cuadro hacía que uno de cada dos toques no agarrara nada. Así que
+ * dentro de un bloque gana el cuadro **más cercano**, que es el que la persona creyó tocar.
+ */
 function celdaEn(x: number, y: number): Toque | null {
   for (const b of BLOQUES) {
     if (b.tipo === 'preparacion') continue
     const f = FRANJAS[b.franja]
     if (x < b.x || x > b.x + b.ancho || y < f.y || y > f.y + f.alto) continue
+
+    let cerca: (typeof b.celdas)[number] | undefined
+    let menor = Infinity
     for (const c of b.celdas) {
-      if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
-        return {
-          bloque: b.code,
-          celda: c.code,
-          prefijo: b.tipo === 'rack' ? c.code.replace(/-\d+$/, '') : c.code,
-        }
+      // Distancia al cuadro, cero si el punto cayó dentro.
+      const dx = Math.max(c.x - x, 0, x - (c.x + c.w))
+      const dy = Math.max(c.y - y, 0, y - (c.y + c.h))
+      const d = dx * dx + dy * dy
+      if (d < menor) {
+        menor = d
+        cerca = c
+        if (d === 0) break
       }
     }
-    return { bloque: b.code, celda: b.code, prefijo: b.code }
+    if (!cerca) return { bloque: b.code, celda: b.code, prefijo: b.code }
+    return {
+      bloque: b.code,
+      celda: cerca.code,
+      prefijo: b.tipo === 'rack' ? cerca.code.replace(/-\d+$/, '') : cerca.code,
+    }
   }
   return null
 }
@@ -240,12 +287,16 @@ export function WarehouseCanvas({
   origen,
   destino,
   onTocar,
+  modo = 'ocupacion',
+  segmentos,
 }: {
   ocupacion: Ocupacion
   origen?: string
   destino?: string
   /** Un toque sobre la planta, con el bloque y la celda que agarró. */
   onTocar?: (toque: Toque) => void
+  modo?: Modo
+  segmentos?: Segmentos
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const estaticoRef = useRef<HTMLCanvasElement | null>(null)
@@ -327,10 +378,10 @@ export function WarehouseCanvas({
     off.width = NAVE.ancho * PX_POR_METRO
     off.height = NAVE.alto * PX_POR_METRO
     const ctx = off.getContext('2d')
-    if (ctx) pintarEstatico(ctx, ocupacion)
+    if (ctx) pintarEstatico(ctx, ocupacion, modo, segmentos)
     estaticoRef.current = off
     encuadrar()
-  }, [ocupacion, encuadrar])
+  }, [ocupacion, modo, segmentos, encuadrar])
 
   // ResizeObserver: al montar el canvas todavia no tiene su ancho final.
   useEffect(() => {
