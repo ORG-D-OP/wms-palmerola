@@ -73,6 +73,34 @@ export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion
   const abierto = await cargar(supabase, id)
   if (!abierto.ok || abierto.camion.estado !== 'DRAFT') return abierto
 
+  // SAP no dice en qué andén se carga el camión: eso lo sabe quien está ahí parado. Si el
+  // camión viene de un Excel y todavía no tiene andén, la pantalla lo pregunta antes de
+  // repartir el surtido; sin él `release_order` no abre nada.
+  if (!abierto.camion.anden) return abierto
+
+  const { error } = await supabase.rpc('release_order', { p_order_id: id })
+  if (error) return fallo(error)
+
+  return cargar(supabase, id)
+}
+
+/** Poner el andén y abrir: los dos pasos van juntos porque son un solo gesto en el andén. */
+export async function abrirEnAnden(
+  id: string,
+  anden: string,
+): Promise<{ ok: true; camion: Camion } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = Codigo.safeParse(anden)
+  if (!parsed.success) return { ok: false, error: 'Andén inválido.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { error: errorAnden } = await supabase.rpc('poner_anden', {
+    p_order_id: id,
+    p_anden: parsed.data,
+  })
+  if (errorAnden) return fallo(errorAnden)
+
   const { error } = await supabase.rpc('release_order', { p_order_id: id })
   if (error) return fallo(error)
 

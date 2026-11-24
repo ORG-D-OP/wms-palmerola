@@ -4,7 +4,7 @@
 //
 // El archivo no va al repositorio: vive en datos/, que esta en .gitignore.
 import { loadEnv } from './lib/env.mjs'
-import { readXlsx } from './lib/xlsx.mjs'
+import { abrirArchivo } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/maestro.xlsx'
 const HOJA = process.argv[3] ?? 'Hoja1'
@@ -120,7 +120,8 @@ const esOferta = (nombre, tipoCaja) =>
 
 // ----------------------------------------------------------------------------------------
 
-const crudas = readXlsx(ARCHIVO, HOJA)
+const libro = await abrirArchivo(ARCHIVO)
+const crudas = await libro.filas(HOJA)
 const filas = crudas
   .slice(1)
   .map((r) => ({
@@ -312,7 +313,7 @@ console.log(`estibas: ${estibas.length}`)
 // Van al sistema igual, con el nombre y nada mas, porque el dia que llegue el camion el
 // producto tiene que existir para poder recibirlo. Sin estiba y sin codigo: eso se completa
 // en Productos, escaneando la caja.
-const porVenir = readXlsx(ARCHIVO, HOJA_NUEVOS)
+const porVenir = await libro.filas(HOJA_NUEVOS)
   .map((r) => ({ sku: limpio(r[0]), nombre: limpio(r[1]) }))
   .filter((f) => /^\d/.test(f.sku) && f.nombre && !idPorSku.has(f.sku))
 

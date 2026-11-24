@@ -147,6 +147,14 @@ const TODOS = [
     grupo: 'administracion',
   },
   {
+    href: '/datos',
+    label: 'Datos de SAP',
+    icon: 'upload_file',
+    permiso: 'datos:cargar',
+    movil: false,
+    grupo: 'administracion',
+  },
+  {
     href: '/areas',
     label: 'Áreas',
     icon: 'dashboard_customize',

@@ -6,7 +6,7 @@
 //
 // El archivo no va al repositorio: vive en datos/, que esta en .gitignore.
 import { loadEnv } from './lib/env.mjs'
-import { hojasDe, readXlsx } from './lib/xlsx.mjs'
+import { abrirArchivo } from './lib/xlsx.mjs'
 
 const ARCHIVO = process.argv[2] ?? 'datos/almacenaje-en-piso.xlsx'
 const LOTE = 100
@@ -56,8 +56,9 @@ const unidadesPorCaja = (nombre) => entero(limpio(nombre).match(/(\d+)\s*(?:[´'
 // Las hojas separan familias —abarrote y snack— y repiten la cabecera en cada seccion, asi
 // que no se cuentan filas: vale la que trae SKU y cajas por pallet.
 const lista = []
-for (const hoja of hojasDe(ARCHIVO)) {
-  for (const fila of readXlsx(ARCHIVO, hoja)) {
+const libro = await abrirArchivo(ARCHIVO)
+for (const hoja of libro.hojas) {
+  for (const fila of await libro.filas(hoja)) {
     const sku = limpio(fila[COL.sku])
     const cajas = entero(fila[COL.cajasPorPallet])
     if (!sku || !cajas) continue
