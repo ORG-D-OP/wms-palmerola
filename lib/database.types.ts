@@ -5158,6 +5158,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      planta: { Args: never; Returns: Json }
       poner_anden: {
         Args: { p_anden: string; p_order_id: string }
         Returns: undefined
@@ -5216,6 +5217,25 @@ export type Database = {
       puede_trabajar_como: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
+      }
+      que_hay_en: {
+        Args: { p_cuadro: string }
+        Returns: {
+          area: string
+          cajas: number
+          dist_despacho_m: number
+          expiry_date: string
+          grupo: string
+          level: number
+          location_code: string
+          lot: string
+          lpn_code: string
+          nombre: string
+          qty_allocated: number
+          qty_base: number
+          sku: string
+          usage_name: string
+        }[]
       }
       quitar_correo: { Args: { p_email: string }; Returns: string }
       reactivar_persona: {
