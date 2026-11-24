@@ -17,7 +17,7 @@ export default async function IngresoPage() {
   const docks = (data ?? []).map((d) => ({ id: d.location_id!, code: d.anden! }))
 
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Recibir camión</h1>
       {docks.length > 0 ? (
         <IngresoForm docks={docks} deAnden={can(user.roles, 'ingresos:administrar')} />

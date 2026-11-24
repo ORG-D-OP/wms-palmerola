@@ -10,7 +10,7 @@ import { Icon } from './ui/icon'
 const Warehouse3D = dynamic(() => import('./warehouse-3d'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[clamp(18rem,52vw,34rem)] items-center justify-center rounded-2xl border border-borde text-sm text-azul/60">
+    <div className="flex h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 items-center justify-center rounded-2xl border border-borde text-sm text-azul/60">
       Cargando la vista 3D...
     </div>
   ),
@@ -49,45 +49,53 @@ export function WarehouseView({
             <Icon name="search" />
           </button>
         </form>
-      {permite3D ? (
-        <div className="flex rounded-lg border border-borde p-0.5">
-          {(['2D', '3D'] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setVista(v)}
-              aria-pressed={vista === v}
-              className={`flex h-9 items-center gap-1 rounded-md px-3 text-sm ${
-                vista === v ? 'bg-azul text-white' : 'text-azul/60'
-              }`}
-            >
-              {v === '3D' ? <Icon name="deployed_code" className="!text-[18px]" /> : null}
-              {v}
-            </button>
-          ))}
-        </div>
-      ) : null}
+
+        {permite3D ? (
+          <div className="flex rounded-lg border border-borde p-0.5">
+            {(['2D', '3D'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVista(v)}
+                aria-pressed={vista === v}
+                className={`flex h-9 items-center gap-1 rounded-md px-3 text-sm ${
+                  vista === v ? 'bg-azul text-white' : 'text-azul/60'
+                }`}
+              >
+                {v === '3D' ? <Icon name="deployed_code" className="!text-[18px]" /> : null}
+                {v}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      {vista === '3D' && permite3D ? (
-        <Warehouse3D ocupacion={ocupacion} />
-      ) : (
-        <WarehouseCanvas ocupacion={ocupacion} destino={destino} />
-      )}
+      {/* En computadora la leyenda se va a su propia columna: el plano se queda con el ancho. */}
+      <div className="flex flex-col gap-2 xl:grid xl:grid-cols-[10rem_minmax(0,1fr)] xl:items-start xl:gap-4">
+        {vista === '3D' && permite3D ? (
+          <Warehouse3D ocupacion={ocupacion} />
+        ) : (
+          <WarehouseCanvas ocupacion={ocupacion} destino={destino} />
+        )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-azul/60">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[3px] border border-borde bg-azul-08" /> libre
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[3px] bg-azul" /> con producto
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[3px] bg-celeste/70" /> apartada por una tarea
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[3px] bg-[#aeaebe]" /> otro uso
-        </span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-azul/60 xl:col-start-1 xl:row-start-1 xl:flex-col xl:items-start xl:gap-3 xl:rounded-2xl xl:border xl:border-borde xl:p-4">
+          <h3 className="hidden text-xs text-azul/50 xl:block">
+            Leyenda
+          </h3>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-[3px] border border-borde bg-azul-08" /> libre
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-[3px] bg-azul" /> con producto
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 shrink-0 rounded-[3px] bg-celeste/70" /> apartada por una
+            tarea
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-[3px] bg-[#aeaebe]" /> otro uso
+          </span>
+        </div>
       </div>
     </div>
   )

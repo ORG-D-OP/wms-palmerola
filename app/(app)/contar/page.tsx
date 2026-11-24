@@ -39,7 +39,7 @@ export default async function ContarPage() {
   const [pendientes, cola] = await Promise.all([misConteos(user.id), enLaCola()])
 
   return (
-    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Contar</h1>
       <ContarForm pendientes={pendientes} cola={cola} />
     </main>

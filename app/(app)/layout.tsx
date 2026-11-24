@@ -1,42 +1,72 @@
+import Image from 'next/image'
 import { requireUser } from '@/lib/auth/session'
 import { ROLE_LABELS } from '@/lib/auth/roles'
-import { navMovil, navParaRol } from '@/components/app-shell/nav-items'
+import { navAgrupado, navMovil } from '@/components/app-shell/nav-items'
 import { BottomNav } from '@/components/app-shell/bottom-nav'
-import { TopNav } from '@/components/app-shell/top-nav'
+import { SideNav } from '@/components/app-shell/side-nav'
 import { Icon } from '@/components/ui/icon'
 import { logout } from '@/app/(public)/login/actions'
 
+const BOTON_SALIR =
+  'flex size-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white'
+
+/**
+ * Dos armazones, no uno estirado: el teléfono lleva la barra azul arriba y los cinco botones
+ * abajo; la computadora, una lateral fija con todas las pantallas y el ancho entero para el
+ * contenido.
+ */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser()
-  const items = navParaRol(user.roles, { rol: user.workingRole, enMano: user.tareasEnMano })
-  const abajo = navMovil(user.roles, { rol: user.workingRole, enMano: user.tareasEnMano })
+  const trabajo = { rol: user.workingRole, enMano: user.tareasEnMano }
+  const { sueltos, grupos } = navAgrupado(user.roles, trabajo)
+  const abajo = navMovil(user.roles, trabajo)
 
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-azul text-white">
-        <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-4 py-3">
-          <TopNav items={items} />
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden text-right leading-tight sm:block">
-              <p className="truncate text-sm">{user.fullName}</p>
-              <p className="text-xs text-white/60">{ROLE_LABELS[user.role]}</p>
-            </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                aria-label="Cerrar sesión"
-                className="flex size-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white"
-              >
-                <Icon name="logout" />
-              </button>
-            </form>
-          </div>
+    <div className="flex flex-1 flex-col md:flex-row">
+      <aside className="sticky top-0 hidden h-dvh w-61 shrink-0 flex-col bg-azul text-white md:flex">
+        <div className="flex flex-col gap-1.5 px-5 py-5">
+          <Image src="/logo-dinant.png" alt="Dinant" width={112} height={32} priority />
+          <p className="text-sm text-white/60">WMS Palmerola</p>
         </div>
-      </header>
 
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col">{children}</div>
+        <SideNav sueltos={sueltos} grupos={grupos} />
 
-      <BottomNav items={abajo} />
-    </>
+        <div className="flex items-center gap-2 border-t border-white/15 p-3">
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-sm">{user.fullName}</p>
+            <p className="text-xs text-white/60">{ROLE_LABELS[user.role]}</p>
+          </div>
+          <form action={logout}>
+            <button type="submit" aria-label="Cerrar sesión" className={BOTON_SALIR}>
+              <Icon name="logout" />
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 bg-azul text-white md:hidden">
+          <div className="flex w-full items-center gap-4 px-4 py-3">
+            <Image src="/logo-dinant.png" alt="Dinant" width={96} height={27} priority />
+
+            <div className="ml-auto flex items-center gap-3">
+              <div className="hidden text-right leading-tight sm:block">
+                <p className="truncate text-sm">{user.fullName}</p>
+                <p className="text-xs text-white/60">{ROLE_LABELS[user.role]}</p>
+              </div>
+              <form action={logout}>
+                <button type="submit" aria-label="Cerrar sesión" className={BOTON_SALIR}>
+                  <Icon name="logout" />
+                </button>
+              </form>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex w-full flex-1 flex-col">{children}</div>
+
+        <BottomNav items={abajo} />
+      </div>
+    </div>
   )
 }

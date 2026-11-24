@@ -77,80 +77,110 @@ export default async function DashboardPage() {
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
 
   const accesos = atajos(user.roles, { rol: user.workingRole, enMano: user.tareasEnMano })
-  const enLaBarra = new Set(navMovil(user.roles, { rol: user.workingRole, enMano: user.tareasEnMano }).map((i) => i.href))
+  const enLaBarra = new Set(
+    navMovil(user.roles, { rol: user.workingRole, enMano: user.tareasEnMano }).map((i) => i.href),
+  )
+  // En el teléfono el tablero es el índice de lo que la barra de abajo no lleva; en pantalla
+  // grande la lateral ya lo lleva todo, así que sólo quedan las de mano, en pequeño.
+  const enElTablero = accesos.filter((a) => !enLaBarra.has(a.href))
+  const rapidos = accesos.filter((a) => a.movil)
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
-      <h1 className="text-2xl">Hola, {user.fullName.split(' ')[0]}</h1>
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:gap-0 md:p-0">
+      <div className="contents md:flex md:items-center md:gap-4 md:border-b md:border-borde md:px-8 md:py-3.5">
+        <h1 className="text-2xl md:text-xl">Hola, {user.fullName.split(' ')[0]}</h1>
 
-      <Trabajo trabajo={trabajo} />
-
-      {accesos.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 md:max-w-xl md:grid-cols-4">
-          {accesos.map((a) => (
+        <div className="ml-auto hidden gap-2 lg:flex">
+          {rapidos.map((a) => (
             <Link
               key={a.href}
               href={a.href}
-              className={`flex-col gap-2 rounded-2xl bg-azul p-4 text-white transition-opacity hover:opacity-90 ${
-                enLaBarra.has(a.href) ? 'hidden md:flex' : a.movil ? 'flex' : 'flex md:hidden'
-              }`}
+              className="flex items-center gap-2 rounded-xl border border-borde px-3.5 py-2 text-sm transition-colors hover:bg-azul-08"
             >
-              <Icon name={a.icon} />
-              <span className="text-lg">{a.label}</span>
+              <Icon name={a.icon} className="!text-[18px]" />
+              {a.label}
             </Link>
           ))}
         </div>
-      ) : null}
+      </div>
 
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { label: 'Posiciones libres', valor: libres, icono: 'inventory', nota: null },
-          { label: 'Ocupadas', valor: totales.ocupadas, icono: 'pallet', nota: `${pct}% del almacén` },
-          { label: 'Tareas abiertas', valor: tareas, icono: 'assignment', nota: null },
-          { label: 'Productos', valor: productos, icono: 'category', nota: 'en datos maestros' },
-        ].map((t) => (
-          <div key={t.label} className="rounded-2xl border border-borde p-4">
-            <dt className="flex items-center gap-1.5 text-xs text-azul/60">
-              <Icon name={t.icono} className="!text-[18px]" />
-              {t.label}
-            </dt>
-            <dd className="mt-1 text-2xl tabular-nums">{t.valor.toLocaleString('es-HN')}</dd>
-            {t.nota ? <dd className="text-xs text-azul/50">{t.nota}</dd> : null}
+      <div className="contents md:flex md:flex-col md:gap-6 md:p-8 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:grid-rows-[auto_auto_1fr] xl:items-start">
+        <div className="contents xl:col-start-2 xl:row-start-1 xl:block">
+          <Trabajo trabajo={trabajo} />
+        </div>
+
+        {enElTablero.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 md:hidden">
+            {enElTablero.map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className="flex flex-col gap-2 rounded-2xl bg-azul p-4 text-white transition-opacity hover:opacity-90"
+              >
+                <Icon name={a.icon} />
+                <span className="text-lg">{a.label}</span>
+              </Link>
+            ))}
           </div>
-        ))}
-      </dl>
+        ) : null}
 
-      <Ocupacion estados={ocupacion} permite3D={can(user.roles, 'kpi:ver')} />
+        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:col-start-2 xl:row-start-2 xl:grid-cols-2">
+          {[
+            { label: 'Posiciones libres', valor: libres, icono: 'inventory', nota: null },
+            {
+              label: 'Ocupadas',
+              valor: totales.ocupadas,
+              icono: 'pallet',
+              nota: `${pct}% del almacén`,
+            },
+            { label: 'Tareas abiertas', valor: tareas, icono: 'assignment', nota: null },
+            { label: 'Productos', valor: productos, icono: 'category', nota: 'en datos maestros' },
+          ].map((t) => (
+            <div key={t.label} className="rounded-2xl border border-borde p-4">
+              <dt className="flex items-center gap-1.5 text-xs text-azul/60">
+                <Icon name={t.icono} className="!text-[18px]" />
+                {t.label}
+              </dt>
+              <dd className="mt-1 text-2xl tabular-nums">{t.valor.toLocaleString('es-HN')}</dd>
+              {t.nota ? <dd className="text-xs text-azul/50">{t.nota}</dd> : null}
+            </div>
+          ))}
+        </dl>
 
-      {areas.length > 0 ? (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg">Por área</h2>
-          <ul className="flex flex-col divide-y divide-borde">
-            {areas.map((a) => {
-              const total = a.total ?? 0
-              const ocupadas = a.ocupadas ?? 0
-              const porcentaje = total > 0 ? Math.round((ocupadas / total) * 100) : 0
-              return (
-                <li key={a.code} className="flex flex-col gap-1.5 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate">{a.name}</span>
-                    <span className="shrink-0 text-sm tabular-nums text-azul/70">
-                      {ocupadas.toLocaleString('es-HN')} de {total.toLocaleString('es-HN')}
-                    </span>
-                  </div>
-                  <div
-                    className="h-1.5 overflow-hidden rounded-full bg-azul-08"
-                    role="img"
-                    aria-label={`${porcentaje}% ocupada`}
-                  >
-                    <div className="h-full bg-azul" style={{ width: `${porcentaje}%` }} />
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      ) : null}
+        <div className="contents xl:col-start-1 xl:row-start-1 xl:row-end-4 xl:block">
+          <Ocupacion estados={ocupacion} permite3D={can(user.roles, 'kpi:ver')} />
+        </div>
+
+        {areas.length > 0 ? (
+          <section className="flex flex-col gap-2 xl:col-start-2 xl:row-start-3 xl:rounded-2xl xl:border xl:border-borde xl:p-5">
+            <h2 className="text-lg">Por área</h2>
+            <ul className="flex flex-col divide-y divide-borde">
+              {areas.map((a) => {
+                const total = a.total ?? 0
+                const ocupadas = a.ocupadas ?? 0
+                const porcentaje = total > 0 ? Math.round((ocupadas / total) * 100) : 0
+                return (
+                  <li key={a.code} className="flex flex-col gap-1.5 py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate">{a.name}</span>
+                      <span className="shrink-0 text-sm tabular-nums text-azul/70">
+                        {ocupadas.toLocaleString('es-HN')} de {total.toLocaleString('es-HN')}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 overflow-hidden rounded-full bg-azul-08"
+                      role="img"
+                      aria-label={`${porcentaje}% ocupada`}
+                    >
+                      <div className="h-full bg-azul" style={{ width: `${porcentaje}%` }} />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ) : null}
+      </div>
     </main>
   )
 }

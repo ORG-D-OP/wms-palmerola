@@ -38,7 +38,7 @@ export default async function InventarioPage({
   const totalUnidades = filas.reduce((a, f) => a + Number(f.qty_base ?? 0), 0)
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 pb-8">
+    <main className="flex flex-1 flex-col gap-4 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Buscar en el inventario</h1>
 
       <Buscador />

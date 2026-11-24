@@ -149,7 +149,7 @@ export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
   return (
     <div
       ref={contenedorRef}
-      className="h-[clamp(18rem,52vw,34rem)] w-full cursor-grab touch-none overflow-hidden rounded-2xl border border-borde active:cursor-grabbing"
+      className="h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-grab touch-none overflow-hidden rounded-2xl border border-borde active:cursor-grabbing"
     />
   )
 }

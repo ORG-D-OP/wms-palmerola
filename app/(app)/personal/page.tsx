@@ -17,7 +17,7 @@ export default async function PersonalPage() {
 
   if (error) {
     return (
-      <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
+      <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8 xl:max-w-5xl">
         <Aviso>No se pudo leer el personal: {error.message}</Aviso>
       </main>
     )
@@ -36,7 +36,7 @@ export default async function PersonalPage() {
   }))
 
   return (
-    <main className="flex flex-1 flex-col gap-6 p-4 pb-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8 xl:max-w-5xl">
       <div>
         <h1 className="text-xl">Personal</h1>
         <p className="text-sm text-azul/60">
