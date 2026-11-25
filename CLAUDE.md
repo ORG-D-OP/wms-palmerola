@@ -75,3 +75,8 @@ npm run dev
 ```
 
 Antes de pedir revision: `npm run typecheck`, `npm run lint`, `npm run build`.
+
+Las pruebas de la base son `npm run db:test`. Cada `scripts/check-*.mjs` levanta su propio
+Postgres en memoria con las migraciones aplicadas, y `scripts/probar.mjs` los corre varios a la
+vez. Se descubren solos: un check nuevo entra con solo llamarse `check-algo.mjs`. Para correr
+unos pocos mientras se trabaja: `node scripts/probar.mjs picking despacho`.
