@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { cajas, NAVE } from '@/lib/warehouse/plano'
-import { tintePlanimetria } from '@/lib/warehouse/planimetria'
+import { cajas, colorPlanimetria, NAVE } from '@/lib/warehouse/plano'
 import type { Modo, Ocupacion, Segmentos } from './warehouse-canvas'
 
 /**
@@ -76,12 +75,16 @@ export default function Warehouse3D({
     const noAlimento = new Set(segmentos?.no_alimento ?? [])
     const picking = new Set(segmentos?.areas?.PICKING ?? [])
     const plano = modo === 'planimetria' && segmentos !== undefined
-    // El tinte de la planimetría lleva transparencia y una caja no la tiene, así que se mezcla
-    // contra el blanco de la escena: sale el mismo color que pinta el mapa de arriba.
+    // Un color por posición se repite miles de veces: se guardan para no construir THREE.Color
+    // en cada una de las 5,581 cajas.
+    const tintes = new Map<string, THREE.Color>()
     const colorPlano = (code: string) => {
-      const { rgb, alfa } = tintePlanimetria(code, noAlimento, picking)
-      const mezclar = (v: number) => (v * alfa + 255 * (1 - alfa)) / 255
-      return new THREE.Color(mezclar(rgb[0]), mezclar(rgb[1]), mezclar(rgb[2]))
+      const hex = colorPlanimetria(code, noAlimento, picking)
+      const ya = tintes.get(hex)
+      if (ya) return ya
+      const color = new THREE.Color(hex)
+      tintes.set(hex, color)
+      return color
     }
     let i = 0
 
