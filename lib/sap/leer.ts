@@ -326,31 +326,26 @@ async function pronostico(libro: Libro, donde: Donde, zona: string): Promise<Lei
  * los que traen pedido de traslado: en el extracto de noviembre sus 793 líneas lo traían las
  * 793, y los 29 documentos que cruzaban con el ZRDN eran los 29 de clase 641. Los 303 no
  * traen pedido y no cruzan con nada.
+ *
+ * SAP lo exporta con dos juegos de rótulos para las mismas columnas —los cortos («CMv»,
+ * «Doc.mat.») y los largos («Clase de movimiento», «Documento material»)— y la correspondencia
+ * no es la obvia: en los cortos **«Ce.» es la planta que despacha y «Centro» la que recibe**,
+ * mientras que en los largos «Centro» es la que despacha y la que recibe se llama «Centro
+ * receptor». Se busca cada columna por sus dos nombres y el que exista gana.
  */
 async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
   const { indice, filas } = await filasDe(libro, donde)
-  const viejo = indice('Doc.mat.') >= 0
-  const C = viejo
-    ? {
-        material: indice('Material'),
-        cantidad: indice('Ctd.en UM entrada'),
-        centro: indice('Ce.'),
-        receptor: indice('Ce.recep.'),
-        clase: indice('CMv'),
-        documento: indice('Doc.mat.'),
-        pedido: indice('Pedido'),
-        fecha: indice('Fe.contabilización'),
-      }
-    : {
-        material: indice('Material'),
-        cantidad: indice('Ctd.en UM entrada'),
-        centro: indice('Centro'),
-        receptor: indice('Centro receptor'),
-        clase: indice('Clase de movimiento'),
-        documento: indice('Documento material'),
-        pedido: indice('Pedido'),
-        fecha: indice('Fe.contabilización'),
-      }
+  const corto = indice('Doc.mat.') >= 0
+  const C = {
+    material: indice('Material'),
+    cantidad: indice('Ctd.en UM entrada'),
+    centro: indice(corto ? 'Ce.' : 'Centro'),
+    receptor: indice(corto ? 'Centro' : 'Centro receptor'),
+    clase: indice(corto ? 'CMv' : 'Clase de movimiento'),
+    documento: indice(corto ? 'Doc.mat.' : 'Documento material'),
+    pedido: indice('Pedido'),
+    fecha: indice(corto ? 'Fe.contab.' : 'Fe.contabilización'),
+  }
 
   const porClase = new Map<string, number>()
   const salida: FilaSalida[] = []
