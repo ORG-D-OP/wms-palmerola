@@ -37,8 +37,8 @@ const { id: caja } = await one(
 // La primera columna de F1 se declara area de picking, que es de donde salen las cajas y las
 // unidades sueltas. Del almacen solo salen pallets completos, asi que una linea que no llena
 // pallet tiene que encontrar producto aqui o queda como faltante.
-await one(`select reasignar_area_por_codigo('F1-001-%', 'PICKING') as n`)
-const { id: posicion } = await one(`select id from location where code = 'F1-001-01'`)
+await one(`select reasignar_area_por_codigo('F1-001-11', 'PICKING') as n`)
+const { id: posicion } = await one(`select id from location where code = 'F1-001-11'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 100::numeric, null, $2::uuid)`,
   [producto, posicion],
@@ -309,7 +309,8 @@ const gemelo = async (sku, nombre, porCaja) => {
 const vaEnElCamion = await gemelo('60127.1', 'Zambos Platano Picositas 192s', 192)
 await gemelo('60127C1', 'Zambos Platano Picositas 240s', 240)
 
-const { id: posGemelo } = await one(`select id from location where code = 'F1-001-03'`)
+await one(`select reasignar_area_por_codigo('F1-004-11', 'PICKING') as n`)
+const { id: posGemelo } = await one(`select id from location where code = 'F1-004-11'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 384::numeric, null, $2::uuid)`,
   [vaEnElCamion.id, posGemelo],
@@ -358,8 +359,8 @@ check(sinRazon?.includes('por qué'), 'cerrar un camion incompleto pide una razo
 // Llega jugo a picking y la linea 2 se aparta: ahora el camion tiene un viaje de verdad sin
 // hacer, que es lo que el cierre forzado tiene que soltar. Sin esto, la prueba medía el
 // apartado que el surtido de la linea 1 ya habia consumido.
-await one(`select reasignar_area_por_codigo('F1-003-%', 'PICKING') as n`)
-const { id: posJugo } = await one(`select id from location where code = 'F1-003-01'`)
+await one(`select reasignar_area_por_codigo('F1-003-11', 'PICKING') as n`)
+const { id: posJugo } = await one(`select id from location where code = 'F1-003-11'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 60::numeric, null, $2::uuid)`,
   [otro, posJugo],
@@ -488,8 +489,8 @@ const esteFalta = lista.rows.find((f) => f.sku === 'P-4')
 check(Number(esteFalta?.falta) === 15, 'y el faltante sale en la lista de lo que hay que reabastecer')
 
 // Con producto en picking, lo que sobra si sale de ahi.
-await one(`select reasignar_area_por_codigo('F1-002-%', 'PICKING') as n`)
-const { id: enPicking } = await one(`select id from location where code = 'F1-002-01'`)
+await one(`select reasignar_area_por_codigo('F1-002-11', 'PICKING') as n`)
+const { id: enPicking } = await one(`select id from location where code = 'F1-002-11'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 40::numeric, null, $2::uuid)`,
   [churro, enPicking],
@@ -600,7 +601,8 @@ await one(
 const { id: palletD } = await one(
   `insert into lpn (code, level, source) values ('PAL-TEST-2', 'PALLET', 'NEST') returning id`,
 )
-const { id: enPicking2 } = await one(`select id from location where code = 'F1-002-05'`)
+await one(`select reasignar_area_por_codigo('F1-005-11', 'PICKING') as n`)
+const { id: enPicking2 } = await one(`select id from location where code = 'F1-005-11'`)
 await one(
   `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, $3::uuid)`,
   [tostada, enPicking2, palletD],

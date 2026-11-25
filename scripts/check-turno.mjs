@@ -89,9 +89,11 @@ const { id: caja } = await one(
 const { id: anden } = await one(`select location_id as id from anden_de_recibo order by anden limit 1`)
 
 // Fuera el piso del almacen: asi la sugerencia cae en rack y la tarea pide alcance.
+// Mandarlo a picking ya no lo saca —la cara es la boca del carril y lo de atras se queda en
+// almacen—, asi que se saca declarando que ahi no se guarda producto.
 await como(jefe)
 for (const bloque of ['F1-', 'F2-', 'F3-', 'F4-', 'F5-', 'F6-', 'F7-']) {
-  await one(`select reasignar_area_por_codigo($1, 'PICKING')`, [bloque])
+  await one(`select reasignar_uso_por_codigo($1, 'CORRUGADO')`, [bloque])
 }
 
 await como(aPie)

@@ -34,15 +34,17 @@ await one(
 )
 
 const [viejo, nuevo] = (
-  await db.query(`select id, code from location where code in ('F1-001-01','F1-002-01') order by code`)
+  await db.query(`select id, code from location where code in ('F1-001-11','F1-002-11') order by code`)
 ).rows
 
 await como(jefe)
 
-// Las dos posiciones del pasillo F1 se declaran area de picking: lo que se guarda ahi son
-// unidades sueltas sin pallet, y del area almacen solo salen pallets completos (0051).
-await db.query(`select reasignar_area_por_codigo('F1-001-%', 'PICKING')`)
-await db.query(`select reasignar_area_por_codigo('F1-002-%', 'PICKING')`)
+// Las bocas de los dos primeros carriles de F1 se declaran area de picking: lo que se guarda
+// ahi son unidades sueltas sin pallet y del almacen solo salen pallets completos (0051). La
+// cara es la boca y nada mas: al fondo del carril no se llega sin bajar lo de adelante.
+for (const carril of ['F1-001', 'F1-002', 'F1-003', 'F1-004', 'F1-005']) {
+  await db.query(`select reasignar_area_por_codigo($1, 'PICKING')`, [`${carril}-11`])
+}
 
 // Dos lotes: uno vence antes y debe salir primero.
 await one(
@@ -298,7 +300,7 @@ check(Number(area.replenish_pct) === 50, 'el aviso arranca en la mitad, que es l
 
 // Una posicion de picking vacia con 100 unidades de 240 esta al 41%.
 const hueco = await one(
-  `select id, code from location where code = 'F1-001-02'`,
+  `select id, code from location where code = 'F1-003-11'`,
 )
 await one(
   `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 100,
@@ -345,7 +347,7 @@ await one(`select ajustar_aviso_reabastecimiento('PICKING', 50::smallint)`)
 
 // Una posicion de picking lleva un saldo por lote y por matricula: el resto del lote viejo y
 // el pallet que acaban de bajar son dos filas. Lo que importa es cuanto hay en la posicion.
-const otra = await one(`select id, code from location where code = 'F1-001-07'`)
+const otra = await one(`select id, code from location where code = 'F1-004-11'`)
 await one(
   `select post_movement(p_type => 'RECEIPT', p_product_id => $1, p_qty => 60,
      p_to_location_id => $2, p_lot => 'VIEJO', p_expiry => '2027-01-31')`,
@@ -502,7 +504,7 @@ await one(
   `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 12)`,
   [jabonEstorbo],
 )
-const { id: huecoAjeno } = await one(`select id from location where code = 'F1-001-04'`)
+const { id: huecoAjeno } = await one(`select id from location where code = 'F1-005-11'`)
 
 // El renglon en cero del producto de picking: la posicion es suya y esta huecoVacio.
 await one(
@@ -518,7 +520,7 @@ await one(
 )
 
 const huecoVacio = await one(
-  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-001-04' and sku <> 'P-OCUPA'`,
+  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-005-11' and sku <> 'P-OCUPA'`,
 )
 check(
   huecoVacio !== undefined && Number(huecoVacio.disponible) === 0 && huecoVacio.ocupada_por === null,
@@ -532,7 +534,7 @@ await one(
   [jabonEstorbo, huecoAjeno],
 )
 const huecoOcupado = await one(
-  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-001-04' and sku <> 'P-OCUPA'`,
+  `select disponible, ocupada_por from picking_bajo where posicion = 'F1-005-11' and sku <> 'P-OCUPA'`,
 )
 check(
   huecoOcupado !== undefined && Number(huecoOcupado.disponible) === 0,

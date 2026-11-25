@@ -46,6 +46,34 @@ check(
   'toda posicion de la base cae en un cuadro de la planta',
 )
 
+// Que los codigos cuadren no basta: el cuadro tiene que estar donde dice el plano. El dibujo
+// numeraba los fondos del rack de corrido y en nueve de los diecinueve carriles ponia el
+// frente sobre la posicion de atras, asi que el mapa pintaba de picking un fondo. Eso no lo
+// agarra comparar codigos: hay que comparar metros contra `coord_x` y `coord_y`, que son los
+// del plano del 12/11/2026 (migracion 0096).
+const centro = new Map(
+  BLOQUES.flatMap((b) => b.celdas.map((c) => [c.code, { x: c.x + c.w / 2, y: c.y + c.h / 2 }])),
+)
+const { rows: medidas } = await db.query(`
+  select l.code, l.coord_x::float8 as x, l.coord_y::float8 as y
+  from location l
+  join lane la on la.id = l.lane_id
+  join zone z on z.id = la.zone_id
+  where z.kind in ('floor', 'rack') and l.retired_at is null and l.coord_x is not null
+`)
+let peor = { code: null, d: 0 }
+for (const m of medidas) {
+  const c = centro.get(claveDePlanta(m.code))
+  if (!c) continue
+  const d = Math.hypot(c.x - m.x, c.y - m.y)
+  if (d > peor.d) peor = { code: m.code, d }
+}
+check(medidas.length === enBase.size, `el plano midio las ${enBase.size} posiciones`)
+check(
+  peor.d < 0.1,
+  `cada cuadro se pinta donde dice el plano (el peor, ${peor.code}, a ${peor.d.toFixed(2)} m)`,
+)
+
 const { rows: pila } = await db.query(`
   select count(*)::int as n from location l
   join lane la on la.id = l.lane_id
@@ -68,16 +96,16 @@ check(Number(mapa[0].ocupadas) === 0, 'con la bodega vacia no hay ninguna posici
 await db.query(`
   update location_area set valid_to = now()
   where valid_to is null
-    and location_id = (select id from location where code = 'F1-001-01')
+    and location_id = (select id from location where code = 'F1-001-11')
 `)
 await db.query(`
   insert into location_area (location_id, area_id, valid_from)
   select l.id, a.id, now()
   from location l cross join area a
-  where l.code = 'F1-001-01' and a.code = 'PICKING'
+  where l.code = 'F1-001-11' and a.code = 'PICKING'
 `)
 const { rows: seg } = await db.query(`
-  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) ? 'F1-001-01' as esta,
+  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) ? 'F1-001-11' as esta,
          jsonb_array_length(planta()->'no_alimento') as no_alimento
 `)
 check(seg[0].esta === true, 'la planta dice cual cuadro es cara de picking')

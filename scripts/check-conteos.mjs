@@ -153,14 +153,17 @@ const { id: linea } = await one(
   [pedido, producto, caja],
 )
 
-// Picking para que el surtido pueda tomar cajas sueltas, y una segunda posicion con existencia
-// de donde sacar lo que falte cuando el recuento baje la cantidad.
-await db.query(`select reasignar_area_por_codigo('F3-00%', 'PICKING')`)
-await one(
-  `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, null,
-     'L1'::text, '2027-06-30'::date)`,
-  [producto, (await posicion('F3-002-01')).id],
-)
+// Picking para que el surtido pueda tomar cajas sueltas. La cara es la boca del carril —al
+// fondo no se llega sin bajar lo de adelante— y lo que ya quedo en F3-001 es la existencia de
+// donde sacar lo que falte cuando el recuento baje la cantidad.
+for (const cara of ['F3-002-18', 'F3-003-18']) {
+  await db.query(`select reasignar_area_por_codigo($1, 'PICKING')`, [cara])
+  await one(
+    `select post_movement('RECEIPT'::movement_type, $1::uuid, 240::numeric, null, $2::uuid, null,
+       'L1'::text, '2027-06-30'::date)`,
+    [producto, (await posicion(cara)).id],
+  )
+}
 
 await db.query(`select apartar_linea($1)`, [linea])
 const apartado = await one(

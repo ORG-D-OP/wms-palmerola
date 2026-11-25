@@ -143,6 +143,39 @@ check(
 )
 
 // ---------------------------------------------------------------------------------------
+// La cara de un carril es la unica posicion que se puede surtir
+// ---------------------------------------------------------------------------------------
+// En doble profundidad al fondo no se llega sin bajar el frente, y un carril de piso es un
+// fondo de 11 a 19 pallets. El jefe declara las areas por zona y nivel, que no distinguen la
+// boca del fondo, asi que lo distingue la funcion.
+
+await one(`select reasignar_area_donde('PICKING', 'F3-012') as n`)
+const fondoDePiso = (
+  await db.query(
+    `select code, area_code from posicion_detalle where code like 'F3-012-%' order by code`,
+  )
+).rows
+const caras = fondoDePiso.filter((p) => p.area_code === 'PICKING')
+check(caras.length === 1, `de un carril de piso solo una posicion queda de cara (son ${caras.length})`)
+check(
+  caras[0]?.code === 'F3-012-18',
+  `y es la boca, el extremo que da al pasillo (es ${caras[0]?.code})`,
+)
+await one(`select reasignar_area_donde('ALMACEN', 'F3-012') as n`)
+
+await one(`select reasignar_area_donde('PICKING', 'R-ABA-L01-B01', null, 1) as n`)
+const bahia = (
+  await db.query(
+    `select code, area_code from posicion_detalle where code like 'R-ABA-L01-B01-N1-%' order by code`,
+  )
+).rows
+check(
+  bahia.filter((p) => p.area_code === 'PICKING').length === 1,
+  'y de una bahia de rack, solo el frente',
+)
+await one(`select reasignar_area_donde('ALMACEN', 'R-ABA-L01-B01', null, 1) as n`)
+
+// ---------------------------------------------------------------------------------------
 // El motor obedece el area, el uso y el alcance
 // ---------------------------------------------------------------------------------------
 
@@ -154,12 +187,19 @@ const nombre = await one(
 )
 check(nombre?.kind === 'floor_stack', `sin nada guardado la primera sugerencia es el piso (${nombre?.code})`)
 
-await one(`select reasignar_area_por_codigo($1, 'PICKING')`, [nombre.code])
+// La cara del carril que sugirio, que es la unica de ese carril que puede ser picking.
+const boca = await one(
+  `select code from location
+   where carril = (select carril from location where code = $1)
+   order by dist_despacho_m limit 1`,
+  [nombre.code],
+)
+await one(`select reasignar_area_por_codigo($1, 'PICKING')`, [boca.code])
 const segunda = await one(
   `select code from location where id = suggest_putaway_location($1)`,
   [producto],
 )
-check(segunda?.code !== nombre.code, 'un pallet completo no se manda a picking')
+check(segunda?.code !== boca.code, 'un pallet completo no se manda a picking')
 
 const movidas = await one(`select reasignar_uso_por_codigo($1, 'CORRUGADO') as n`, [segunda.code])
 check(movidas.n === 1, 'el uso se cambia por rango de codigo')
@@ -172,9 +212,11 @@ check(
   'una posicion de corrugado no recibe producto',
 )
 
-// Sacar el piso del almacen deja solo rack: es el escenario del montacarguista.
+// Sacar el piso del almacen deja solo rack: es el escenario del montacarguista. Mandarlo a
+// picking ya no lo saca —la cara es la boca y lo de atras se queda en almacen—, asi que se
+// saca declarando que ahi no se guarda producto.
 for (const bloque of ['F1-', 'F2-', 'F3-', 'F4-', 'F5-', 'F6-', 'F7-']) {
-  await one(`select reasignar_area_por_codigo($1, 'PICKING')`, [bloque])
+  await one(`select reasignar_uso_por_codigo($1, 'CORRUGADO')`, [bloque])
 }
 const soloPiso = await one(
   `select suggest_putaway_location($1, null, null, 0::smallint) as id`,
