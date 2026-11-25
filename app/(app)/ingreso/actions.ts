@@ -16,9 +16,12 @@ export type Linea = {
   recibido: boolean
 }
 
+/** Lo que SAP dice que trae el camión, cuando nadie mandó la lista de pallets. */
+export type Esperado = { sku: string; name: string; cases: number }
+
 export type Documento = {
   pedido: string
-  /** En true el documento lo abrió la bodega: no hay lista contra la que recibir. */
+  /** En true no hay lista de pallets contra la que recibir: se escanea producto por producto. */
   sinAviso: boolean
   nota: string | null
   estado: string
@@ -27,7 +30,12 @@ export type Documento = {
   recibidos: number
   materiales: number
   cajas: number
+  /** Las cajas del 641 de SAP. Manda la etiqueta, pero si no cuadran hay que decirlo. */
+  cajasSap: number | null
   lineas: Linea[]
+  esperado: Esperado[]
+  /** Los productos del camión que todavía no dicen qué son: sin eso se guardan con la comida. */
+  sinClase: Producto[]
 }
 
 type Fail = { ok: false; error: string }
@@ -73,6 +81,20 @@ export async function buscarIngreso(
     .eq('doc_id', doc.id)
     .order('pallet_code')
 
+  // Sin lista de pallets, lo único que se sabe del camión es el resumen del 641. Se enseña
+  // para que el que descarga sepa qué espera, aunque no pueda ir tachando etiquetas.
+  const { data: esperado } = doc.pallets
+    ? { data: null }
+    : await supabase
+        .from('inbound_line')
+        .select('qty_cases, product(sku, name)')
+        .eq('doc_id', doc.id)
+        .order('line_no')
+
+  // Un producto sin clase se guarda como alimento por omisión. El que recibe es el único que
+  // lo tiene delante, así que es el que lo dice.
+  const { data: sinClase } = await supabase.rpc('productos_sin_clase', { p_doc_id: doc.id })
+
   return {
     ok: true,
     doc: {
@@ -85,6 +107,18 @@ export async function buscarIngreso(
       recibidos: doc.recibidos ?? 0,
       materiales: doc.materiales ?? 0,
       cajas: Number(doc.cajas ?? 0),
+      cajasSap: doc.cajas_sap === null ? null : Number(doc.cajas_sap),
+      sinClase: (sinClase ?? []).map((p) => ({
+        id: p.product_id ?? '',
+        sku: p.sku ?? '',
+        name: p.name ?? '',
+        clase: null,
+      })),
+      esperado: (esperado ?? []).map((l) => ({
+        sku: l.product?.sku ?? '',
+        name: l.product?.name ?? '',
+        cases: Number(l.qty_cases),
+      })),
       lineas: (detalle ?? []).map((l) => ({
         palletCode: l.pallet_code ?? '',
         sku: l.sku ?? '',
@@ -225,8 +259,11 @@ export async function abrirSinAviso(
 }
 
 export type Producto = {
+  id: string
   sku: string
   name: string
+  /** Null cuando nadie ha dicho todavía si es alimento, químico, aromático o ninguno. */
+  clase: string | null
 }
 
 /** Qué producto es el que el chequeador tiene en la mano, antes de preguntarle cuántas cajas. */
@@ -248,8 +285,39 @@ export async function buscarProducto(
 
   return {
     ok: true,
-    producto: { sku: data.sku, name: data.name },
+    producto: {
+      id: data.product_id,
+      sku: data.sku,
+      name: data.name,
+      clase: data.clase,
+    },
   }
+}
+
+const CLASES = ['ALIMENTO', 'QUIMICO', 'AROMATICO', 'NO_ALIMENTO'] as const
+
+/**
+ * Qué es el producto, dicho por el que lo recibe.
+ *
+ * Decide dónde se guarda: lo que no es alimento no duerme al lado de la comida. Un producto
+ * que llegó en un camión sin estar en el maestro no trae ninguna, y el andén es el único sitio
+ * donde alguien lo tiene delante. Sólo se pone la que falta.
+ */
+export async function ponerClase(productId: string, clase: string): Promise<{ ok: true } | Fail> {
+  await requirePermission('inventario:mover')
+
+  const parsed = z
+    .object({ productId: z.uuid(), clase: z.enum(CLASES) })
+    .safeParse({ productId, clase })
+  if (!parsed.success) return { ok: false, error: 'Elige qué es el producto.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('poner_clase', {
+    p_product_id: parsed.data.productId,
+    p_clase: parsed.data.clase,
+  })
+  if (error) return fallo(error)
+  return { ok: true }
 }
 
 const ReciboCiego = z.object({

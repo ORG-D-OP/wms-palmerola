@@ -14,6 +14,7 @@ export type FilaIngreso = {
   pedido: string
   pallet: string
   material: string
+  nombre: string
   cajas: number
   lote: string
   vencimiento: string | null
@@ -61,8 +62,10 @@ export type FilaPronostico = {
 
 export type FilaSalida = {
   pedido: string
+  entrega: string
   documento: string
   material: string
+  nombre: string
   cantidad: number
   centro: string
   centro_receptor: string
@@ -100,6 +103,8 @@ async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
     lote: indice('Lote'),
     cantidad: indice('Cantidad'),
     material: indice('Material'),
+    // Lo único que el archivo dice de un material que el maestro no tiene.
+    nombre: indice('Denominación'),
     fecha: indice('Fecha'),
     nombreDestino: indice('Nest Nombre Destino'),
     centroDestino: indice('Nest Centro Destino'),
@@ -122,6 +127,7 @@ async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
         pedido: pedido || entrega,
         pallet: limpio(f[C.pallet]),
         material: limpio(f[C.material]),
+        nombre: limpio(f[C.nombre]),
         cajas: numero(f[C.cantidad]),
         lote: limpio(f[C.lote]),
         vencimiento: fecha(f[C.vencimiento]),
@@ -339,12 +345,17 @@ async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
   const corto = indice('Doc.mat.') >= 0
   const C = {
     material: indice('Material'),
+    nombre: indice('Texto breve de material'),
     cantidad: indice('Ctd.en UM entrada'),
     centro: indice(corto ? 'Ce.' : 'Centro'),
     receptor: indice(corto ? 'Centro' : 'Centro receptor'),
     clase: indice(corto ? 'CMv' : 'Clase de movimiento'),
     documento: indice(corto ? 'Doc.mat.' : 'Documento material'),
     pedido: indice('Pedido'),
+    // La `Referencia` del 641 es la entrega, y es la única llave que ata este archivo con el
+    // ZRDN de las plantas que no mandan pedido de traslado: sin ella el mismo camión se abre
+    // dos veces, una por cada número.
+    entrega: indice('Referencia'),
     fecha: indice(corto ? 'Fe.contab.' : 'Fe.contabilización'),
   }
 
@@ -359,8 +370,10 @@ async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
     if (clase !== '641' || !pedido) continue
     salida.push({
       pedido,
+      entrega: sinCeros(f[C.entrega]),
       documento: limpio(f[C.documento]),
       material: limpio(f[C.material]),
+      nombre: limpio(f[C.nombre]),
       cantidad: Math.abs(numero(f[C.cantidad])),
       centro: limpio(f[C.centro]),
       centro_receptor: limpio(f[C.receptor]),
