@@ -83,29 +83,30 @@ export type Leido = {
 }
 
 /**
- * El ZRDN trae quince hojas y los datos están en `RawData`. El orden de sus veinte columnas
- * es fijo, así que se leen por posición.
+ * El ZRDN trae quince hojas y los datos están en `RawData`. Se lee **por nombre de columna**,
+ * no por posición: el día que la descarga venga recortada a lo que el WMS ocupa, las columnas
+ * se corren y leerlas por número devolvería basura sin avisar.
  *
  * Los de 3010, 3014 y 5006 **no traen `Pedido Traslado`** —0 de 3,162 filas, medido—, así que
  * para esos la llave es la entrega y quedan marcados: esos camiones se reciben a ciegas
  * mientras no se sepa qué número viene impreso en su papel.
  */
 async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
-  const { filas } = await filasDe(libro, donde)
+  const { indice, filas } = await filasDe(libro, donde)
   const C = {
-    planta: 2,
-    pallet: 4,
-    vencimiento: 5,
-    lote: 6,
-    cantidad: 7,
-    material: 8,
-    fecha: 10,
-    nombreDestino: 14,
-    centroDestino: 15,
-    pedido: 17,
-    entrega: 18,
-    salida: 19,
-    documento: 1,
+    planta: indice('Planta'),
+    pallet: indice('Pallet'),
+    vencimiento: indice('Vencimiento'),
+    lote: indice('Lote'),
+    cantidad: indice('Cantidad'),
+    material: indice('Material'),
+    fecha: indice('Fecha'),
+    nombreDestino: indice('Nest Nombre Destino'),
+    centroDestino: indice('Nest Centro Destino'),
+    pedido: indice('Pedido Traslado'),
+    entrega: indice('Entrega'),
+    salida: indice('Salida Mercancia'),
+    documento: indice('Documento'),
   }
 
   const avisos: string[] = []
@@ -388,23 +389,30 @@ async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
 }
 
 /**
- * La trazabilidad de NEST baja a nivel de caja: 253,446 en quince días. No se guarda. Lo que
- * el WMS necesita —pallet, producto, lote, vencimiento— ya viene en el ZRDN, y se comprobó
- * que coinciden: de los 5,684 pallets en común, el material y el lote cuadran en los 5,684.
- * Se lee para contarla y dejar constancia de que llegó.
+ * La trazabilidad de NEST baja a nivel de caja: 253,446 en quince días. **No se guarda y no
+ * hace falta para nada.** Lo que el WMS necesita —pallet, producto, lote, vencimiento— ya
+ * viene en el ZRDN, y se comprobó que coinciden: de los 5,684 pallets en común, el material y
+ * el lote cuadran en los 5,684.
+ *
+ * Y sólo cubre una parte: 144 de los 264 materiales y el 67% de los pallets del ZRDN, porque
+ * no todas las plantas etiquetan caja por caja. Por eso no puede ser requisito de nada. Se lee
+ * para contarla, decir qué cubrió y dejar constancia de que llegó; tarda dos segundos y no
+ * manda ni una fila a la base.
  */
 async function traza(libro: Libro, donde: Donde): Promise<Leido> {
   const { indice, filas } = await filasDe(libro, donde)
   const pallets = new Set(filas.map((f) => limpio(f[indice('Pallet Actual')])))
+  const materiales = new Set(filas.map((f) => limpio(f[indice('Código Material SAP')])))
   const plantas = new Set(filas.map((f) => limpio(f[indice('Planta')])))
   return {
     kind: 'TRAZA',
     leidas: filas.length,
     avisos: [
-      'Este archivo no se guarda: el pallet, el lote y el vencimiento ya vienen en el ZRDN y ' +
-        'se comprobó que coinciden. Queda el registro de que se subió.',
+      'Este archivo no se guarda ni hace falta: el pallet, el lote y el vencimiento ya vienen ' +
+        'en el ZRDN y se comprobó que coinciden. Además sólo lo etiquetan algunas plantas, ' +
+        'así que nunca va a estar completo. Queda el registro de que se subió.',
     ],
-    resumen: { pallets: pallets.size, plantas: plantas.size },
+    resumen: { pallets: pallets.size, materiales: materiales.size, plantas: plantas.size },
   }
 }
 

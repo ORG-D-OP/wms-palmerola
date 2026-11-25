@@ -22,10 +22,29 @@ const tieneTodas = (cabecera: string[], columnas: string[]) =>
   columnas.every((c) => cabecera.includes(c))
 
 /**
+ * Las dos columnas que delatan a cada reporte. Son las que no pueden faltar el día que la
+ * descarga venga recortada a lo que el WMS ocupa: sin ellas el archivo no se reconoce y la
+ * pantalla lo rechaza diciendo por qué. El ZMB51 sale dos veces porque SAP lo exporta con dos
+ * juegos de rótulos para las mismas columnas.
+ */
+const SEÑAS: [Reporte, string[]][] = [
+  ['DESPACHO', ['Número Transporte', 'UM venta']],
+  ['INVENTARIO', ['Libre utilización', 'Texto breve de material']],
+  ['SALIDAS', ['Clase de movimiento', 'Documento material']],
+  ['SALIDAS', ['CMv', 'Doc.mat.']],
+  ['INGRESO', ['Pallet', 'Salida Mercancia']],
+  ['TRAZA', ['Pallet Actual', 'Correlativo Caja']],
+  ['PRONOSTICO', ['Pronóstico', 'Cantidad cajas Pallet']],
+]
+
+/**
  * Qué reporte es. Se mira primero por el nombre de la hoja, que resuelve tres de los seis sin
- * descomprimir nada, y después por las cabeceras. El ZMB51 cambió de formato entre noviembre y
- * hoy —antes traía una fila de rótulos escritos a mano encima de la cabecera de SAP—, así que
- * se aceptan las dos y por eso se prueba también la segunda fila.
+ * descomprimir nada, y después por las cabeceras: **el nombre de la hoja es un atajo, no la
+ * regla**, para que un libro guardado con otro nombre de hoja siga entrando.
+ *
+ * El ZMB51 cambió de formato entre noviembre y hoy —antes traía una fila de rótulos escritos a
+ * mano encima de la cabecera de SAP—, así que se aceptan las dos y por eso se prueba también
+ * la segunda fila.
  */
 export async function reconocer(libro: Libro): Promise<Donde | null> {
   if (libro.hojas.includes('RawData')) return { kind: 'INGRESO', hoja: 'RawData', cabecera: 0 }
@@ -38,16 +57,9 @@ export async function reconocer(libro: Libro): Promise<Donde | null> {
     const filas = await libro.filas(hoja)
     for (const cabecera of [0, 1]) {
       const h = filas[cabecera] ?? []
-      if (tieneTodas(h, ['Número Transporte', 'UM venta'])) {
-        return { kind: 'DESPACHO', hoja, cabecera }
+      for (const [kind, columnas] of SEÑAS) {
+        if (tieneTodas(h, columnas)) return { kind, hoja, cabecera }
       }
-      if (tieneTodas(h, ['Libre utilización', 'Texto breve de material'])) {
-        return { kind: 'INVENTARIO', hoja, cabecera }
-      }
-      if (tieneTodas(h, ['Clase de movimiento', 'Documento material'])) {
-        return { kind: 'SALIDAS', hoja, cabecera }
-      }
-      if (tieneTodas(h, ['CMv', 'Doc.mat.'])) return { kind: 'SALIDAS', hoja, cabecera }
     }
   }
   return null
@@ -70,13 +82,8 @@ export const numero = (v: string | undefined) => {
 }
 export const fecha = (v: string | undefined) => fechaDeCelda(limpio(v))
 
-/**
- * Parte las filas en tandas **sin cortar un documento por la mitad**. El número de línea se
- * calcula dentro de la tanda, así que si las líneas de un mismo camión llegaran en dos
- * envíos, la segunda tanda volvería a numerar desde uno y pisaría a la primera. Un camión
- * llega a 415 líneas, así que las tandas no salen descompensadas por respetarlo.
- */
-export function tandas<T>(filas: T[], clave: (f: T) => string, tamano: number): T[][] {
+/** Las filas de cada documento, juntas. Un documento se manda entero o no se manda. */
+export function porDocumento<T>(filas: T[], clave: (f: T) => string): Map<string, T[]> {
   const grupos = new Map<string, T[]>()
   for (const f of filas) {
     const k = clave(f)
@@ -84,6 +91,17 @@ export function tandas<T>(filas: T[], clave: (f: T) => string, tamano: number): 
     if (ya) ya.push(f)
     else grupos.set(k, [f])
   }
+  return grupos
+}
+
+/**
+ * Parte las filas en tandas **sin cortar un documento por la mitad**. El número de línea se
+ * calcula dentro de la tanda, así que si las líneas de un mismo camión llegaran en dos
+ * envíos, la segunda tanda volvería a numerar desde uno y pisaría a la primera. Un camión
+ * llega a 415 líneas, así que las tandas no salen descompensadas por respetarlo.
+ */
+export function tandas<T>(filas: T[], clave: (f: T) => string, tamano: number): T[][] {
+  const grupos = porDocumento(filas, clave)
 
   const salida: T[][] = []
   let actual: T[] = []
