@@ -83,29 +83,30 @@ export type Leido = {
 }
 
 /**
- * El ZRDN trae quince hojas y los datos están en `RawData`. El orden de sus veinte columnas
- * es fijo, así que se leen por posición.
+ * El ZRDN trae quince hojas y los datos están en `RawData`. Se lee **por nombre de columna**,
+ * no por posición: el día que la descarga venga recortada a lo que el WMS ocupa, las columnas
+ * se corren y leerlas por número devolvería basura sin avisar.
  *
  * Los de 3010, 3014 y 5006 **no traen `Pedido Traslado`** —0 de 3,162 filas, medido—, así que
  * para esos la llave es la entrega y quedan marcados: esos camiones se reciben a ciegas
  * mientras no se sepa qué número viene impreso en su papel.
  */
 async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
-  const { filas } = await filasDe(libro, donde)
+  const { indice, filas } = await filasDe(libro, donde)
   const C = {
-    planta: 2,
-    pallet: 4,
-    vencimiento: 5,
-    lote: 6,
-    cantidad: 7,
-    material: 8,
-    fecha: 10,
-    nombreDestino: 14,
-    centroDestino: 15,
-    pedido: 17,
-    entrega: 18,
-    salida: 19,
-    documento: 1,
+    planta: indice('Planta'),
+    pallet: indice('Pallet'),
+    vencimiento: indice('Vencimiento'),
+    lote: indice('Lote'),
+    cantidad: indice('Cantidad'),
+    material: indice('Material'),
+    fecha: indice('Fecha'),
+    nombreDestino: indice('Nest Nombre Destino'),
+    centroDestino: indice('Nest Centro Destino'),
+    pedido: indice('Pedido Traslado'),
+    entrega: indice('Entrega'),
+    salida: indice('Salida Mercancia'),
+    documento: indice('Documento'),
   }
 
   const avisos: string[] = []

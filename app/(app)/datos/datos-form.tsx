@@ -6,9 +6,10 @@ import { Aviso } from '@/components/ui/feedback'
 import { BOTON } from '@/components/ui/campos'
 import { abrirLibro } from '@/lib/xlsx'
 import { leer, type Leido } from '@/lib/sap/leer'
-import { NOMBRE, fechaDelArchivo, tandas, type Reporte } from '@/lib/sap/reportes'
+import { NOMBRE, fechaDelArchivo, porDocumento, tandas, type Reporte } from '@/lib/sap/reportes'
+import { huella } from '@/lib/sap/huella'
 import { plural } from '@/lib/plural'
-import { cargarTanda, registrarCarga, zonaDelPronostico } from './actions'
+import { cargarTanda, huellasConocidas, registrarCarga, zonaDelPronostico } from './actions'
 
 /**
  * Cuántas filas van en cada envío. Vercel corta el cuerpo en 4.5 MB y una fila de ingreso
@@ -36,6 +37,16 @@ const FILAS: Record<Reporte, (l: Leido) => unknown[]> = {
   TRAZA: () => [],
 }
 
+/**
+ * Los tres reportes que vienen en documentos y a los que SAP les mete complementos: un
+ * transporte o un pedido que la próxima vez trae más líneas, sin que nada lo señale. De ésos
+ * se guarda una huella por documento y sólo viaja lo que cambió.
+ *
+ * La existencia y el pronóstico no están aquí: son fotos completas, se cargan enteras o no se
+ * cargan, y no se suben cada media hora.
+ */
+const CON_HUELLA: ReadonlySet<Reporte> = new Set(['INGRESO', 'DESPACHO', 'SALIDAS'])
+
 type Avance = { kind: Reporte; leidas: number; avisos: string[] }
 
 type Estado =
@@ -58,6 +69,10 @@ const TEXTO: Record<string, [string, string]> = {
   de_la_zona: ['fila de la zona', 'filas de la zona'],
   sin_producto: ['fila con material fuera del maestro', 'filas con material fuera del maestro'],
   a_ciegas: ['pedido sin número de traslado', 'pedidos sin número de traslado'],
+  ya_abiertos: [
+    'camión que ya estaba abierto y no se tocó',
+    'camiones que ya estaban abiertos y no se tocaron',
+  ],
   clase_641: ['traslado 641', 'traslados 641'],
   clase_303: ['movimiento 303', 'movimientos 303'],
   clase_304: ['anulación 304', 'anulaciones 304'],
@@ -106,15 +121,39 @@ export function DatosForm() {
           continue
         }
 
-        const avance: Avance = { kind: leido.kind, leidas: leido.leidas, avisos: leido.avisos }
-        const filas = FILAS[leido.kind](leido)
+        const clave = CLAVE[leido.kind] as (f: unknown) => string
+        const leidas = FILAS[leido.kind](leido)
+        const avisos = [...leido.avisos]
+
+        // Lo que la base ya tiene idéntico no se vuelve a mandar. Se pregunta una sola vez,
+        // por todos los documentos del archivo, antes de enviar nada.
+        const huellas: Record<string, string> = {}
+        let filas = leidas
+        if (CON_HUELLA.has(leido.kind)) {
+          const docs = porDocumento(leidas, clave)
+          for (const [codigo, suyas] of docs) huellas[codigo] = huella(suyas)
+          const ya = await huellasConocidas(leido.kind, [...docs.keys()])
+          const cambiados = [...docs].filter(([codigo]) => ya[codigo] !== huellas[codigo])
+          if (cambiados.length < docs.size) {
+            avisos.push(
+              `${plural(docs.size - cambiados.length, 'documento', 'documentos')} que el ` +
+                'archivo trae igual que la vez pasada: no se volvieron a mandar.',
+            )
+          }
+          filas = cambiados.flatMap(([, suyas]) => suyas)
+        }
+
+        const avance: Avance = { kind: leido.kind, leidas: leido.leidas, avisos }
         const total: Record<string, number> = { ...leido.resumen }
         let hechas = 0
         actualizar(i, { ...avance, paso: 'subiendo', hechas, de: filas.length })
 
         let problema: string | null = null
-        for (const tanda of tandas(filas, CLAVE[leido.kind] as (f: unknown) => string, TANDA)) {
-          const res = await cargarTanda(leido.kind, tanda, fechaDelArchivo(file.name))
+        for (const tanda of tandas(filas, clave, TANDA)) {
+          const suyas = Object.fromEntries(
+            [...new Set(tanda.map(clave))].map((c) => [c, huellas[c]!]),
+          )
+          const res = await cargarTanda(leido.kind, tanda, fechaDelArchivo(file.name), suyas)
           if (!res.ok) {
             problema = res.error
             break

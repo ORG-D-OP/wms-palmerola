@@ -9,7 +9,8 @@ import { basename } from 'node:path'
 import { loadEnv } from './lib/env.mjs'
 import { abrirArchivo } from './lib/xlsx.mjs'
 import { leer } from '../lib/sap/leer.ts'
-import { NOMBRE, fechaDelArchivo, tandas } from '../lib/sap/reportes.ts'
+import { NOMBRE, fechaDelArchivo, porDocumento, tandas } from '../lib/sap/reportes.ts'
+import { huella } from '../lib/sap/huella.ts'
 
 const TANDA = 2000
 
@@ -47,6 +48,10 @@ const DESTINO = {
   TRAZA: { fn: null, de: () => [], clave: () => '' },
 }
 
+// Los tres reportes que vienen en documentos y a los que SAP les mete complementos: de esos
+// se guarda una huella por documento y solo viaja lo que cambio. Igual que la pantalla.
+const CON_HUELLA = new Set(['INGRESO', 'DESPACHO', 'SALIDAS'])
+
 const zona = await rpc('zona_del_pronostico', {})
 
 for (const ruta of archivos) {
@@ -64,14 +69,35 @@ for (const ruta of archivos) {
   for (const aviso of leido.avisos) console.log(`  · ${aviso}`)
 
   const destino = DESTINO[leido.kind]
-  const filas = destino.de(leido) ?? []
+  const leidas = destino.de(leido) ?? []
   const total = {}
+
+  // Lo que la base ya tiene identico no se vuelve a mandar: se pregunta una sola vez, por
+  // todos los documentos del archivo, antes de enviar nada.
+  const huellas = {}
+  let filas = leidas
+  if (CON_HUELLA.has(leido.kind)) {
+    const docs = porDocumento(leidas, destino.clave)
+    for (const [codigo, suyas] of docs) huellas[codigo] = huella(suyas)
+    const ya = (await rpc('huellas_de', { p_kind: leido.kind, p_codigos: [...docs.keys()] })) ?? {}
+    const cambiados = [...docs].filter(([codigo]) => ya[codigo] !== huellas[codigo])
+    if (cambiados.length < docs.size) {
+      const iguales = docs.size - cambiados.length
+      console.log(`  · ${iguales} de ${docs.size} documentos ya estaban igual: no se mandan.`)
+    }
+    filas = cambiados.flatMap(([, suyas]) => suyas)
+  }
 
   if (destino.fn && filas.length > 0) {
     let hechas = 0
     for (const tanda of tandas(filas, destino.clave, TANDA)) {
       const args = { p_filas: tanda }
       if (leido.kind === 'INVENTARIO') args.p_fecha = fechaDelArchivo(nombre)
+      else if (CON_HUELLA.has(leido.kind)) {
+        args.p_huellas = Object.fromEntries(
+          [...new Set(tanda.map(destino.clave))].map((c) => [c, huellas[c]]),
+        )
+      }
       const salida = await rpc(destino.fn, args)
       for (const [k, v] of Object.entries(salida ?? {})) total[k] = (total[k] ?? 0) + v
       hechas += tanda.length

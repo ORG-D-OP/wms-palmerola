@@ -4633,8 +4633,8 @@ export type Database = {
           vence: string
         }[]
       }
-      cargar_despachos: { Args: { p_filas: Json }; Returns: Json }
-      cargar_ingresos: { Args: { p_filas: Json }; Returns: Json }
+      cargar_despachos: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
+      cargar_ingresos: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
       cargar_inicial: {
         Args: {
           p_codigo: string
@@ -4658,7 +4658,7 @@ export type Database = {
         Returns: Json
       }
       cargar_pronostico: { Args: { p_filas: Json }; Returns: Json }
-      cargar_salidas: { Args: { p_filas: Json }; Returns: Json }
+      cargar_salidas: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
       cerrar_conteo: {
         Args: { p_task_id: string }
         Returns: {
@@ -5016,6 +5016,7 @@ export type Database = {
         Args: { roles: Database["public"]["Enums"]["user_role"][] }
         Returns: boolean
       }
+      huellas_de: { Args: { p_codigos: string[]; p_kind: string }; Returns: Json }
       hay_en: {
         Args: { p_texto: string }
         Returns: {
