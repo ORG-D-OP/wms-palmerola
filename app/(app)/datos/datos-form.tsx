@@ -64,6 +64,7 @@ const TEXTO: Record<string, [string, string]> = {
   pallets: ['pallet', 'pallets'],
   camiones: ['camión', 'camiones'],
   materiales: ['material', 'materiales'],
+  plantas: ['planta', 'plantas'],
   filas: ['fila', 'filas'],
   cajas: ['caja', 'cajas'],
   de_la_zona: ['fila de la zona', 'filas de la zona'],

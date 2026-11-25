@@ -122,13 +122,22 @@ material y mes.
 
 ### 6. Trazabilidad de cajas por pallet (NEST)
 
-**No se guarda nada.** Son 253,446 cajas en quince días y lo que el WMS necesita —pallet,
-producto, lote, vencimiento— ya viene en el ZRDN; se comprobó que coinciden en los 5,684 pallets
-en común. Se lee para contarla y dejar constancia de que llegó.
+**No se guarda nada y no hace falta para nada.** Es el archivo que une cada caja con su pallet.
+Son 253,446 cajas en quince días y lo que el WMS necesita —pallet, producto, lote,
+vencimiento— ya viene en el ZRDN; se comprobó que coinciden en los 5,684 pallets en común.
+
+**Nunca va a estar completo, y por eso no puede ser requisito de nada.** Medido sobre el archivo
+del 1 al 16 de noviembre: 10,652 pallets y 156 materiales, que son **144 de los 264 materiales y
+el 67% de los pallets** del ZRDN del mismo periodo. No todas las plantas etiquetan caja por
+caja. Lo que sí tiene que estar en todo pallet es **su etiqueta**: la de NEST o la que imprime
+el WMS.
+
+Se lee para contarlo, decir qué cubrió y dejar constancia de que llegó. Tarda dos segundos con
+las 253,446 filas y no manda ni una fila a la base, así que subirlo no frena nada.
 
 - Hoja: **`Cajas por Pallet`**
 - La delatan: `Pallet Actual` + `Correlativo Caja`
-- Se leen 2: `Pallet Actual`, `Planta`
+- Se leen 3: `Pallet Actual`, `Código Material SAP`, `Planta`
 
 ---
 
@@ -170,4 +179,23 @@ Lo que eso ahorra, con los archivos de noviembre:
 Un camión **ya abierto** es la excepción: no se le reescriben las líneas, porque sus tareas ya
 están repartidas y puede haber gente surtiéndolo. Su complemento se cuenta y se dice en la
 pantalla, y no se le guarda la huella, para que vuelva a ofrecerse en cada subida hasta que
-alguien decida qué hacer con él.
+alguien decida qué hacer con él. En el **ingreso** no hay esa excepción: el complemento entra
+siempre, incluso con el camión descargándose, porque esos pallets hay que bajarlos igual.
+
+## La ventana de la descarga da lo mismo
+
+No hace falta esperar a que un documento esté completo para subirlo, ni bajar siempre el mismo
+periodo. El mes entero, los últimos dos días o lo que haya hasta ahora: **el resultado es el
+mismo**. Un documento que no viene en el archivo de hoy no se toca, y uno que viene se rehace
+con todo lo que se sabe de él.
+
+Eso vale para las dos formas en que SAP recorta:
+
+- **El ZRDT recorta por transporte.** Medido: las seis fechas del archivo son del camión, no de
+  la línea —0 de 389 transportes traen más de una—, así que una ventana se lleva el camión
+  entero o no se lo lleva.
+- **El ZRDN recorta por pallet.** Su columna `Fecha` es la de creación del pallet en NEST, no la
+  del pedido: **18 de los 183 pedidos** del archivo de Snacks tienen pallets de dos días
+  distintos, así que una ventana de dos días se lleva la mitad de esos pedidos. Por eso los
+  pallets se acumulan —nunca se borra uno porque el archivo de hoy no lo traiga— y **el resumen
+  del pedido se arma de los pallets que hay, no de las filas del archivo**.
