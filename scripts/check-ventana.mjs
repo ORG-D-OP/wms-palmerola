@@ -141,11 +141,46 @@ await one(
 )
 check((await resumenDe('C')) === 55, 'el pedido del ZMB51 entra con su línea y sin pallets')
 
-// Llega un ZRDN suyo, pero con un material que no está en el maestro: no hay pallets que
-// guardar. Las líneas que ya tenía no se pueden borrar, que son lo único que hay.
+// Llega un ZRDN suyo, pero con un material que no está en el maestro y que el archivo tampoco
+// nombra: esa fila sí se cae, y no hay pallets que guardar. Las líneas que ya tenía no se
+// pueden borrar, que son lo único que hay.
 const sinMaestro = { ...pallet('C', 'R1', '2026-11-09', 20), material: '99999.9' }
 const r = await ingresar([sinMaestro])
 check(r.sin_producto === 1, 'el material fuera del maestro se cuenta y se dice')
+
+// Y el que trae nombre entra solo: un camión no se queda fuera porque el maestro no tenga el
+// material. Lo que no se inventa es el código de barras, ni la estiba, ni la clase.
+const r2 = await ingresar([
+  {
+    ...pallet('D', 'S1', '2026-11-12', 20),
+    material: '71001.6',
+    nombre: 'Jabon Azul 6s',
+  },
+])
+check(r2.creados === 1, 'el material que trae nombre se da de alta solo')
+check(r2.sin_producto === 0, 'y entonces no se cae ninguna fila')
+
+const nuevo = await one(
+  `select p.name, p.external_source, p.contamination_class,
+          (select pl.qty_base_units from packaging_level pl
+            where pl.product_id = p.id and pl.code = 'CASE') as por_caja
+     from product p where p.sku = '71001.6'`,
+)
+check(nuevo.name === 'Jabon Azul 6s', 'con el nombre que traia el archivo')
+check(Number(nuevo.por_caja) === 6, 'y el corrugado que dice el nombre: seis unidades')
+check(nuevo.contamination_class === null, 'sin clase: eso lo dice quien lo recibe')
+check(nuevo.external_source !== null, 'y marcado para que Datos Maestros lo complete')
+check((await resumenDe('D')) === 20, 'el pallet entra con su linea')
+
+// Subir otra vez el mismo archivo no lo da de alta dos veces.
+const r3 = await ingresar([
+  {
+    ...pallet('D', 'S1', '2026-11-12', 20),
+    material: '71001.6',
+    nombre: 'Jabon Azul 6s',
+  },
+])
+check(r3.creados === 0, 'y la segunda vez ya no se da de alta nada')
 check(
   (await resumenDe('C')) === 55,
   'y la línea que traía del ZMB51 sigue ahí: no se borra lo único que hay',

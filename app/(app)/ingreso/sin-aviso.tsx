@@ -5,7 +5,14 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { Mixto } from './mixto'
-import { buscarProducto, recibirSinAviso, type Producto, type Recibido } from './actions'
+import { CampoClase } from './clase'
+import {
+  buscarProducto,
+  ponerClase,
+  recibirSinAviso,
+  type Producto,
+  type Recibido,
+} from './actions'
 
 /**
  * Recibir un camión que nadie anunció.
@@ -70,6 +77,11 @@ export function SinAviso({
   const recibir = (datos: FormData) => {
     setError(null)
     empezar(async () => {
+      // Primero qué es, porque de eso depende dónde lo manda a guardar el pallet que sigue.
+      if (producto && !producto.clase) {
+        const dicho = await ponerClase(producto.id, String(datos.get('clase') ?? ''))
+        if (!dicho.ok) return setError(dicho.error)
+      }
       const res = await recibirSinAviso({
         pedido,
         codigo,
@@ -179,6 +191,7 @@ export function SinAviso({
         >
           No es este
         </button>
+        {producto.clase ? null : <CampoClase />}
       </div>
 
       <label className="flex flex-col gap-1.5">

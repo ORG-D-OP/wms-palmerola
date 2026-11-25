@@ -7,6 +7,7 @@ import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { Crossdock } from './crossdock'
 import { SinAviso } from './sin-aviso'
+import { FaltaDecirQueEs } from './clase'
 import {
   abrirSinAviso,
   buscarIngreso,
@@ -202,12 +203,20 @@ export function IngresoForm({
 
   const faltan = doc.pallets - doc.recibidos
   const pendientes = doc.lineas.filter((l) => !l.recibido)
+  // SAP anunció el camión pero nadie mandó las etiquetas: hay lista de qué, no de cuáles.
+  const anunciado = doc.esperado.length > 0
+  const cajasEsperadas = doc.esperado.reduce((n, l) => n + l.cases, 0)
+  // Las etiquetas mandan, porque son lo que viene en el camión; pero si SAP dice otra cosa,
+  // el que cuenta tiene que saberlo antes de contar.
+  const descuadre = doc.pallets > 0 && doc.cajasSap !== null && doc.cajasSap !== doc.cajas
 
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-2xl bg-azul-08 p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm text-azul/60">{doc.sinAviso ? 'Ingreso sin aviso' : 'Pedido'}</p>
+          <p className="text-sm text-azul/60">
+            {!doc.sinAviso || anunciado ? 'Pedido' : 'Ingreso sin aviso'}
+          </p>
           <button
             type="button"
             onClick={() => {
@@ -229,8 +238,18 @@ export function IngresoForm({
         {doc.sinAviso ? (
           <>
             <p className="mt-2 text-sm">
-              {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
-              {doc.cajas.toLocaleString('es-HN')} cajas
+              {anunciado ? (
+                <>
+                  SAP anuncia {doc.esperado.length}{' '}
+                  {plural(doc.esperado.length, 'material', 'materiales')} ·{' '}
+                  {cajasEsperadas.toLocaleString('es-HN')} cajas · sin etiquetas de pallet
+                </>
+              ) : (
+                <>
+                  {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
+                  {doc.cajas.toLocaleString('es-HN')} cajas
+                </>
+              )}
             </p>
             {doc.nota ? <p className="mt-1 text-sm text-azul/60">{doc.nota}</p> : null}
           </>
@@ -251,6 +270,12 @@ export function IngresoForm({
                 style={{ width: `${doc.pallets ? (doc.recibidos / doc.pallets) * 100 : 0}%` }}
               />
             </div>
+            {descuadre ? (
+              <p className="mt-2 text-sm text-azul/60">
+                SAP dice {doc.cajasSap!.toLocaleString('es-HN')} cajas y las etiquetas suman{' '}
+                {doc.cajas.toLocaleString('es-HN')}. Cuenta con cuidado: manda lo que baje.
+              </p>
+            ) : null}
           </>
         )}
       </div>
@@ -331,6 +356,10 @@ export function IngresoForm({
         />
       ) : null}
 
+      {doc.sinClase.length > 0 ? (
+        <FaltaDecirQueEs productos={doc.sinClase} onHecho={() => cargar(doc.pedido)} />
+      ) : null}
+
       {doc.sinAviso ? (
         <>
           <SinAviso
@@ -342,6 +371,24 @@ export function IngresoForm({
             }}
             onRecargar={() => cargar(doc.pedido)}
           />
+          {anunciado ? (
+            <section className="flex flex-col gap-2">
+              <p className="text-sm text-azul/60">Lo que SAP dice que trae</p>
+              <ul className="flex flex-col divide-y divide-borde text-sm">
+                {doc.esperado.map((l) => (
+                  <li key={l.sku} className="flex items-baseline gap-3 py-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{l.name}</span>
+                      <span className="block text-xs text-azul/60">{l.sku}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {l.cases.toLocaleString('es-HN')} cajas
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {deAnden ? (
             <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
               Terminé de descargar: cerrar el acta

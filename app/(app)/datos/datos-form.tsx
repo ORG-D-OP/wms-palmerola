@@ -69,6 +69,14 @@ const TEXTO: Record<string, [string, string]> = {
   cajas: ['caja', 'cajas'],
   de_la_zona: ['fila de la zona', 'filas de la zona'],
   sin_producto: ['fila con material fuera del maestro', 'filas con material fuera del maestro'],
+  creados: [
+    'material nuevo dado de alta: complétalo en Productos',
+    'materiales nuevos dados de alta: complétalos en Productos',
+  ],
+  juntados: [
+    'camión que estaba abierto dos veces y se juntó',
+    'camiones que estaban abiertos dos veces y se juntaron',
+  ],
   a_ciegas: ['pedido sin número de traslado', 'pedidos sin número de traslado'],
   ya_abiertos: [
     'camión que ya estaba abierto y no se tocó',

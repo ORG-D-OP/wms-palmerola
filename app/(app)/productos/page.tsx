@@ -14,6 +14,7 @@ const FILTROS = [
   { clave: 'sin-codigo', etiqueta: 'Sin DUN-14' },
   { clave: 'compartido', etiqueta: 'Código compartido' },
   { clave: 'conflicto', etiqueta: 'En conflicto' },
+  { clave: 'sin-maestro', etiqueta: 'Llegó sin maestro' },
 ] as const
 
 export default async function ProductsPage({
@@ -29,7 +30,7 @@ export default async function ProductsPage({
   let consulta = supabase
     .from('product_readiness')
     .select(
-      'id, sku, name, dun, tipo_caja, por_caja, cajas_por_pallet, tiene_clase, tiene_corrugado, tiene_estiba, tiene_codigo, codigo_compartido, codigo_sin_conflicto',
+      'id, sku, name, dun, tipo_caja, por_caja, cajas_por_pallet, tiene_clase, tiene_corrugado, tiene_estiba, tiene_codigo, codigo_compartido, codigo_sin_conflicto, sin_maestro',
     )
     .order('sku')
     .limit(PAGINA)
@@ -46,6 +47,8 @@ export default async function ProductsPage({
   if (filtro === 'sin-codigo') consulta = consulta.eq('tiene_codigo', false)
   if (filtro === 'compartido') consulta = consulta.eq('codigo_compartido', true)
   if (filtro === 'conflicto') consulta = consulta.eq('codigo_sin_conflicto', false)
+  // Los que entraron en un camión sin estar en el maestro: es la lista para Datos Maestros.
+  if (filtro === 'sin-maestro') consulta = consulta.eq('sin_maestro', true)
 
   const { data } = await consulta
   const productos = data ?? []

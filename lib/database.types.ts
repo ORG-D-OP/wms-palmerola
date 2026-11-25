@@ -275,6 +275,27 @@ export type Database = {
         }
         Relationships: []
       }
+      carga_huella: {
+        Row: {
+          codigo: string
+          huella: string
+          kind: string
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          huella: string
+          kind: string
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          huella?: string
+          kind?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       carga_sap: {
         Row: {
           detail: Json
@@ -465,6 +486,7 @@ export type Database = {
       }
       inbound_doc: {
         Row: {
+          cajas_sap: number | null
           created_at: string
           entrega: string | null
           goods_issue: string | null
@@ -481,6 +503,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cajas_sap?: number | null
           created_at?: string
           entrega?: string | null
           goods_issue?: string | null
@@ -497,6 +520,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cajas_sap?: number | null
           created_at?: string
           entrega?: string | null
           goods_issue?: string | null
@@ -3611,6 +3635,10 @@ export type Database = {
       inbound_progress: {
         Row: {
           cajas: number | null
+          cajas_sap: number | null
+          entrega: string | null
+          esperado_cajas: number | null
+          esperado_lineas: number | null
           id: string | null
           materiales: number | null
           nota: string | null
@@ -3839,6 +3867,7 @@ export type Database = {
           name: string | null
           por_caja: number | null
           sector: string | null
+          sin_maestro: boolean | null
           sku: string | null
           status: Database["public"]["Enums"]["product_status"] | null
           tiene_clase: boolean | null
@@ -3859,6 +3888,7 @@ export type Database = {
           name?: string | null
           por_caja?: never
           sector?: string | null
+          sin_maestro?: never
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"] | null
           tiene_clase?: never
@@ -3879,6 +3909,7 @@ export type Database = {
           name?: string | null
           por_caja?: never
           sector?: string | null
+          sin_maestro?: never
           sku?: string | null
           status?: Database["public"]["Enums"]["product_status"] | null
           tiene_clase?: never
@@ -4445,6 +4476,7 @@ export type Database = {
       abrir_ingreso_sin_aviso: {
         Args: { p_nota?: string; p_origen?: string }
         Returns: {
+          cajas_sap: number | null
           created_at: string
           entrega: string | null
           goods_issue: string | null
@@ -4583,6 +4615,10 @@ export type Database = {
         Args: { p_pedido: string }
         Returns: {
           cajas: number | null
+          cajas_sap: number | null
+          entrega: string | null
+          esperado_cajas: number | null
+          esperado_lineas: number | null
           id: string | null
           materiales: number | null
           nota: string | null
@@ -4633,8 +4669,14 @@ export type Database = {
           vence: string
         }[]
       }
-      cargar_despachos: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
-      cargar_ingresos: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
+      cargar_despachos: {
+        Args: { p_filas: Json; p_huellas?: Json }
+        Returns: Json
+      }
+      cargar_ingresos: {
+        Args: { p_filas: Json; p_huellas?: Json }
+        Returns: Json
+      }
       cargar_inicial: {
         Args: {
           p_codigo: string
@@ -4658,7 +4700,10 @@ export type Database = {
         Returns: Json
       }
       cargar_pronostico: { Args: { p_filas: Json }; Returns: Json }
-      cargar_salidas: { Args: { p_filas: Json; p_huellas?: Json }; Returns: Json }
+      cargar_salidas: {
+        Args: { p_filas: Json; p_huellas?: Json }
+        Returns: Json
+      }
       cerrar_conteo: {
         Args: { p_task_id: string }
         Returns: {
@@ -4695,6 +4740,7 @@ export type Database = {
       cerrar_ingreso_sin_aviso: {
         Args: { p_pedido: string }
         Returns: {
+          cajas_sap: number | null
           created_at: string
           entrega: string | null
           goods_issue: string | null
@@ -5012,11 +5058,14 @@ export type Database = {
         Returns: number
       }
       grupo_del_producto: { Args: { p_product_id: string }; Returns: string }
+      guardar_huellas: {
+        Args: { p_fuera: string[]; p_huellas: Json; p_kind: string }
+        Returns: undefined
+      }
       has_role: {
         Args: { roles: Database["public"]["Enums"]["user_role"][] }
         Returns: boolean
       }
-      huellas_de: { Args: { p_codigos: string[]; p_kind: string }; Returns: Json }
       hay_en: {
         Args: { p_texto: string }
         Returns: {
@@ -5045,6 +5094,11 @@ export type Database = {
         }[]
       }
       hoy_de_bodega: { Args: never; Returns: string }
+      huellas_de: {
+        Args: { p_codigos: string[]; p_kind: string }
+        Returns: Json
+      }
+      ingreso_por_codigo: { Args: { p_codigo: string }; Returns: string }
       iniciar_turno: {
         Args: {
           p_flow?: string
@@ -5164,6 +5218,13 @@ export type Database = {
         Args: { p_anden: string; p_order_id: string }
         Returns: undefined
       }
+      poner_clase: {
+        Args: {
+          p_clase: Database["public"]["Enums"]["contamination_class"]
+          p_product_id: string
+        }
+        Returns: undefined
+      }
       posiciones_a_contar: {
         Args: { p_area?: string; p_nivel?: number; p_zona?: string }
         Returns: {
@@ -5198,6 +5259,10 @@ export type Database = {
         }
         Returns: number
       }
+      producto_de_sap: {
+        Args: { p_nombre: string; p_sku: string }
+        Returns: string
+      }
       producto_escaneado: {
         Args: { p_codigo: string; p_task_id: string }
         Returns: string
@@ -5206,6 +5271,7 @@ export type Database = {
         Args: { p_codigo: string }
         Returns: {
           case_id: string
+          clase: Database["public"]["Enums"]["contamination_class"]
           name: string
           product_id: string
           requires_fefo: boolean
@@ -5214,6 +5280,14 @@ export type Database = {
       }
       producto_por_codigo: { Args: { p_codigo: string }; Returns: string }
       productos_por_codigo: { Args: { p_codigo: string }; Returns: string[] }
+      productos_sin_clase: {
+        Args: { p_doc_id: string }
+        Returns: {
+          name: string
+          product_id: string
+          sku: string
+        }[]
+      }
       puede_cargar_sap: { Args: never; Returns: boolean }
       puede_trabajar_como: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
