@@ -9,6 +9,8 @@ import {
   type Segmentos,
   type Toque,
 } from './warehouse-canvas'
+
+import { PLANIMETRIA } from '@/lib/warehouse/plano'
 import { Icon } from './ui/icon'
 
 // ssr: false y carga diferida: Three.js solo baja cuando alguien abre la vista 3D,
@@ -25,6 +27,14 @@ const Warehouse3D = dynamic(() => import('./warehouse-3d'), {
 const MODOS: { id: Modo; texto: string }[] = [
   { id: 'ocupacion', texto: 'Ocupación' },
   { id: 'planimetria', texto: 'Planimetría' },
+]
+
+/** Los mismos cuatro colores que pintan los dos mapas, para que la leyenda sirva de llave. */
+const LEYENDA_PLANIMETRIA = [
+  { color: PLANIMETRIA.ALIMENTO.cara, texto: 'alimento, cara de picking' },
+  { color: PLANIMETRIA.ALIMENTO.reserva, texto: 'alimento, almacén' },
+  { color: PLANIMETRIA.NO_ALIMENTO.cara, texto: 'no alimento, cara de picking' },
+  { color: PLANIMETRIA.NO_ALIMENTO.reserva, texto: 'no alimento, almacén' },
 ]
 
 export function WarehouseView({
@@ -73,10 +83,7 @@ export function WarehouseView({
               <button
                 key={m.id}
                 type="button"
-                onClick={() => {
-                  setModo(m.id)
-                  setVista('2D')
-                }}
+                onClick={() => setModo(m.id)}
                 aria-pressed={modo === m.id}
                 className={`flex h-9 items-center rounded-md px-3 text-sm ${
                   modo === m.id ? 'bg-azul text-white' : 'text-azul/60'
@@ -128,21 +135,15 @@ export function WarehouseView({
           </h3>
           {modo === 'planimetria' ? (
             <>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 shrink-0 rounded-[3px] bg-azul/60" /> alimento, cara de
-                picking
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 shrink-0 rounded-[3px] bg-azul/15" /> alimento, almacén
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 shrink-0 rounded-[3px] bg-celeste/60" /> no alimento,
-                cara de picking
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 shrink-0 rounded-[3px] bg-celeste/15" /> no alimento,
-                almacén
-              </span>
+              {LEYENDA_PLANIMETRIA.map((l) => (
+                <span key={l.texto} className="flex items-center gap-1.5">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-[3px]"
+                    style={{ background: l.color }}
+                  />{' '}
+                  {l.texto}
+                </span>
+              ))}
             </>
           ) : (
             <>

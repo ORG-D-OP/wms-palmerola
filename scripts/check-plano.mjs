@@ -1,5 +1,12 @@
 import { bootDb, check } from './lib/boot-db.mjs'
-import { BLOQUES, cajas, claveDePlanta } from '../lib/warehouse/plano.ts'
+import {
+  BLOQUES,
+  cajas,
+  claveDePlanta,
+  colorPlanimetria,
+  PLANIMETRIA,
+} from '../lib/warehouse/plano.ts'
+
 
 /**
  * El dibujo del plano y las posiciones de la base se escriben en dos lugares distintos: la
@@ -132,13 +139,38 @@ await db.query(`
   where l.code = 'R-ABA-L01-B01-N1-P1' and a.code = 'PICKING'
 `)
 const { rows: nivel } = await db.query(`
-  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) as caras
+  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) as caras,
+         planta()->'no_alimento' as no_alimento
 `)
 const caras = new Set(nivel[0].caras)
 check(caras.has('R-ABA-L01-B01-N1-P1'), 'la cara de un rack sale con su nivel')
 check(
   !caras.has('R-ABA-L01-B01-N2-P1'),
   'el nivel 2 de esa misma columna no sale como cara de picking',
+)
+
+// Y lo que de verdad importa: que el isometrico pinte esa cara y solo esa. Pinta una caja por
+// nivel, asi que aqui se le pregunta por el color igual que lo hace la pantalla.
+const noAlimento = new Set(nivel[0].no_alimento ?? [])
+const delIsometrico = (code) => colorPlanimetria(code, noAlimento, caras)
+check(
+  delIsometrico('R-ABA-L01-B01-N1-P1') === PLANIMETRIA.NO_ALIMENTO.cara,
+  'el isometrico pinta de cara el nivel 1 del frente',
+)
+check(
+  delIsometrico('R-ABA-L01-B01-N2-P1') === PLANIMETRIA.NO_ALIMENTO.reserva,
+  'y de reserva el nivel de encima, que es la misma columna',
+)
+check(
+  delIsometrico('F1-001-11') === PLANIMETRIA.NO_ALIMENTO.cara &&
+    delIsometrico('F1-001-10') === PLANIMETRIA.NO_ALIMENTO.reserva,
+  'en piso pinta de cara la boca del carril y de reserva lo de adentro',
+)
+// El mapa de arriba pinta por cuadro, asi que le quita el nivel al codigo.
+const porCuadro = new Set([...caras].map(claveDePlanta))
+check(
+  colorPlanimetria('R-ABA-L01-B01-P1', noAlimento, porCuadro) === PLANIMETRIA.NO_ALIMENTO.cara,
+  'el mapa de arriba pinta de cara la columna que tiene una',
 )
 
 // Tocar un cuadro de rack trae su pila entera; tocar uno de piso, esa posicion y nada mas.
