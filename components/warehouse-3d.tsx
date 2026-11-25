@@ -3,16 +3,29 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { cajas, NAVE } from '@/lib/warehouse/plano'
-import type { Ocupacion } from './warehouse-canvas'
+import { tintePlanimetria } from '@/lib/warehouse/planimetria'
+import type { Modo, Ocupacion, Segmentos } from './warehouse-canvas'
 
 /**
  * Vista isométrica del almacén. Todas las posiciones entran en un solo InstancedMesh:
  * una llamada de dibujo para las 5,581, y el color de cada instancia dice su estado.
  *
+ * Pinta lo mismo que el mapa de arriba, en los dos modos. Mientras sólo pintó la ocupación,
+ * la leyenda decía planimetría y las cajas decían otra cosa: lo apartado por una tarea se leía
+ * como cara de picking del no alimento.
+ *
  * Este componente solo se carga en supervisión, con next/dynamic y ssr: false, para que
  * el teléfono del operario nunca descargue Three.js.
  */
-export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
+export default function Warehouse3D({
+  ocupacion,
+  modo,
+  segmentos,
+}: {
+  ocupacion: Ocupacion
+  modo: Modo
+  segmentos?: Segmentos
+}) {
   const contenedorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,6 +73,16 @@ export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
       APARTADA: new THREE.Color('#009bdd'),
       OTRO_USO: new THREE.Color('#aeaebe'),
     }
+    const noAlimento = new Set(segmentos?.no_alimento ?? [])
+    const picking = new Set(segmentos?.areas?.PICKING ?? [])
+    const plano = modo === 'planimetria' && segmentos !== undefined
+    // El tinte de la planimetría lleva transparencia y una caja no la tiene, así que se mezcla
+    // contra el blanco de la escena: sale el mismo color que pinta el mapa de arriba.
+    const colorPlano = (code: string) => {
+      const { rgb, alfa } = tintePlanimetria(code, noAlimento, picking)
+      const mezclar = (v: number) => (v * alfa + 255 * (1 - alfa)) / 255
+      return new THREE.Color(mezclar(rgb[0]), mezclar(rgb[1]), mezclar(rgb[2]))
+    }
     let i = 0
 
     for (const g of grupos) {
@@ -67,7 +90,7 @@ export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
         m.makeScale(c.w, c.alto, c.d)
         m.setPosition(c.x + c.w / 2, c.y + c.alto / 2, c.z + c.d / 2)
         malla.setMatrixAt(i, m)
-        malla.setColorAt(i, COLORES[ocupacion[c.code] ?? 'libre'])
+        malla.setColorAt(i, plano ? colorPlano(c.code) : COLORES[ocupacion[c.code] ?? 'libre'])
         i++
       }
     }
@@ -144,7 +167,7 @@ export default function Warehouse3D({ ocupacion }: { ocupacion: Ocupacion }) {
       renderer.dispose()
       lienzo.remove()
     }
-  }, [ocupacion])
+  }, [ocupacion, modo, segmentos])
 
   return (
     <div
