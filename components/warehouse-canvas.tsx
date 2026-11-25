@@ -7,12 +7,12 @@ import {
   BLOQUES,
   claveDePlanta,
   COLOR,
+  colorPlanimetria,
   FRANJAS,
   NAVE,
   ruta,
   ubicar,
 } from '@/lib/warehouse/plano'
-import { tintePlanimetria } from '@/lib/warehouse/planimetria'
 import { Icon } from '@/components/ui/icon'
 
 export type Estado = 'OCUPADA' | 'APARTADA' | 'OTRO_USO'
@@ -68,11 +68,6 @@ function tono(c: Conteo | undefined, niveles: number) {
   return OTRO_USO
 }
 
-function tonoPlanimetria(code: string, noAlimento: Set<string>, picking: Set<string>) {
-  const { rgb, alfa } = tintePlanimetria(code, noAlimento, picking)
-  return `rgba(${rgb.join(', ')}, ${alfa})`
-}
-
 /**
  * La planta se dibuja una sola vez en un canvas fuera de pantalla a esta resolución y
  * después solo se escala: cada cuadro es un drawImage, no 3,469 rectángulos.
@@ -126,7 +121,7 @@ function pintarEstatico(
     const niveles = b.niveles ?? 1
     for (const c of b.celdas) {
       ctx.fillStyle = plano
-        ? tonoPlanimetria(c.code, noAlimento, picking)
+        ? colorPlanimetria(c.code, noAlimento, picking)
         : tono(cuadros.get(c.code), niveles)
       ctx.fillRect(c.x * k, c.y * k, c.w * k, c.h * k)
     }

@@ -242,6 +242,33 @@ export const COLOR = {
   borde: 'rgba(44, 43, 143, 0.35)',
 }
 
+/**
+ * El color de la planimetría: el tinte dice el grupo —azul el alimento, celeste lo que no lo
+ * es— y la fuerza dice el oficio: subido, la cara de picking; apagado, la reserva.
+ *
+ * Son colores enteros y no el azul de la marca con transparencia. La vista isométrica no sabe
+ * pintar transparencia y la luz le sube el tono a cada caja, así que un tinte al 62% salía
+ * casi igual que uno al 16% y no se distinguía la cara de la reserva. Con el color entero los
+ * dos mapas y la leyenda pintan lo mismo, que es lo que hace que la leyenda sirva de llave.
+ */
+export const PLANIMETRIA = {
+  ALIMENTO: { cara: COLOR.azul, reserva: '#d7d7e8' },
+  NO_ALIMENTO: { cara: COLOR.celeste, reserva: '#bfe6f7' },
+}
+
+/**
+ * El grupo es de la corrida entera, así que va por cuadro. El oficio no: la cara de un rack es
+ * el nivel 1 del frente, así que cada vista pregunta por lo que pinta —el mapa de arriba por
+ * cuadro, el isométrico por posición— y lo que manda la base es el código de la posición
+ * (migración 0102).
+ */
+export function colorPlanimetria(code: string, noAlimento: Set<string>, picking: Set<string>) {
+  const tinte = noAlimento.has(claveDePlanta(code))
+    ? PLANIMETRIA.NO_ALIMENTO
+    : PLANIMETRIA.ALIMENTO
+  return picking.has(code) ? tinte.cara : tinte.reserva
+}
+
 
 /**
  * Una caja de la vista 3D: posición en planta más el nivel en el que está. `code` es el
