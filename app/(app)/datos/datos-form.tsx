@@ -58,6 +58,7 @@ const TEXTO: Record<string, [string, string]> = {
   de_la_zona: ['fila de la zona', 'filas de la zona'],
   sin_producto: ['fila con material fuera del maestro', 'filas con material fuera del maestro'],
   a_ciegas: ['pedido sin número de traslado', 'pedidos sin número de traslado'],
+  clase_641: ['traslado 641', 'traslados 641'],
   clase_303: ['movimiento 303', 'movimientos 303'],
   clase_304: ['anulación 304', 'anulaciones 304'],
 }
