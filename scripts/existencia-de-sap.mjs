@@ -12,9 +12,12 @@
 // 1. **No cabe.** Palmerola (almacenes 0006, 0010, 0020 y 00ZC) pide mas de seis mil pallets
 //    y la bodega tiene 5,605 posiciones, de las que el almacen aporta 1,594 carriles y un
 //    carril no aguanta dos productos a la vez. Asi que **manda el pronostico**: primero todos
-//    los productos cogen su posicion de picking —ahi no hay regla de carril—, y despues el
-//    grueso se reparte por almacen en orden de pallets pronosticados, hasta que se acaban los
-//    carriles. Lo que no cupo se reporta, no se inventa sitio.
+//    los productos cogen su cara de picking y despues el grueso se reparte por almacen en
+//    orden de pallets pronosticados, hasta que se acaban los carriles. Lo que no cupo se
+//    reporta, no se inventa sitio. La cara **arrastra su carril** —en rack el fondo de la
+//    bahia, en piso todo lo que queda detras de la boca—, asi que la primera fase coge el
+//    carril mas chico donde quepa lo que pide el producto: darle la boca de un carril de once
+//    a un producto de dos pallets mata las otras nueve posiciones.
 //
 // 2. **El apilado lo pone la base.** Hay productos que van de a dos y de a tres en una
 //    posicion de piso; eso vive en `pallet_config.max_stack` y lo resuelve
@@ -35,7 +38,7 @@ const TANDA = 250
 /** Si el maestro no dice la vida util, medio ano. */
 const VIDA_POR_DEFECTO = 180
 /**
- * Que parte de los carriles de almacen se deja libre, por grupo.
+ * Que parte de los carriles de almacen se deja libre, por grupo y por piso o rack.
  *
  * Sin esto la siembra llena la bodega hasta el ultimo carril y el primer camion que llega no
  * tiene donde descargar: medido el 24/11/2026, cero carriles de alimento libres. Una bodega
@@ -196,14 +199,12 @@ async function repartir() {
 
   // El orden de recorrido, que es el que usa la colocacion de verdad: nivel bajo primero y
   // despues la secuencia de picking, al reves para los C.
-  const ordenar = (lista, clase) =>
-    [...lista].sort(
-      (a, b) =>
-        a.level - b.level ||
-        (a.pick_sequence ?? Infinity) * (clase === 'C' ? -1 : 1) -
-          (b.pick_sequence ?? Infinity) * (clase === 'C' ? -1 : 1) ||
-        a.code.localeCompare(b.code),
-    )
+  const porRecorrido = (clase) => (a, b) =>
+    a.level - b.level ||
+    (a.pick_sequence ?? Infinity) * (clase === 'C' ? -1 : 1) -
+      (b.pick_sequence ?? Infinity) * (clase === 'C' ? -1 : 1) ||
+    a.code.localeCompare(b.code)
+  const ordenar = (lista, clase) => [...lista].sort(porRecorrido(clase))
 
   // Lo que no es alimento tiene su sitio y nada mas entra ahi (migracion 0096).
   const noAlimento = new Set(
@@ -227,23 +228,26 @@ async function repartir() {
   const pickingLibre = new Set(picking.map((l) => l.id))
   const carrilLibre = new Set(carriles.keys())
 
-  // El margen de operacion, contado por grupo: el alimento y el no alimento no se prestan
-  // sitio, asi que un margen global dejaria libres los ochenta carriles del no alimento y
-  // cero de alimento, que es justo el caso que hay que evitar.
-  const grupoDelCarril = (id) => carriles.get(id)[0].grupo ?? 'ALIMENTO'
-  const libresPorGrupo = new Map()
-  for (const id of carrilLibre) {
-    const g = grupoDelCarril(id)
-    libresPorGrupo.set(g, (libresPorGrupo.get(g) ?? 0) + 1)
+  // El margen de operacion, contado por grupo y por piso o rack: el alimento y el no alimento
+  // no se prestan sitio, y el piso y el rack tampoco —lo que va al piso no cabe en una bahia—,
+  // asi que un margen de los cuatro juntos se gasta entero en el rack y deja el piso a cero,
+  // que es justo el caso que hay que evitar.
+  const claseDeCarril = (id) => {
+    const l = carriles.get(id)[0]
+    return `${l.grupo ?? 'ALIMENTO'} ${l.kind === 'floor_stack' ? 'piso' : 'rack'}`
   }
-  const reserva = new Map(
-    [...libresPorGrupo].map(([g, n]) => [g, Math.round(n * MARGEN)]),
-  )
-  const quedaMargen = (g) => (libresPorGrupo.get(g) ?? 0) > (reserva.get(g) ?? 0)
+  const libresPorClase = new Map()
+  for (const id of carrilLibre) {
+    const c = claseDeCarril(id)
+    libresPorClase.set(c, (libresPorClase.get(c) ?? 0) + 1)
+  }
+  const reserva = new Map([...libresPorClase].map(([c, n]) => [c, Math.round(n * MARGEN)]))
+  const quedaMargen = (id) =>
+    (libresPorClase.get(claseDeCarril(id)) ?? 0) > (reserva.get(claseDeCarril(id)) ?? 0)
   const tomarCarril = (id) => {
     carrilLibre.delete(id)
-    const g = grupoDelCarril(id)
-    libresPorGrupo.set(g, (libresPorGrupo.get(g) ?? 0) - 1)
+    const c = claseDeCarril(id)
+    libresPorClase.set(c, (libresPorClase.get(c) ?? 0) - 1)
   }
   /** Cuantos pallets quedan en cada posicion ya empezada. */
   const hueco = new Map()
@@ -254,6 +258,12 @@ async function repartir() {
 
   const cabida = (l, apilado) =>
     l.kind === 'floor_stack' ? Math.min(apilado, l.max_pallets_stacked ?? 10) : 1
+  /** Cuantos pallets de este producto aguanta un carril entero. */
+  const capacidadDe = (id, apilado) =>
+    (carriles.get(id) ?? []).reduce((t, l) => t + cabida(l, apilado), 0)
+  /** Cuantos pallets pide cada producto: es lo que decide de que tamano es su carril. */
+  const pide = new Map()
+  for (const p of plan) pide.set(p.product_id, (pide.get(p.product_id) ?? 0) + 1)
 
   const puestos = []
   const sinSitio = []
@@ -262,24 +272,39 @@ async function repartir() {
     let destino = null
 
     if (pallet.fase === 1) {
-      // Una cara de rack sirve si el fondo de su bahia sigue libre o ya es de este producto:
-      // el fondo es la reserva de la cara y no puede tener otro dueno (migracion 0095).
+      // La cara arrastra su carril —en rack el fondo de la bahia es su reserva (migracion
+      // 0095) y en piso la cara es la boca del carril (migracion 0101)—, asi que sirve la de
+      // un carril que sigue libre, sin pasarse del margen, o la de uno que ya es suyo.
+      const apilado = Number(pallet.apilado) || 1
+      const suyos = mios.get(pallet.product_id) ?? []
       const sirve = (l) =>
         pickingLibre.has(l.id) &&
         cabe(l, pallet) &&
         (!carriles.has(l.carril) ||
-          carrilLibre.has(l.carril) ||
-          (mios.get(pallet.product_id) ?? []).includes(l.carril))
-      const libre = ordenar(picking.filter(sirve), pallet.clase)[0]
+          suyos.includes(l.carril) ||
+          (carrilLibre.has(l.carril) && quedaMargen(l.carril)))
+
+      // El carril mas chico donde quepa lo que pide, y si no cabe en ninguno, el mas grande.
+      // Es la otra cara de lo que hace la fase del grueso: darle la boca de un carril de once
+      // a un producto de dos pallets mata las otras nueve, porque el carril no mezcla.
+      const falta = pide.get(pallet.product_id) ?? 1
+      const capacidad = (l) => (carriles.has(l.carril) ? capacidadDe(l.carril, apilado) : 1)
+      const recorrido = porRecorrido(pallet.clase)
+      const libre = picking.filter(sirve).sort((a, b) => {
+        const ca = capacidad(a)
+        const cb = capacidad(b)
+        const cabeA = ca >= falta
+        const cabeB = cb >= falta
+        if (cabeA !== cabeB) return cabeA ? -1 : 1
+        return (cabeA ? ca - cb : cb - ca) || recorrido(a, b)
+      })[0]
+
       if (libre) {
         pickingLibre.delete(libre.id)
         destino = libre
-        // En rack la cara es el frente de la bahia y el fondo es su reserva (migracion 0095):
-        // el carril queda a nombre del producto y nadie mas puede entrar ahi. En piso la cara
-        // no arrastra nada, porque su carril entero es de picking.
         if (carriles.has(libre.carril)) {
           tomarCarril(libre.carril)
-          mios.set(pallet.product_id, [...(mios.get(pallet.product_id) ?? []), libre.carril])
+          mios.set(pallet.product_id, [...suyos, libre.carril])
           cara.set(libre.carril, { lote: pallet.lote, vence: pallet.vence })
         }
       }
@@ -305,14 +330,13 @@ async function repartir() {
         // bahia a un nivel, no la corrida entera (migracion 0093).
         let lane
         let mayor = -1
-        if (quedaMargen(grupoDe(pallet))) {
-          for (const id of carrilLibre) {
-            if (!cabe(carriles.get(id)[0], pallet)) continue
-            const cap = carriles.get(id).reduce((t, l) => t + cabida(l, apilado), 0)
-            if (cap > mayor) {
-              mayor = cap
-              lane = id
-            }
+        for (const id of carrilLibre) {
+          if (!cabe(carriles.get(id)[0], pallet)) continue
+          if (!quedaMargen(id)) continue
+          const cap = capacidadDe(id, apilado)
+          if (cap > mayor) {
+            mayor = cap
+            lane = id
           }
         }
         if (lane !== undefined) {
