@@ -12,6 +12,7 @@ import {
   ruta,
   ubicar,
 } from '@/lib/warehouse/plano'
+import { tintePlanimetria } from '@/lib/warehouse/planimetria'
 import { Icon } from '@/components/ui/icon'
 
 export type Estado = 'OCUPADA' | 'APARTADA' | 'OTRO_USO'
@@ -24,9 +25,11 @@ export type Estado = 'OCUPADA' | 'APARTADA' | 'OTRO_USO'
 export type Ocupacion = Record<string, Estado>
 
 /**
- * La segmentación de la planimetría, por cuadro de la planta: qué cuadros son del no
- * alimento y qué cuadros tiene cada área que no sea el almacén. Es lo que se redibuja cada
- * semana y lo que no se puede deducir mirando la ocupación.
+ * La segmentación de la planimetría: qué cuadros son del no alimento y qué **posiciones**
+ * tiene cada área que no sea el almacén. Es lo que se redibuja cada semana y lo que no se
+ * puede deducir mirando la ocupación. El área va por posición porque la cara de picking de un
+ * rack es el nivel 1 del frente y nada más; el grupo va por cuadro porque es de la corrida
+ * entera (migración 0102).
  */
 export type Segmentos = { no_alimento: string[]; areas: Record<string, string[]> }
 
@@ -65,14 +68,9 @@ function tono(c: Conteo | undefined, niveles: number) {
   return OTRO_USO
 }
 
-/**
- * El color de la planimetría: el tinte dice el grupo —azul el alimento, celeste lo que no lo
- * es— y la fuerza dice el oficio: subido, la cara de picking; apagado, la reserva. Son los dos
- * cortes que uno necesita para ubicarse, y caben en un solo color por cuadro.
- */
 function tonoPlanimetria(code: string, noAlimento: Set<string>, picking: Set<string>) {
-  const base = noAlimento.has(code) ? '0, 155, 221' : '44, 43, 143'
-  return `rgba(${base}, ${picking.has(code) ? 0.62 : 0.16})`
+  const { rgb, alfa } = tintePlanimetria(code, noAlimento, picking)
+  return `rgba(${rgb.join(', ')}, ${alfa})`
 }
 
 /**
@@ -94,7 +92,9 @@ function pintarEstatico(
   const k = PX_POR_METRO
   const cuadros = porCuadro(ocupacion)
   const noAlimento = new Set(segmentos?.no_alimento ?? [])
-  const picking = new Set(segmentos?.areas?.PICKING ?? [])
+  // Aquí cada cuadro lleva un solo color, así que un cuadro de rack es cara si alguno de sus
+  // niveles lo es. El nivel se ve en el isométrico, que dibuja las cajas una por una.
+  const picking = new Set((segmentos?.areas?.PICKING ?? []).map(claveDePlanta))
   const plano = modo === 'planimetria' && segmentos !== undefined
   ctx.fillStyle = COLOR.blanco
   ctx.fillRect(0, 0, NAVE.ancho * k, NAVE.alto * k)

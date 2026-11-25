@@ -111,7 +111,7 @@ export function WarehouseView({
       {/* En computadora la leyenda se va a su propia columna: el plano se queda con el ancho. */}
       <div className="flex flex-col gap-2 xl:grid xl:grid-cols-[10rem_minmax(0,1fr)] xl:items-start xl:gap-4">
         {vista === '3D' && permite3D ? (
-          <Warehouse3D ocupacion={ocupacion} />
+          <Warehouse3D ocupacion={ocupacion} modo={modo} segmentos={segmentos} />
         ) : (
           <WarehouseCanvas
             ocupacion={ocupacion}

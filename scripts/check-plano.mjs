@@ -92,7 +92,7 @@ const { rows: mapa } = await db.query(`
 `)
 check(Number(mapa[0].ocupadas) === 0, 'con la bodega vacia no hay ninguna posicion ocupada')
 
-// La segmentacion: una cara de picking tiene que salir en el mapa con su codigo de cuadro.
+// La segmentacion: una cara de picking tiene que salir en el mapa con su codigo de posicion.
 await db.query(`
   update location_area set valid_to = now()
   where valid_to is null
@@ -108,14 +108,37 @@ const { rows: seg } = await db.query(`
   select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) ? 'F1-001-11' as esta,
          jsonb_array_length(planta()->'no_alimento') as no_alimento
 `)
-check(seg[0].esta === true, 'la planta dice cual cuadro es cara de picking')
+check(seg[0].esta === true, 'la planta dice cual posicion es cara de picking')
 
 const { rows: cuadros } = await db.query(`
   select jsonb_array_elements_text(planta()->'areas'->'PICKING') as code
 `)
 check(
-  cuadros.every((c) => enPlanta.has(c.code)),
-  'los cuadros que manda la planta son cuadros del dibujo',
+  cuadros.every((c) => enPlanta.has(claveDePlanta(c.code))),
+  'las posiciones que manda la planta caen en cuadros del dibujo',
+)
+
+// El area va con su nivel (migracion 0102): el isometrico dibuja una caja por nivel y la cara
+// de picking de un rack es el nivel 1 del frente, no la columna entera.
+await db.query(`
+  update location_area set valid_to = now()
+  where valid_to is null
+    and location_id = (select id from location where code = 'R-ABA-L01-B01-N1-P1')
+`)
+await db.query(`
+  insert into location_area (location_id, area_id, valid_from)
+  select l.id, a.id, now()
+  from location l cross join area a
+  where l.code = 'R-ABA-L01-B01-N1-P1' and a.code = 'PICKING'
+`)
+const { rows: nivel } = await db.query(`
+  select coalesce(planta()->'areas'->'PICKING', '[]'::jsonb) as caras
+`)
+const caras = new Set(nivel[0].caras)
+check(caras.has('R-ABA-L01-B01-N1-P1'), 'la cara de un rack sale con su nivel')
+check(
+  !caras.has('R-ABA-L01-B01-N2-P1'),
+  'el nivel 2 de esa misma columna no sale como cara de picking',
 )
 
 // Tocar un cuadro de rack trae su pila entera; tocar uno de piso, esa posicion y nada mas.
