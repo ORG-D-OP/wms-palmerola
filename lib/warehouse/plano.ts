@@ -18,16 +18,27 @@ export const ALTURA = { nivel: 1.8, piso: 1.5 }
  */
 const FONDO_POR_CARRIL = 2
 
-/** Posiciones de fondo que caben en cada ancho de módulo. */
-const FONDO_POR_MODULO = new Map([
-  [RACK.modulo, 4],
-  [RACK.pared, 2],
-])
+/**
+ * Un módulo de rack y por dónde se le entra, que es lo que decide cuál columna es el frente.
+ * El de en medio tiene pasillo de los dos lados: lleva dos carriles espalda con espalda y
+ * cada uno da la cara al suyo, así que los frentes son la primera columna y la última. El de
+ * pared sólo tiene pasillo de un lado y su único carril da la cara para adentro.
+ */
+type Modulo = { ancho: number; fondos: number; pared?: 'izquierda' | 'derecha' }
+
+const ENTRE_PASILLOS: Modulo = { ancho: RACK.modulo, fondos: 4 }
+const CONTRA_LA_PARED = (pared: 'izquierda' | 'derecha'): Modulo => ({
+  ancho: RACK.pared,
+  fondos: FONDO_POR_CARRIL,
+  pared,
+})
 
 export const FRANJAS = {
   superior: { y: 10, alto: 11 },
   media: { y: 25.4, alto: 17 },
-  racks: { y: 45.9, alto: 19.59 },
+  // La franja de los racks sale del maestro del 12/11/2026, no de la cadena de cotas: iba
+  // 30 cm corrida y el cuadro quedaba fuera de su posicion.
+  racks: { y: 46.21, alto: 19.03 },
   inferior: { y: 69.86, alto: 11 },
 } as const
 
@@ -67,7 +78,7 @@ type DefPiso = { code: string; franja: Franja; x: number; ancho: number; cols: n
  */
 const PISO: DefPiso[] = [
   { code: 'F1', franja: 'superior', x: 1.4, ancho: 34.8, cols: 25, filas: 11 },
-  { code: 'F2', franja: 'superior', x: 55.5, ancho: 44.4, cols: 34, filas: 11 },
+  { code: 'F2', franja: 'superior', x: 55.5, ancho: 47.8, cols: 34, filas: 11 },
   { code: 'F3', franja: 'media', x: 1.4, ancho: 46, cols: 33, filas: 18 },
   { code: 'F4', franja: 'media', x: 55.5, ancho: 51.6, cols: 37, filas: 17 },
   { code: 'F5', franja: 'racks', x: 28.2, ancho: 19.2, cols: 14, filas: 19 },
@@ -75,7 +86,7 @@ const PISO: DefPiso[] = [
   { code: 'F7', franja: 'inferior', x: 55.5, ancho: 44.4, cols: 32, filas: 11 },
 ]
 
-type DefRack = { code: string; x: number; modulos: number[]; bahias: number; niveles: number }
+type DefRack = { code: string; x: number; modulos: Modulo[]; bahias: number; niveles: number }
 
 /**
  * Cada módulo es un rack; entre módulo y módulo va el pasillo.
@@ -91,14 +102,22 @@ const RACKS: DefRack[] = [
   {
     code: 'R-ABA',
     x: 0.56,
-    modulos: [RACK.pared, RACK.modulo, RACK.modulo, RACK.pared],
+    modulos: [
+      CONTRA_LA_PARED('izquierda'),
+      ENTRE_PASILLOS,
+      ENTRE_PASILLOS,
+      CONTRA_LA_PARED('derecha'),
+    ],
     bahias: 16,
     niveles: 6,
   },
   {
     code: 'R-SNK',
     x: 55.5,
-    modulos: [...Array.from({ length: 6 }, () => RACK.modulo), RACK.pared],
+    modulos: [
+      ...Array.from({ length: 6 }, () => ENTRE_PASILLOS),
+      CONTRA_LA_PARED('derecha'),
+    ],
     bahias: 16,
     niveles: 4,
   },
@@ -130,33 +149,45 @@ function celdasPiso(b: DefPiso): Celda[] {
   return celdas
 }
 
+/**
+ * Qué columna del módulo es el frente del carril `c`. El frente es la que da al pasillo, y
+ * por eso no se puede numerar de corrido: en un módulo de en medio los dos carriles se dan la
+ * espalda, así que el primero da la cara a la izquierda y el segundo a la derecha. Numerarlo
+ * de corrido ponía el frente de la mitad de los carriles sobre la posición de atrás, y el
+ * mapa pintaba de picking un fondo.
+ */
+function frenteALaIzquierda(m: Modulo, c: number, carriles: number) {
+  return m.pared ? m.pared === 'derecha' : c < carriles / 2
+}
+
 function celdasRack(b: DefRack): Celda[] {
   const f = FRANJAS.racks
   const pasoY = f.alto / b.bahias
   const celdas: Celda[] = []
   let x = b.x
-  // Las posiciones de fondo se numeran de corrido por toda la zona, igual que las
-  // genera la base: cada dos fondos son un carril, y dentro del carril P1 va al frente.
-  let desde = 0
+  // Los carriles se numeran de corrido por toda la zona, igual que los genera la base.
+  let carril = 0
 
-  for (const ancho of b.modulos) {
-    const fondo = FONDO_POR_MODULO.get(ancho) ?? FONDO_POR_CARRIL
-    const pasoX = ancho / fondo
-    for (let d = 0; d < fondo; d++) {
-      const carril = Math.floor((desde + d) / FONDO_POR_CARRIL) + 1
-      const profundidad = ((desde + d) % FONDO_POR_CARRIL) + 1
-      for (let r = 0; r < b.bahias; r++) {
-        celdas.push({
-          code: `${b.code}-L${pad(carril, 2)}-B${pad(r + 1, 2)}-P${profundidad}`,
-          x: x + d * pasoX + pasoX * HUECO,
-          y: f.y + r * pasoY + pasoY * HUECO,
-          w: pasoX * (1 - 2 * HUECO),
-          h: pasoY * (1 - 2 * HUECO),
-        })
+  for (const m of b.modulos) {
+    const pasoX = m.ancho / m.fondos
+    const carriles = m.fondos / FONDO_POR_CARRIL
+    for (let c = 0; c < carriles; c++) {
+      carril++
+      const izquierda = frenteALaIzquierda(m, c, carriles)
+      for (let p = 0; p < FONDO_POR_CARRIL; p++) {
+        const columna = c * FONDO_POR_CARRIL + (izquierda ? p : FONDO_POR_CARRIL - 1 - p)
+        for (let r = 0; r < b.bahias; r++) {
+          celdas.push({
+            code: `${b.code}-L${pad(carril, 2)}-B${pad(r + 1, 2)}-P${p + 1}`,
+            x: x + columna * pasoX + pasoX * HUECO,
+            y: f.y + r * pasoY + pasoY * HUECO,
+            w: pasoX * (1 - 2 * HUECO),
+            h: pasoY * (1 - 2 * HUECO),
+          })
+        }
       }
     }
-    desde += fondo
-    x += ancho + RACK.pasillo
+    x += m.ancho + RACK.pasillo
   }
   return celdas
 }
@@ -176,7 +207,7 @@ export const BLOQUES: Bloque[] = [
     franja: 'racks' as const,
     niveles: b.niveles,
     x: b.x,
-    ancho: b.modulos.reduce((a, m) => a + m, 0) + RACK.pasillo * (b.modulos.length - 1),
+    ancho: b.modulos.reduce((a, m) => a + m.ancho, 0) + RACK.pasillo * (b.modulos.length - 1),
     celdas: celdasRack(b),
   })),
   ...PREPARACION.map((b) => ({
@@ -253,53 +284,21 @@ export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
 /** Centro de una posición, en metros, a partir de su código. */
 export type Punto = { x: number; y: number }
 
-const PISO_RE = /^(F\d)-(\d+)-(\d+)$/
-const RACK_RE = /^(R-[A-Z]+)-L(\d+)-B(\d+)-N\d+-P(\d)$/
 const ANDEN_RE = /^STG-AND-(\d+)$/
 
-/** Posiciones de fondo de un rack, en orden, con su franja de x. */
-function fondosDe(code: string): { x: number; w: number }[] {
-  const b = BLOQUES.find((z) => z.code === code)
-  if (!b || b.tipo !== 'rack') return []
-  const vistos = new Map<number, { x: number; w: number }>()
-  for (const c of b.celdas) {
-    const clave = Math.round(c.x * 100)
-    if (!vistos.has(clave)) vistos.set(clave, { x: c.x, w: c.w })
-  }
-  return [...vistos.values()].sort((a, z) => a.x - z.x)
-}
+/**
+ * El centro de cada cuadro de la planta. Sale de los mismos cuadros que pinta el mapa, no de
+ * rehacer la cuenta aparte: dos cuentas de lo mismo acaban diciendo cosas distintas.
+ */
+const CENTRO = new Map<string, Punto>(
+  BLOQUES.flatMap((b) =>
+    b.celdas.map((c) => [c.code, { x: c.x + c.w / 2, y: c.y + c.h / 2 }] as const),
+  ),
+)
 
 export function ubicar(code: string): Punto | null {
-  const piso = code.match(PISO_RE)
-  if (piso?.[1] && piso[2] && piso[3]) {
-    const b = BLOQUES.find((z) => z.code === piso[1])
-    if (!b) return null
-    const f = FRANJAS[b.franja]
-    const cols = new Set(b.celdas.map((c) => Math.round(c.x * 100))).size
-    const filas = b.celdas.length / cols
-    const pasoX = b.ancho / cols
-    const pasoY = f.alto / filas
-    return {
-      x: b.x + (Number(piso[2]) - 0.5) * pasoX,
-      y: f.y + (Number(piso[3]) - 0.5) * pasoY,
-    }
-  }
-
-  const rack = code.match(RACK_RE)
-  if (rack?.[1] && rack[2] && rack[3] && rack[4]) {
-    const b = BLOQUES.find((z) => z.code === rack[1])
-    if (!b) return null
-    const f = FRANJAS.racks
-    const fondos = fondosDe(rack[1])
-    const indice = (Number(rack[2]) - 1) * 2 + (Number(rack[4]) - 1)
-    const fondo = fondos[indice]
-    if (!fondo) return null
-    const bahias = b.celdas.length / fondos.length
-    return {
-      x: fondo.x + fondo.w / 2,
-      y: f.y + (Number(rack[3]) - 0.5) * (f.alto / bahias),
-    }
-  }
+  const centro = CENTRO.get(claveDePlanta(code))
+  if (centro) return centro
 
   const anden = code.match(ANDEN_RE)
   if (anden?.[1]) {
