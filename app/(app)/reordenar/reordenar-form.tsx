@@ -5,10 +5,11 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { mover, verLugar, type Cosa, type Hecho } from './actions'
+import { plural } from '@/lib/plural'
 
 const cantidad = (c: Cosa) =>
   [
-    c.cajas > 0 ? `${c.cajas.toLocaleString('es-HN')} cajas` : null,
+    c.cajas > 0 ? plural(c.cajas, 'caja', 'cajas') : null,
     c.sueltas > 0 ? `${c.sueltas.toLocaleString('es-HN')} sueltas` : null,
   ]
     .filter(Boolean)

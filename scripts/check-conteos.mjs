@@ -243,7 +243,15 @@ const antes = await one(
 )
 const deciaCajas = Number(antes.qty_base) / 24
 
-const r = await one(`select * from recontar($1, $2)`, [lugarContado, deciaCajas - 5])
+// Un descuadre sin razon escrita no se guarda: mueve el saldo igual que un despacho corto.
+const sinRazon = await fails(`select * from recontar($1, $2)`, [lugarContado, deciaCajas - 5])
+check(sinRazon?.includes('escribe por qué'), 'un recuento que no cuadra sin razon no se guarda')
+
+const r = await one(`select * from recontar($1, $2, 0, null, $3)`, [
+  lugarContado,
+  deciaCajas - 5,
+  'faltaban cinco cajas en el pallet',
+])
 check(Number(r.decia) === deciaCajas, `el recuento dice que el sistema tenia ${deciaCajas} cajas`)
 check(Number(r.habia) === deciaCajas - 5, 'y que habia cinco menos')
 check(Number(r.diferencia) === -5, 'la diferencia la calcula el servidor, no la pantalla')
@@ -298,8 +306,9 @@ check(
   'el ajuste queda en el libro mayor como conteo, con su motivo',
 )
 check(
-  movCount.note?.includes('Recuento'),
-  'y con la nota puesta sola: el motivo la exige y nadie va a teclearla con el lector en la mano',
+  movCount.note?.includes('el sistema decía') &&
+    movCount.note?.includes('faltaban cinco cajas en el pallet'),
+  'y la nota del libro mayor lleva las dos cosas: cuanto decia el sistema y por que no cuadro',
 )
 
 const hist = await one(
@@ -310,6 +319,13 @@ check(hist.persona !== null, 'el historial guarda el nombre de quien lo hizo')
 check(
   Number(hist.diferencia) === -120,
   'y cuanto decia y cuanto habia, que es de donde sale la inexactitud',
+)
+const razon = await one(
+  `select note from stock_count order by counted_at desc, id desc limit 1`,
+)
+check(
+  razon.note === 'faltaban cinco cajas en el pallet',
+  'y la razon del descuadre queda escrita, que es lo que faltaba en los once de produccion',
 )
 
 // Un conteo que cuadra tambien cuenta: sin el no hay con que dividir.
@@ -334,7 +350,10 @@ const movimientos = await one(
 check(movimientos.n === 1, 'y el que cuadro no dejo movimiento, porque no movio nada')
 
 // Hacia arriba tambien: habia mas de lo que decia.
-const masDeLoQueDecia = await one(`select * from recontar('F3-001-03', $1)`, [hayAhi + 2])
+const masDeLoQueDecia = await one(
+  `select * from recontar('F3-001-03', $1, 0, null, 'aparecieron dos cajas mas')`,
+  [hayAhi + 2],
+)
 check(Number(masDeLoQueDecia.diferencia) === 2, 'el recuento tambien sube la cantidad')
 check(
   Number((await saldo('F3-001-03')).qty) === (hayAhi + 2) * 24,
@@ -344,7 +363,9 @@ check(
 // Las sueltas se cuentan aparte. Confirmar lo que pinta la pantalla no puede borrarlas:
 // una posicion de picking casi nunca tiene un numero redondo de cajas.
 const redondas = Number((await saldo('F3-001-03')).qty) / 24
-await one(`select * from recontar('F3-001-03', $1, 7)`, [redondas])
+await one(`select * from recontar('F3-001-03', $1, 7, null, 'quedaron siete sueltas')`, [
+  redondas,
+])
 const vista = await one(`select cajas, sueltas from inventario where location_code = 'F3-001-03'`)
 check(
   Number(vista.cajas) === redondas && Number(vista.sueltas) === 7,
@@ -405,10 +426,11 @@ const empezada = await one(`select status::text from task where id = $1`, [enMan
 check(empezada.status === 'IN_PROGRESS', 'y la empieza: ya esta parada frente a la posicion')
 
 const menos = Number(enMano.qty_base) - 24
-const recortada = await one(`select * from recontar($1, $2, $3)`, [
+const recortada = await one(`select * from recontar($1, $2, $3, null, $4)`, [
   dondeEstaba.code,
   Math.floor(menos / 24),
   menos % 24,
+  'se llevaron una caja sin apuntarla',
 ])
 check(Number(recortada.diferencia) < 0, 'el recuento baja la cantidad con la tarea ya repartida')
 
@@ -536,8 +558,9 @@ const cerrada = await todas(
   [auxiliar],
 )
 await como(auxiliar)
-const cuenta = await one(`select * from recontar($1, 10, 0, null, null, $2)`, [
+const cuenta = await one(`select * from recontar($1, 10, 0, null, $2, $3)`, [
   cerrada[0].posicion,
+  'conteo ciclico: habia menos de lo apuntado',
   cerrada[0].task_id,
 ])
 check(cuenta !== undefined, 'la tarea de conteo acepta el recuento de su posicion')
@@ -579,3 +602,21 @@ const minLevel = await one(
   `select min_level from task where type = 'COUNT' order by created_at desc limit 1`,
 )
 check(minLevel.min_level === 3, 'la tarea lleva el nivel, para que la cola mire el alcance')
+
+// La red: la regla no vive solo en `recontar`. Una pantalla nueva o un script que escriba un
+// recuento a mano se topa con lo mismo, que es de lo que se trata bajarla a la base.
+const aMano = await fails(
+  `insert into stock_count (location_id, product_id, qty_expected, qty_found)
+   select l.id, $1::uuid, 100, 90 from location l limit 1`,
+  [producto],
+)
+check(
+  aMano?.includes('escribe por qué'),
+  'un recuento escrito a mano sin razon tampoco entra: la regla es de la tabla',
+)
+const conRazon = await fails(
+  `insert into stock_count (location_id, product_id, qty_expected, qty_found, note)
+   select l.id, $1::uuid, 100, 90, 'se mojo' from location l limit 1`,
+  [producto],
+)
+check(conRazon === null, 'y con razon escrita entra')

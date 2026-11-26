@@ -6,4 +6,8 @@
  * pantalla y en una se olvidó, que es como salió «1 posiciones» en el panel del jefe.
  */
 export const plural = (n: number, singular: string, plural: string) =>
-  `${n.toLocaleString('es-HN')} ${n === 1 ? singular : plural}`
+  `${n.toLocaleString('es-HN')} ${palabra(n, singular, plural)}`
+
+/** La palabra sola, para cuando el número ya viene formateado aparte: «1.5 cajas», «1 caja». */
+export const palabra = (n: number, singular: string, plural: string) =>
+  n === 1 ? singular : plural

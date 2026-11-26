@@ -12,7 +12,7 @@ import {
   type Linea,
   type Resultado,
 } from './actions'
-import { plural } from '@/lib/plural'
+import { palabra, plural } from '@/lib/plural'
 
 export type Pendiente = {
   tarea: string
@@ -27,16 +27,21 @@ const numero = (n: number) =>
   n.toLocaleString('es-HN', { maximumFractionDigits: 2 })
 
 /** Como se dice una cantidad en la bodega: «5 cajas», o «5 cajas y 7 sueltas» si no es redonda. */
-const cantidad = (cajas: number, sueltas: number) =>
-  sueltas > 0 ? `${numero(cajas)} cajas y ${numero(sueltas)} sueltas` : `${numero(cajas)} cajas`
+const cantidad = (cajas: number, sueltas: number) => {
+  const enCajas = `${numero(cajas)} ${palabra(cajas, 'caja', 'cajas')}`
+  return sueltas > 0
+    ? `${enCajas} y ${numero(sueltas)} ${palabra(sueltas, 'suelta', 'sueltas')}`
+    : enCajas
+}
 
 /**
  * Contar lo que de verdad hay.
  *
  * Es el día a día, no un proceso aparte: el que va a sacar algo y ve que hay menos lo corrige
- * ahí mismo. Por eso el campo de las cajas viene con lo que el sistema cree —casi siempre está
- * bien y confirmar no cuesta nada— y por eso, cuando baja la cantidad, la pantalla termina
- * diciendo de dónde sacar lo que falta: sin eso, el que estaba surtiendo se queda a medias.
+ * ahí mismo. Por eso, cuando baja la cantidad, la pantalla termina diciendo de dónde sacar lo
+ * que falta: sin eso, el que estaba surtiendo se queda a medias.
+ *
+ * El campo de las cajas lo arma `Cuenta`, que es donde se decide si nace lleno o vacío.
  */
 export function ContarForm({
   pendientes,
@@ -82,6 +87,7 @@ export function ContarForm({
         sueltas: Number(datos.get('sueltas') ?? 0),
         pallet: linea.pallet ?? undefined,
         tarea: tarea ?? undefined,
+        motivo: String(datos.get('motivo') ?? ''),
       })
       if (!res.ok) return setError(res.error)
       setResultado(res.resultado)
@@ -120,7 +126,7 @@ export function ContarForm({
           <ScanInput label="Escanea el lugar" disabled={pending} onScan={(c) => abrir(c)} />
           <p className="text-sm text-azul/60">
             La posición, o la matrícula del pallet. El sistema te dice lo que cree que hay y tú
-            lo corriges.
+            lo corriges. Lo que te caiga de tarea se cuenta a ciegas.
           </p>
           {resultado ? <Resumen resultado={resultado} /> : null}
           {error ? <Aviso>{error}</Aviso> : null}
@@ -181,50 +187,13 @@ export function ContarForm({
       </div>
 
       {lineas.map((l) => (
-        <form key={`${l.pallet ?? 'suelto'}-${l.sku}`} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-lg">
-              {l.sku} {l.nombre}
-            </p>
-            <p className="text-sm text-azul/70">
-              {l.pallet ? `${l.pallet} · ` : 'Sin pallet · '}
-              el sistema dice {cantidad(l.cajas, l.sueltas)}
-            </p>
-            {l.lote || l.vence ? (
-              <p className="text-sm text-azul/60">
-                {l.lote ? `Lote ${l.lote}` : ''}
-                {l.lote && l.vence ? ' · ' : ''}
-                {l.vence ? `Vence ${l.vence}` : ''}
-              </p>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5">
-              <span className={ETIQUETA}>Cajas</span>
-              <input
-                name="cajas"
-                defaultValue={l.cajas}
-                required
-                inputMode="decimal"
-                className={`${CAMPO} tabular-nums`}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={ETIQUETA}>Sueltas</span>
-              <input
-                name="sueltas"
-                defaultValue={l.sueltas}
-                required
-                inputMode="decimal"
-                disabled={l.porCaja <= 1}
-                className={`${CAMPO} tabular-nums disabled:opacity-40`}
-              />
-            </label>
-          </div>
-          <button formAction={contar(l)} disabled={pending} className={BOTON}>
-            Guardar la cuenta
-          </button>
-        </form>
+        <Cuenta
+          key={`${l.pallet ?? 'suelto'}-${l.sku}`}
+          linea={l}
+          deTarea={tarea !== null}
+          pending={pending}
+          onGuardar={contar(l)}
+        />
       ))}
 
       {resultado ? <Resumen resultado={resultado} /> : null}
@@ -236,6 +205,100 @@ export function ContarForm({
         </button>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Una línea que contar.
+ *
+ * Dos oficios en el mismo sitio, y por eso el campo nace distinto en cada uno. En el día a
+ * día —alguien va a sacar algo y ve que hay menos— la casilla viene con lo que el sistema
+ * cree: casi siempre está bien y confirmar no cuesta nada. **Cuando el recuento viene de una
+ * tarea de conteo cíclico nace vacía**, porque si no basta con darle a guardar para que el
+ * conteo salga cuadrado sin haber contado, y la inexactitud por persona que sale de ahí
+ * acabaría premiando al que no cuenta.
+ *
+ * El motivo aparece solo cuando lo escrito no es lo que el sistema creía. La base lo exige
+ * —un ajuste de inventario mueve el saldo igual que un despacho corto—, así que preguntarlo
+ * antes evita el viaje al servidor para que conteste que no.
+ */
+function Cuenta({
+  linea,
+  deTarea,
+  pending,
+  onGuardar,
+}: {
+  linea: Linea
+  deTarea: boolean
+  pending: boolean
+  onGuardar: (datos: FormData) => void
+}) {
+  const [cajas, setCajas] = useState(deTarea ? '' : String(linea.cajas))
+  const [sueltas, setSueltas] = useState(deTarea ? '' : String(linea.sueltas))
+
+  const dice = linea.cajas * linea.porCaja + linea.sueltas
+  const contado = Number(cajas || 0) * linea.porCaja + Number(sueltas || 0)
+  const descuadra = cajas.trim() !== '' && contado !== dice
+
+  return (
+    <form className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0.5">
+        <p className="text-lg">
+          {linea.sku} {linea.nombre}
+        </p>
+        <p className="text-sm text-azul/70">
+          {linea.pallet ? `${linea.pallet} · ` : 'Sin pallet · '}
+          {deTarea ? 'cuenta lo que hay' : `el sistema dice ${cantidad(linea.cajas, linea.sueltas)}`}
+        </p>
+        {linea.lote || linea.vence ? (
+          <p className="text-sm text-azul/60">
+            {linea.lote ? `Lote ${linea.lote}` : ''}
+            {linea.lote && linea.vence ? ' · ' : ''}
+            {linea.vence ? `Vence ${linea.vence}` : ''}
+          </p>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Cajas</span>
+          <input
+            name="cajas"
+            value={cajas}
+            onChange={(e) => setCajas(e.target.value)}
+            required
+            inputMode="decimal"
+            className={`${CAMPO} tabular-nums`}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Sueltas</span>
+          <input
+            name="sueltas"
+            value={linea.porCaja <= 1 ? '0' : sueltas}
+            onChange={(e) => setSueltas(e.target.value)}
+            required
+            inputMode="decimal"
+            disabled={linea.porCaja <= 1}
+            className={`${CAMPO} tabular-nums disabled:opacity-40`}
+          />
+        </label>
+      </div>
+      {descuadra ? (
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>¿Por qué no cuadra?</span>
+          <input
+            name="motivo"
+            required
+            maxLength={200}
+            placeholder="Se movió, se dañó, estaba mal apuntado…"
+            className={CAMPO}
+          />
+        </label>
+      ) : null}
+      <button formAction={onGuardar} disabled={pending} className={BOTON}>
+        Guardar la cuenta
+      </button>
+    </form>
   )
 }
 
@@ -260,7 +323,7 @@ function Resumen({ resultado }: { resultado: Resultado }) {
       ) : null}
       {falta > 0 ? (
         <Aviso>
-          Quedan {numero(falta)} cajas sin apartar: no hay de dónde sacarlas. Avísale al jefe de
+          Quedan {numero(falta)} {palabra(falta, 'caja', 'cajas')} sin apartar: no hay de dónde sacarlas. Avísale al jefe de
           bodega.
         </Aviso>
       ) : null}
