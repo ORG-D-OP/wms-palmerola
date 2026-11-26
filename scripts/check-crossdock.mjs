@@ -189,6 +189,9 @@ check(estado.status === 'RELEASED', 'y el pedido queda liberado igual')
 
 // --- al salir el camión, el producto sale del andén --------------------------------------
 
+// Y la linea cruzada se chequea como cualquier otra: el pallet esta en el anden, asi que
+// `surtido_de_linea` ya cuenta sus cajas aunque no haya pasado por una tarea de surtido.
+await one(`select * from verificar_linea($1, 'X-1')`, [camion])
 await one(`select despachar($1)`, [camion])
 const salido = await one(`select status from sales_order where id = $1`, [camion])
 check(salido.status === 'SHIPPED', 'el camión sale')

@@ -129,7 +129,7 @@ export async function chequear(
   id: string,
   codigo: string,
 ): Promise<{ ok: true; camion: Camion; aviso: string } | Fail> {
-  await requirePermission('inventario:mover')
+  await requirePermission('despachos:administrar')
 
   const parsed = Codigo.safeParse(codigo)
   if (!parsed.success) return { ok: false, error: 'Código inválido.' }

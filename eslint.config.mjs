@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Los worktrees de Claude Code son una copia entera del repo con su `.next` dentro, y
+    // ese `.next` no lo tapa el patron de arriba. Sin esto `npm run lint` saca miles de
+    // avisos de codigo generado y el aviso de verdad se pierde.
+    ".claude/**",
   ]),
 ]);
 

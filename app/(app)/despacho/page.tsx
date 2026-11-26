@@ -8,9 +8,9 @@ export const metadata = { title: 'Despacho · WMS Palmerola' }
 
 /**
  * La hoja de despacho, hermana de la de ingreso, y la ve la misma gente: quien está en el
- * andén escanea el tabulado y va sacando. Lo único que no es de todos es **cerrar el
- * camión**, que es el momento en que el producto sale del inventario: eso lo hace quien
- * tiene la hoja en la mano y verifica, el chequeador.
+ * andén escanea el tabulado y va sacando. Lo que no es de todos es **el chequeo**: marcar
+ * una línea, corregir la cantidad y cerrar el camión lo hace quien tiene la hoja en la mano
+ * y compara, el chequeador. Los demás ven la hoja para saber qué cargar.
  */
 export default async function DespachoPage() {
   const user = await requirePermission('inventario:mover')
@@ -31,7 +31,7 @@ export default async function DespachoPage() {
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Despachar camión</h1>
       <DespachoForm
-        puedeCerrar={can(user.roles, 'despachos:administrar')}
+        deAnden={can(user.roles, 'despachos:administrar')}
         abierto={abierto?.ok ? abierto.camion : null}
         andenes={(andenes ?? []).map((a) => a.anden).filter((a): a is string => a !== null)}
       />
