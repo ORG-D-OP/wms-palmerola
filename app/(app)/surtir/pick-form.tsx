@@ -57,7 +57,7 @@ export function PickForm() {
       }
       setPick(res.pick)
       setVerCara(false)
-      setPaso('ir')
+      setPaso(res.pick.empezada ? 'tomar' : 'ir')
     })
   }, [])
 

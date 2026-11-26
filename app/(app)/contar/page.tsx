@@ -9,17 +9,22 @@ async function misConteos(profileId: string): Promise<Pendiente[]> {
   const supabase = await createSupabaseServerClient()
   const { data } = await supabase
     .from('conteos_pendientes')
-    .select('task_id, posicion, zona, nivel, pick_sequence')
+    .select('task_id, posicion, zona, nivel, pick_sequence, status')
     .eq('assigned_to', profileId)
     .order('pick_sequence', { nullsFirst: false })
     .order('posicion')
 
-  return (data ?? []).map((c) => ({
-    tarea: c.task_id ?? '',
-    posicion: c.posicion ?? '',
-    zona: c.zona ?? '',
-    nivel: c.nivel,
-  }))
+  // Lo empezado va primero y dice que lo está: quien sale de la pantalla a media posición
+  // vuelve y la encuentra arriba, no la busca en la lista.
+  return (data ?? [])
+    .map((c) => ({
+      tarea: c.task_id ?? '',
+      posicion: c.posicion ?? '',
+      zona: c.zona ?? '',
+      nivel: c.nivel,
+      empezado: c.status === 'IN_PROGRESS',
+    }))
+    .sort((a, b) => Number(b.empezado) - Number(a.empezado))
 }
 
 /** Lo que se lanzó sin dueño y sigue esperando en la cola. */

@@ -53,7 +53,7 @@ export function PutawayForm() {
       }
       setJob(res.job)
       setVerCara(false)
-      setPaso('tomar')
+      setPaso(res.job.empezada ? 'llevar' : 'tomar')
     })
   }, [])
 

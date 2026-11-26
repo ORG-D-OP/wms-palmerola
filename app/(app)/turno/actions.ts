@@ -9,6 +9,15 @@ import { ROLES, rolesDeTrabajoDe } from '@/lib/auth/roles'
 
 type Fail = { ok: false; error: string }
 
+/**
+ * Entrar a trabajo, cambiar de rol o que el jefe lo mueva de andén cambia lo que la persona
+ * ve en toda la aplicación: el andén de la barra de arriba, qué pantallas le salen abajo y
+ * qué camión retoma en Ingreso y en Despacho. Eso vive en el armazón, y `revalidatePath` sin
+ * más sólo alcanza a la página: el andén de la barra se quedaba con el de antes hasta que la
+ * persona recargara a mano.
+ */
+const refrescar = () => revalidatePath('/', 'layout')
+
 function fallo(error: { code?: string; message: string }): Fail {
   if (error.code === 'P0001' || error.code === '23514') return { ok: false, error: error.message }
   if (error.code === '23505') return { ok: false, error: 'Ese código de equipo ya existe.' }
@@ -49,8 +58,7 @@ export async function iniciarTurno(_prev: unknown, datos: FormData) {
   })
 
   if (error) return fallo(error)
-  revalidatePath('/turno')
-  revalidatePath('/')
+  refrescar()
   return { ok: true as const }
 }
 
@@ -62,8 +70,7 @@ export async function entrarATrabajo() {
   const { error } = await supabase.rpc('iniciar_turno', {})
 
   if (error) return fallo(error)
-  revalidatePath('/')
-  revalidatePath('/turno')
+  refrescar()
   return { ok: true as const }
 }
 
@@ -86,8 +93,7 @@ export async function trabajarComo(rol: string) {
   const { error } = await supabase.rpc('trabajar_como', { p_rol: parsed.data })
 
   if (error) return fallo(error)
-  revalidatePath('/turno')
-  revalidatePath('/')
+  refrescar()
   return { ok: true as const }
 }
 
@@ -101,8 +107,7 @@ export async function pausarTurno(datos: FormData) {
   })
 
   if (error) throw new Error(fallo(error).error)
-  revalidatePath('/turno')
-  revalidatePath('/')
+  refrescar()
 }
 
 export async function reanudarTurno() {
@@ -110,8 +115,7 @@ export async function reanudarTurno() {
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.rpc('reanudar_turno')
   if (error) throw new Error(fallo(error).error)
-  revalidatePath('/turno')
-  revalidatePath('/')
+  refrescar()
 }
 
 /** Accion de formulario simple: no hay nada que decidir, o cierra o revienta. */
@@ -120,8 +124,7 @@ export async function cerrarTurno() {
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.rpc('cerrar_turno')
   if (error) throw new Error(fallo(error).error)
-  revalidatePath('/turno')
-  revalidatePath('/')
+  refrescar()
 }
 
 /**
@@ -145,7 +148,7 @@ export async function asignarAnden(personaId: string, anden: string) {
     .single()
 
   if (error) return fallo(error)
-  revalidatePath('/turno')
+  refrescar()
   return {
     ok: true as const,
     anden: data?.anden ?? null,

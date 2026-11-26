@@ -24,6 +24,11 @@ export type Pick = {
   /** El pallet se va completo: no hay nada que contar ni caja que abrir. */
   palletEntero: boolean
   cara: Cara | null
+  /**
+   * Si ya escaneó la posición y está sacando. Sin esto, quien salía un momento de la pantalla
+   * volvía al principio y tenía que caminar de vuelta a la posición para escanearla otra vez.
+   */
+  empezada: boolean
 }
 
 type Fail = { ok: false; error: string }
@@ -95,6 +100,7 @@ export async function claimPick(): Promise<
       lpnCode: data.lpn?.code ?? null,
       palletEntero,
       cara: await caraDe(supabase, fromCode),
+      empezada: task.status === 'IN_PROGRESS',
     },
   }
 }

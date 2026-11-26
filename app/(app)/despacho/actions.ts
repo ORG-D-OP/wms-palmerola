@@ -19,6 +19,11 @@ export type Linea = {
   chequeada: boolean
   /** Lo que el chequeador dijo que subió de verdad. Nulo mientras no la haya chequeado. */
   arriba: number | null
+  /**
+   * De dónde sale el producto de esta línea. Con eso el chequeador puede preguntar de dónde
+   * lo trajeron y comprobar si es cierto.
+   */
+  desde: string[]
 }
 
 export type Camion = {
@@ -205,7 +210,7 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       supabase
         .from('order_line')
         .select(
-          'id, line_no, qty_base, checked_at, checked_qty_base, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status))',
+          'id, line_no, qty_base, checked_at, checked_qty_base, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status, from_location:location!task_from_location_id_fkey(code)))',
         )
         .eq('order_id', id)
         .order('line_no'),
@@ -231,6 +236,13 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       .reduce((suma, a) => suma + Number(a.qty_base), 0),
     chequeada: l.checked_at !== null,
     arriba: l.checked_qty_base === null ? null : Number(l.checked_qty_base),
+    desde: [
+      ...new Set(
+        (l.allocation ?? [])
+          .map((a) => a.task?.from_location?.code)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ],
   }))
 
   return {

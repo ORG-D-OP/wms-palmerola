@@ -25,9 +25,15 @@ type Dock = { id: string; code: string }
 
 export function IngresoForm({
   docks,
+  anden,
+  abierto,
   deAnden,
 }: {
   docks: Dock[]
+  /** El andén del turno. Es el que viene puesto: casi nadie descarga en otro. */
+  anden: string | null
+  /** El camión que se está descargando en su andén, traído ya por el servidor. */
+  abierto: Documento | null
   /**
    * El que manda en el andén: abre un ingreso sin aviso y corrige las cajas que bajaron. El
    * auxiliar sí recibe pallets de un ingreso ya abierto, pero no hace ninguna de esas dos.
@@ -35,8 +41,10 @@ export function IngresoForm({
    */
   deAnden: boolean
 }) {
-  const [dockId, setDockId] = useState(docks[0]?.id ?? '')
-  const [doc, setDoc] = useState<Documento | null>(null)
+  const [dockId, setDockId] = useState(
+    docks.find((d) => d.code === anden)?.id ?? docks[0]?.id ?? '',
+  )
+  const [doc, setDoc] = useState<Documento | null>(abierto)
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
   const [verLista, setVerLista] = useState(false)
   const [abriendoCiego, setAbriendoCiego] = useState(false)
@@ -119,7 +127,7 @@ export function IngresoForm({
         recibidos: res.recibido.recibidos,
         lineas: doc.lineas.map((l) =>
           l.palletCode.toUpperCase() === code.trim().toUpperCase()
-            ? { ...l, recibido: true }
+            ? { ...l, recibido: true, destino: res.recibido.locationCode }
             : l,
         ),
       })
@@ -230,8 +238,12 @@ export function IngresoForm({
               Se llamaba «Cerrar», justo al lado de la palabra «Pedido», y no cierra nada: sólo
               quita el documento de la pantalla. El de bodega leía «cerrar el recibo» y se iba
               creyendo que el camión quedaba cerrado, con los pallets que faltaban dentro.
+
+              Tampoco «dejarlo para después»: el camión a medio descargar vuelve solo al entrar
+              a la pantalla, así que lo único que hace este botón es despejar para escanear el
+              siguiente.
             */}
-            Dejarlo para después
+            Escanear otro pedido
           </button>
         </div>
         <p className="text-2xl tabular-nums">{doc.pedido}</p>
@@ -258,6 +270,7 @@ export function IngresoForm({
             <p className="mt-2 text-sm">
               {doc.recibidos} de {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
               {doc.cajas.toLocaleString('es-HN')} cajas
+              {doc.anden ? ` · ${nombrePosicion(doc.anden)}` : ''}
             </p>
             <div
               className="mt-2 h-2 overflow-hidden rounded-full bg-white"
@@ -426,7 +439,11 @@ export function IngresoForm({
 
       {error ? <Aviso>{error}</Aviso> : null}
 
-      {pendientes.length > 0 ? (
+      {/*
+        La lista entera, no sólo lo que falta: el chequeador necesita ver dónde quedó cada
+        pallet que ya pasó para poder preguntar de dónde lo trajeron y comprobar si es cierto.
+      */}
+      {doc.lineas.length > 0 ? (
         <section className="flex flex-col gap-2">
           <button
             type="button"
@@ -434,12 +451,16 @@ export function IngresoForm({
             className="flex items-center gap-1.5 text-sm underline underline-offset-4"
           >
             <Icon name={verLista ? 'expand_less' : 'expand_more'} className="!text-[18px]" />
-            {verLista ? 'Ocultar' : `Ver los ${pendientes.length} pallets que faltan`}
+            {verLista
+              ? 'Ocultar la lista'
+              : pendientes.length > 0
+                ? `Ver la lista: ${pendientes.length} sin bajar`
+                : 'Ver la lista del camión'}
           </button>
 
           {verLista ? (
             <ul className="flex flex-col divide-y divide-borde text-sm">
-              {pendientes.map((l) => (
+              {doc.lineas.map((l) => (
                 <li key={l.palletCode} className="flex items-baseline gap-3 py-2">
                   <span className="w-28 shrink-0 font-mono tabular-nums">{l.palletCode}</span>
                   <span className="min-w-0 flex-1">
@@ -449,6 +470,15 @@ export function IngresoForm({
                       {l.lot ? ` · lote ${l.lot}` : ''}
                       {l.expiry ? ` · vence ${fecha(l.expiry)}` : ''}
                     </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    {!l.recibido ? (
+                      <span className="text-azul/40">sin bajar</span>
+                    ) : l.destino ? (
+                      <span className="tabular-nums">{nombrePosicion(l.destino)}</span>
+                    ) : (
+                      <span className="text-azul/40">bajado</span>
+                    )}
                   </span>
                 </li>
               ))}

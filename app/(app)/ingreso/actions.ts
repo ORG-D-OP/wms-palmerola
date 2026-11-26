@@ -14,6 +14,8 @@ export type Linea = {
   expiry: string | null
   tipoCaja: string | null
   recibido: boolean
+  /** Dónde queda el pallet: el hueco que el sistema reservó al recibirlo. */
+  destino: string | null
 }
 
 /** Lo que SAP dice que trae el camión, cuando nadie mandó la lista de pallets. */
@@ -32,6 +34,8 @@ export type Documento = {
   cajas: number
   /** Las cajas del 641 de SAP. Manda la etiqueta, pero si no cuadran hay que decirlo. */
   cajasSap: number | null
+  /** El andén donde se está descargando. Se sabe desde el primer pallet recibido. */
+  anden: string | null
   lineas: Linea[]
   esperado: Esperado[]
   /** Los productos del camión que todavía no dicen qué son: sin eso se guardan con la comida. */
@@ -77,7 +81,7 @@ export async function buscarIngreso(
 
   const { data: detalle } = await supabase
     .from('inbound_detail')
-    .select('pallet_code, sku, name, qty_cases, lot, expiry_date, tipo_caja, received_at')
+    .select('pallet_code, sku, name, qty_cases, lot, expiry_date, tipo_caja, received_at, destino')
     .eq('doc_id', doc.id)
     .order('pallet_code')
 
@@ -108,6 +112,7 @@ export async function buscarIngreso(
       materiales: doc.materiales ?? 0,
       cajas: Number(doc.cajas ?? 0),
       cajasSap: doc.cajas_sap === null ? null : Number(doc.cajas_sap),
+      anden: doc.anden,
       sinClase: (sinClase ?? []).map((p) => ({
         id: p.product_id ?? '',
         sku: p.sku ?? '',
@@ -128,6 +133,7 @@ export async function buscarIngreso(
         expiry: l.expiry_date,
         tipoCaja: l.tipo_caja,
         recibido: l.received_at !== null,
+        destino: l.destino,
       })),
     },
   }
