@@ -124,7 +124,9 @@ export default async function DashboardPage() {
 
       <div className="contents md:flex md:flex-col md:gap-6 md:p-8 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:grid-rows-[auto_auto_1fr] xl:items-start">
         <div className="contents xl:col-start-2 xl:row-start-1 xl:block">
-          <Trabajo trabajo={trabajo} />
+          {/* Al montacarguista no se le puede entrar sin máquina: hay que saber si va de piso
+              o de rack, porque son tareas distintas. Ese escoge en Disponibilidad. */}
+          <Trabajo trabajo={trabajo} montacarguista={user.role === 'montacargista'} />
         </div>
 
         {enElTablero.length > 0 ? (

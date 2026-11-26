@@ -5,13 +5,38 @@ import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { ROLE_LABELS, esDeTrabajo, type UserRole } from '@/lib/auth/roles'
 import { hora } from '@/lib/warehouse/hora'
-import { cerrarTurno, iniciarTurno, pausarTurno, reanudarTurno, trabajarComo } from './actions'
+import {
+  cambiarEquipo,
+  cerrarTurno,
+  iniciarTurno,
+  pausarTurno,
+  reanudarTurno,
+  trabajarComo,
+} from './actions'
 
-/** Los tipos de equipo: lo que se declara al entrar, porque de ahí sale el alcance. */
-export type Tipo = { code: string; name: string; alcance: number }
+/**
+ * Los tipos de equipo: lo que se declara al entrar, porque de ahí sale la franja de niveles
+ * que le toca. No es sólo un techo: el de rack no baja al piso, porque son tareas distintas.
+ */
+export type Tipo = { code: string; name: string; min: number; alcance: number }
+
+/**
+ * Lo que le toca a un equipo, dicho como se dice en la bodega.
+ *
+ * Antes era un «Hasta el nivel 6» que no respondía a la pregunta que la gente hace, que es si
+ * anda con el de piso o con el de rack. Sale de los dos números, no de una lista a mano.
+ */
+const franja = ({ min, alcance }: { min: number; alcance: number }) =>
+  alcance === 0
+    ? 'sólo piso'
+    : min === 0
+      ? `piso y rack, hasta el nivel ${alcance}`
+      : `sólo rack, niveles ${min} a ${alcance}`
 
 export type Turno = {
+  equipo: string | null
   tipo: string | null
+  min: number
   alcance: number
   desde: string
   pausado: boolean
@@ -62,13 +87,11 @@ export function TurnoForm({
           </div>
           <div>
             <dt className={ETIQUETA}>Equipo</dt>
-            <dd className="text-lg">{turno.tipo ?? 'Sin equipo'}</dd>
+            <dd className="text-lg">{turno.tipo ?? 'A pie o con burro'}</dd>
           </div>
           <div>
-            <dt className={ETIQUETA}>Alcance</dt>
-            <dd className="text-lg">
-              {turno.alcance === 0 ? 'Solo piso' : `Hasta el nivel ${turno.alcance}`}
-            </dd>
+            <dt className={ETIQUETA}>Le toca</dt>
+            <dd className="text-lg first-letter:uppercase">{franja(turno)}</dd>
           </div>
           <div className="col-span-2">
             <dt className={ETIQUETA}>Andén</dt>
@@ -81,7 +104,9 @@ export function TurnoForm({
           </div>
         </dl>
 
-        <CambiarRol actual={turno.rol} rango={rango} roles={roles} />
+        <CambiarEquipo actual={turno.equipo} tipos={tipos} rol={turno.rol} />
+
+        <CambiarRol actual={turno.rol} rango={rango} roles={roles} tipos={tipos} />
 
         {turno.pausado ? (
           <form action={reanudarTurno}>
@@ -113,8 +138,8 @@ export function TurnoForm({
   return (
     <form action={accion} className="flex flex-col gap-4 rounded-2xl border border-borde p-4">
       <p className="text-sm text-azul/70">
-        Mientras no entres a trabajo no te caen tareas. El equipo define hasta qué nivel del
-        rack te llegan.
+        Mientras no entres a trabajo no te caen tareas. El equipo decide cuáles: el de piso va
+        al piso y el de rack va al rack, porque son tareas distintas.
       </p>
 
       {roles.length > 1 ? (
@@ -133,11 +158,10 @@ export function TurnoForm({
       <label className="flex flex-col gap-1.5">
         <span className={ETIQUETA}>¿Con qué vas a andar?</span>
         <select name="tipo" defaultValue="" className={CAMPO}>
-          <option value="">A pie o con burro (solo piso)</option>
+          <option value="">A pie o con burro · sólo piso</option>
           {tipos.map((t) => (
             <option key={t.code} value={t.code}>
-              {t.name}
-              {t.alcance > 0 ? ` · hasta el nivel ${t.alcance}` : ''}
+              {t.name} · {franja(t)}
             </option>
           ))}
         </select>
@@ -153,6 +177,68 @@ export function TurnoForm({
 }
 
 /**
+ * Cambiar de máquina sin salir del turno.
+ *
+ * Es lo que pasa cuando no llegó el de rack: el supervisor le cambia de puesto a alguien y le
+ * da el montacargas especial. Antes el equipo era de sólo lectura aquí, así que la única
+ * manera era salir de trabajo y volver a entrar, y en el camino se perdía el andén y el rol
+ * con el que andaba. Y quien ya es montacarguista no puede quedarse sin máquina: si va a pie,
+ * lo que cambia es el rol, no el equipo.
+ */
+function CambiarEquipo({
+  actual,
+  tipos,
+  rol,
+}: {
+  actual: string | null
+  tipos: Tipo[]
+  rol: UserRole
+}) {
+  const otros = tipos.filter((t) => t.code !== actual)
+  const aPie = actual !== null && rol !== 'montacargista'
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  if (otros.length === 0 && !aPie) return null
+
+  const cambiar = (code?: string) =>
+    startTransition(async () => {
+      const res = await cambiarEquipo(code)
+      setError(res.ok ? null : res.error)
+    })
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borde pt-4">
+      <span className={ETIQUETA}>Cambiar de equipo</span>
+      <div className="flex flex-wrap gap-2">
+        {otros.map((t) => (
+          <button
+            key={t.code}
+            type="button"
+            disabled={pending}
+            className={BOTON_SUAVE}
+            onClick={() => cambiar(t.code)}
+          >
+            {t.name}
+          </button>
+        ))}
+        {aPie ? (
+          <button
+            type="button"
+            disabled={pending}
+            className={BOTON_SUAVE}
+            onClick={() => cambiar()}
+          >
+            Dejar el equipo
+          </button>
+        ) : null}
+      </div>
+      {error ? <Aviso>{error}</Aviso> : null}
+    </div>
+  )
+}
+
+/**
  * Cambiarse de rol sin salir del turno.
  *
  * Es para el supervisor que baja a ayudar cuando se acumula el trabajo, y para quien cubre a
@@ -164,22 +250,28 @@ function CambiarRol({
   actual,
   rango,
   roles,
+  tipos,
 }: {
   actual: UserRole
   rango: UserRole
   roles: UserRole[]
+  tipos: Tipo[]
 }) {
   const otros = roles.filter((r) => r !== actual)
   const ayudar = otros.filter(esDeTrabajo)
+  // De montacarguista no se trabaja «en general»: el botón ya trae la máquina, porque el de
+  // piso y el de rack no hacen las mismas tareas. Un toque escoge las dos cosas.
+  const oficios = ayudar.filter((r) => r !== 'montacargista')
+  const conMaquina = ayudar.includes('montacargista')
   const volver = otros.includes(rango) && !esDeTrabajo(rango) ? rango : null
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   if (otros.length === 0) return null
 
-  const cambiar = (r: UserRole) =>
+  const cambiar = (r: UserRole, tipo?: string) =>
     startTransition(async () => {
-      const res = await trabajarComo(r)
+      const res = await trabajarComo(r, tipo)
       setError(res.ok ? null : res.error)
     })
 
@@ -188,19 +280,41 @@ function CambiarRol({
       {ayudar.length > 0 ? (
         <>
           <span className={ETIQUETA}>Ayudar con otro trabajo</span>
-          <div className="flex flex-wrap gap-2">
-            {ayudar.map((r) => (
-              <button
-                key={r}
-                type="button"
-                disabled={pending}
-                className={BOTON_SUAVE}
-                onClick={() => cambiar(r)}
-              >
-                {ROLE_LABELS[r]}
-              </button>
-            ))}
-          </div>
+          {oficios.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {oficios.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  disabled={pending}
+                  className={BOTON_SUAVE}
+                  onClick={() => cambiar(r)}
+                >
+                  {ROLE_LABELS[r]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {conMaquina ? (
+            <>
+              <span className="text-sm text-azul/70">
+                De montacarguista, ¿con qué máquina?
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {tipos.map((t) => (
+                  <button
+                    key={t.code}
+                    type="button"
+                    disabled={pending}
+                    className={BOTON_SUAVE}
+                    onClick={() => cambiar('montacargista', t.code)}
+                  >
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
         </>
       ) : null}
 

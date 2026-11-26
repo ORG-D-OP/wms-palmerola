@@ -50,9 +50,17 @@ check(sinTurno.alcance === 0, 'sin turno abierto nadie alcanza mas que el piso')
 check(sinTurno.flujo === 'BOTH', 'sin turno abierto le toca lo de los dos lados')
 
 await como(conEquipo)
+const sinDecirCual = await fails(`select iniciar_turno()`)
+check(
+  sinDecirCual?.includes('Dime con qué montacargas vas'),
+  'un montacarguista no entra a trabajo sin decir si va de piso o de rack',
+)
+
 await one(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
 const conMaquina = await one(`select alcance_de($1) as alcance`, [conEquipo])
 check(conMaquina.alcance === 6, 'con el montacargas de rack alcanza el nivel 6')
+const desdeDonde = await one(`select nivel_minimo_de($1) as min`, [conEquipo])
+check(desdeDonde.min === 1, 'y empieza en el 1: el de rack no baja al piso')
 
 const tomado = await fails(`select iniciar_turno('MONTACARGA_RACK', 'BOTH')`)
 check(tomado === null, 'volver a entrar cierra el turno anterior y sigue')
@@ -120,6 +128,38 @@ check(cola?.al_alcance === false, 'la cola explica por que no le toca: no la alc
 await como(conEquipo)
 const mia = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(mia?.id === rec.task_id, 'con el montacargas de rack la tarea si le toca')
+
+// Pero el piso no, aunque llegue de sobra. El filtro era solo el techo —«si el de rack llega
+// al piso, mandale piso tambien»—, asi que al montacarguista de rack le caian todas las
+// tareas de piso ademas de las suyas, y la regla de la bodega es la contraria: son tareas
+// distintas. La misma tarea, bajada al piso, deja de ser suya.
+await db.query(
+  `update task set status = 'READY', assigned_to = null, assigned_at = null, min_level = 0
+   where id = $1`,
+  [rec.task_id],
+)
+const bajada = await one(
+  `select al_alcance, de_mi_equipo from task_queue where id = $1`,
+  [rec.task_id],
+)
+check(
+  bajada?.al_alcance === true && bajada?.de_mi_equipo === false,
+  'la cola dice que el de rack llega al piso, pero que el piso no es trabajo suyo',
+)
+const nadaDePiso = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  nadaDePiso?.id === undefined || nadaDePiso?.id === null,
+  'y no le cae: con el montacargas de rack no se guarda en el piso',
+)
+
+// Contar es la excepcion, y a proposito: no es tarea de maquina, es de los ojos.
+await db.query(`update task set type = 'COUNT' where id = $1`, [rec.task_id])
+check(
+  (await one(`select de_mi_equipo from task_queue where id = $1`, [rec.task_id]))
+    .de_mi_equipo === true,
+  'un conteo en el piso si le toca: para contar basta con llegar',
+)
+await db.query(`update task set type = 'PUTAWAY', min_level = 1 where id = $1`, [rec.task_id])
 
 // Un turno de despacho no agarra tareas de ingreso.
 await one(`select cerrar_turno()`)
@@ -223,6 +263,72 @@ const noPuedeMontacargas = await fails(`select trabajar_como('montacargista')`)
 check(
   noPuedeMontacargas?.includes('que te lo conceda'),
   'lo concedido es lo concedido: no se extiende a lo demas',
+)
+
+// --- de montacarguista no se trabaja «en general»: o de piso o de rack (0107) ------------
+//
+// Es el caso que manda el dueno de la bodega: si no llego el de rack, el supervisor le cambia
+// de puesto a alguien y le da el montacargas especial. Eso pide dos cosas que no existian:
+// que al escoger el rol se diga la maquina, y que la maquina se pueda cambiar sin salir del
+// turno, porque salir y volver a entrar suelta el anden y el rol con el que andaba.
+
+await como(jefe)
+await one(
+  `select * from conceder_roles($1, array['chequeador', 'montacargista']::user_role[])`,
+  [aPie],
+)
+
+await como(aPie)
+const aCual = await fails(`select trabajar_como('montacargista')`)
+check(
+  aCual?.includes('Dime con qué montacargas vas'),
+  'cambiarse a montacarguista sin decir cual no entra: son tareas distintas',
+)
+
+await one(`select trabajar_como('montacargista', 'MONTACARGA_RACK')`)
+check(
+  (await one(`select rol_trabajo from mi_trabajo where profile_id = $1`, [aPie]))
+    .rol_trabajo === 'montacargista',
+  'con la maquina si se cambia, en un solo paso',
+)
+const franjaRack = await one(`select nivel_minimo_de($1) as min, alcance_de($1) as max`, [aPie])
+check(
+  franjaRack.min === 1 && franjaRack.max === 6,
+  `y el de rack trabaja del 1 al 6, no desde el piso (${franjaRack.min}-${franjaRack.max})`,
+)
+
+await one(`select cambiar_equipo('MONTACARGA_PISO')`)
+const franjaPiso = await one(`select nivel_minimo_de($1) as min, alcance_de($1) as max`, [aPie])
+check(
+  franjaPiso.min === 0 && franjaPiso.max === 0,
+  'el jefe le cambia la maquina sin sacarlo del turno, y la franja se mueve con ella',
+)
+check(
+  (await one(
+    `select count(*)::int as n from shift_assignment
+      where profile_id = $1 and ended_at is null`,
+    [aPie],
+  )).n === 1,
+  'sin abrir otro turno: es el mismo, con su anden y su rol',
+)
+
+const yaAnda = await fails(`select cambiar_equipo('MONTACARGA_PISO')`)
+check(yaAnda?.includes('Ya andas con eso'), 'cambiar a la maquina que ya trae no hace nada')
+
+const sinNinguna = await fails(`select cambiar_equipo()`)
+check(
+  sinNinguna?.includes('montacarguista'),
+  'y de montacarguista no se queda sin maquina: para ir a pie se cambia el rol',
+)
+
+await one(`select trabajar_como('chequeador')`)
+check(
+  (await one(
+    `select equipment_type_code as equipo from shift_assignment
+      where profile_id = $1 and ended_at is null`,
+    [aPie],
+  )).equipo === null,
+  'quien deja de ser montacarguista entrega la maquina, o seguiria con el filtro puesto',
 )
 
 // El supervisor no necesita que nadie le conceda nada, y no pierde sus permisos al bajar.

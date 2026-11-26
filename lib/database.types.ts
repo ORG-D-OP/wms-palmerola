@@ -468,18 +468,21 @@ export type Database = {
           code: string
           is_active: boolean
           max_level: number
+          min_level: number
           name: string
         }
         Insert: {
           code: string
           is_active?: boolean
           max_level: number
+          min_level?: number
           name: string
         }
         Update: {
           code?: string
           is_active?: boolean
           max_level?: number
+          min_level?: number
           name?: string
         }
         Relationships: []
@@ -4274,6 +4277,7 @@ export type Database = {
         Row: {
           al_alcance: boolean | null
           created_at: string | null
+          de_mi_equipo: boolean | null
           de_mi_flujo: boolean | null
           flow: string | null
           from_location_id: string | null
@@ -4289,6 +4293,7 @@ export type Database = {
         Insert: {
           al_alcance?: never
           created_at?: string | null
+          de_mi_equipo?: never
           de_mi_flujo?: never
           flow?: string | null
           from_location_id?: string | null
@@ -4304,6 +4309,7 @@ export type Database = {
         Update: {
           al_alcance?: never
           created_at?: string | null
+          de_mi_equipo?: never
           de_mi_flujo?: never
           flow?: string | null
           from_location_id?: string | null
@@ -4681,6 +4687,29 @@ export type Database = {
           to: "inbound_progress"
           isOneToOne: false
           isSetofReturn: true
+        }
+      }
+      cambiar_equipo: {
+        Args: { p_tipo_equipo?: string }
+        Returns: {
+          auto_closed: boolean
+          dock_door_id: string | null
+          ended_at: string | null
+          equipment_id: string | null
+          equipment_type_code: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       cambiar_rol: {
@@ -5235,6 +5264,7 @@ export type Database = {
       }
       manda_sobre_personal: { Args: never; Returns: boolean }
       medianoche_de_su_dia: { Args: { p_momento: string }; Returns: string }
+      nivel_minimo_de: { Args: { p_profile_id: string }; Returns: number }
       pallets_de_carga_inicial: { Args: never; Returns: number }
       pallets_que_caben: {
         Args: { p_location_id: string; p_product_id: string }
@@ -5708,7 +5738,10 @@ export type Database = {
       }
       tope_de_turno: { Args: never; Returns: string }
       trabajar_como: {
-        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Args: {
+          p_rol: Database["public"]["Enums"]["user_role"]
+          p_tipo_equipo?: string
+        }
         Returns: {
           auto_closed: boolean
           dock_door_id: string | null

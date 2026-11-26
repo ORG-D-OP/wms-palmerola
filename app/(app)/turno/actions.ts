@@ -62,7 +62,13 @@ export async function iniciarTurno(_prev: unknown, datos: FormData) {
   return { ok: true as const }
 }
 
-/** Entrar sin equipo, que es el caso de casi todos. Es el botón de la pantalla de inicio. */
+/**
+ * Entrar sin equipo, que es el caso de casi todos. Es el botón de la pantalla de inicio.
+ *
+ * Al montacarguista la base se lo rechaza, porque sin máquina no se sabe si es de piso o de
+ * rack. A él la pantalla de inicio no le ofrece este botón: lo manda a Disponibilidad, que es
+ * donde se escoge la máquina.
+ */
 export async function entrarATrabajo() {
   await requirePermission('turno:iniciar')
 
@@ -78,8 +84,12 @@ export async function entrarATrabajo() {
  * Cambiarse de rol a media mañana. Es el supervisor que baja a ayudar cuando se acumula el
  * trabajo, y el auxiliar que cubre de chequeador. No toca el rango de nadie: los permisos se
  * quedan donde estaban, lo único que cambia es qué trabajo le da el sistema.
+ *
+ * El montacargas va con el rol y en la misma llamada: de montacarguista no se trabaja «en
+ * general», o es de piso o es de rack, y son tareas distintas. Por eso el botón ya trae la
+ * máquina y no hay un paso intermedio que preguntarla.
  */
-export async function trabajarComo(rol: string) {
+export async function trabajarComo(rol: string, tipo?: string) {
   const user = await requirePermission('turno:iniciar')
 
   // Se admite también el rango de quien manda, que es el «volver a lo mío» del que bajó a
@@ -88,9 +98,37 @@ export async function trabajarComo(rol: string) {
   if (!parsed.success || !rolesDeTrabajoDe(user.roles).includes(parsed.data)) {
     return { ok: false as const, error: 'Ese rol no es de trabajo.' }
   }
+  const equipo = z.string().trim().max(24).safeParse(tipo ?? '')
+  if (!equipo.success) return { ok: false as const, error: 'Revisa el equipo.' }
 
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('trabajar_como', { p_rol: parsed.data })
+  const { error } = await supabase.rpc('trabajar_como', {
+    p_rol: parsed.data,
+    p_tipo_equipo: equipo.data || undefined,
+  })
+
+  if (error) return fallo(error)
+  refrescar()
+  return { ok: true as const }
+}
+
+/**
+ * Cambiar de montacargas sin salir del turno.
+ *
+ * Es el supervisor que, cuando no llegó el de rack, le cambia de puesto a alguien y le da la
+ * máquina especial. Antes el equipo era de sólo lectura dentro del turno: había que salir y
+ * volver a entrar, y en el camino se perdía el andén y el rol con el que andaba.
+ */
+export async function cambiarEquipo(tipo?: string) {
+  await requirePermission('turno:iniciar')
+
+  const equipo = z.string().trim().max(24).safeParse(tipo ?? '')
+  if (!equipo.success) return { ok: false as const, error: 'Revisa el equipo.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('cambiar_equipo', {
+    p_tipo_equipo: equipo.data || undefined,
+  })
 
   if (error) return fallo(error)
   refrescar()

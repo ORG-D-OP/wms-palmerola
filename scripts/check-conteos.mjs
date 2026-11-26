@@ -137,6 +137,35 @@ check(Number((await saldo('F3-001-03')).qty) === 240, 'y el otro se queda donde 
 const ajeno = await fails(`select * from reordenar('F3-001-03', 'F3-001-04', 'WMS-00000999')`)
 check(ajeno?.includes('no está en'), 'una matricula que no esta ahi se rechaza diciendolo')
 
+// --- y tampoco se mueve lo que el equipo no puede mover (0107) ---------------------------
+//
+// El reparto de tareas si mira la maquina; esta pantalla no miraba nada. Medido a clic el
+// 25/11/2026 en produccion: con un montacargas de piso se subio de verdad un pallet a un
+// nivel 1 de rack, y el movimiento quedo apuntado a nombre de quien no podia haberlo hecho.
+//
+// Manda el extremo de rack del movimiento, igual que `task.min_level`: si uno de los dos
+// lados esta en alto, el movimiento es de rack. Asi bajar de rack al piso sigue siendo del de
+// rack —que es como se reabastece la cara a mano— y el de piso no sube nada.
+const { code: arriba } = await one(
+  `select code from location
+    where kind = 'rack_double_deep' and level >= 1 and retired_at is null
+    order by code limit 1`,
+)
+
+const aPieNoSube = await fails(`select * from reordenar('F3-001-03', $1)`, [arriba])
+check(
+  aPieNoSube?.includes('tu equipo no llega'),
+  'a pie no se sube un pallet al rack, aunque la pantalla lo deje escanear',
+)
+
+await one(`select iniciar_turno('MONTACARGA_RACK')`)
+const deRackNoBaja = await fails(`select * from reordenar('F3-001-03', 'F3-001-02')`)
+check(
+  deRackNoBaja?.includes('todo de piso'),
+  'y con el de rack no se acomoda el piso: eso lo mueve uno de piso',
+)
+await one(`select cerrar_turno()`)
+
 // ---------------------------------------------------------------------------------------
 // El recuento del dia a dia
 // ---------------------------------------------------------------------------------------
@@ -188,6 +217,7 @@ check(
   apartadoNoSeMueve?.includes('apartado para un pedido'),
   'lo apartado para un pedido no se reordena: quien va a surtir se quedaria mirando un hueco',
 )
+
 
 await como(miron)
 const sinPermiso = await fails(`select * from recontar('F3-001-03', 5)`)
