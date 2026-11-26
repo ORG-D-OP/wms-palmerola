@@ -870,4 +870,85 @@ check(
   `y sale con los dos viajes, no con el que habia bajado cuando escaneo (${salioEnteroEnDos.salio})`,
 )
 
+// --- un viaje por pallet, no uno por linea -------------------------------------------------
+
+/*
+  El ZRDT trae una linea por cliente, asi que un camion puede pedir veintiuna veces el mismo
+  producto. Medido en produccion, el camion 3946128: 244 tareas de surtido para 106 pallets.
+  Si las lineas salen del mismo pallet de picking tienen que ser un viaje, no veintiuno.
+*/
+await como(jefe)
+
+const { id: andenJuntas } = await one(`select id from dock_door where code = 'AND-05'`)
+const { id: camionJuntas } = await one(
+  `insert into sales_order (code, dock_door_id, transporte)
+   values ('PED-JUNTAS', $1, '3946128') returning id`,
+  [andenJuntas],
+)
+// Tres clientes, tres lineas, el mismo producto. Cabe todo en el pallet de picking.
+for (const [n, cuanto] of [
+  [1, 48],
+  [2, 72],
+  [3, 24],
+]) {
+  await one(
+    `insert into order_line (order_id, line_no, product_id, packaging_level_id, qty_base)
+     values ($1, $2, $3, $4, $5)`,
+    [camionJuntas, n, producto, caja, cuanto],
+  )
+}
+await one(
+  `select post_movement('RECEIPT'::movement_type, $1::uuid, 300::numeric, null, $2::uuid)`,
+  [producto, posicion],
+)
+await one(`select release_order($1)`, [camionJuntas])
+
+const juntas = await one(
+  `select count(distinct t.id)::int as tareas,
+          count(*)::int as apartados,
+          max(t.qty_base) as pide
+   from order_line l
+   join allocation a on a.order_line_id = l.id
+   join task t on t.id = a.task_id
+   where l.order_id = $1`,
+  [camionJuntas],
+)
+check(
+  juntas.tareas === 1,
+  `tres lineas del mismo pallet de picking son una sola tarea (salieron ${juntas.tareas})`,
+)
+check(juntas.apartados === 3, 'y cada linea conserva su apartado, que es lo que ve el chequeador')
+check(Number(juntas.pide) === 144, 'la tarea pide el total de las tres, junto')
+
+// Y lo que se toma se reparte entre las tres, no se le apunta entero a cada una.
+const tareaJuntas = await one(
+  `select distinct a.task_id as id from order_line l join allocation a on a.order_line_id = l.id
+   where l.order_id = $1`,
+  [camionJuntas],
+)
+await db.query(`update task set status = 'IN_PROGRESS', assigned_to = '${jefe}' where id = $1`, [
+  tareaJuntas.id,
+])
+await one(`select * from complete_pick($1, 'P-1', 6::numeric)`, [tareaJuntas.id])
+const repartido = await one(
+  `select l.line_no, surtido_de_linea(l.id) as surtido
+   from order_line l where l.order_id = $1 order by l.line_no`,
+  [camionJuntas],
+)
+const todas = (
+  await db.query(
+    `select l.line_no, surtido_de_linea(l.id) as surtido
+     from order_line l where l.order_id = $1 order by l.line_no`,
+    [camionJuntas],
+  )
+).rows
+check(
+  Number(repartido.surtido) === 48,
+  `a la primera linea se le apunta lo suyo, no el total (${repartido.surtido})`,
+)
+check(
+  todas.reduce((suma, f) => suma + Number(f.surtido), 0) === 144,
+  'y entre las tres suman lo que salio de la bodega, ni mas ni menos',
+)
+
 await db.close()
