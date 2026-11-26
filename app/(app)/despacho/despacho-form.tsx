@@ -205,10 +205,7 @@ export function DespachoForm({
       )}
 
       <p className="text-sm text-azul/60">
-        {chequeadas} de{' '}
-        {camion.detalle.length === 1
-          ? '1 línea chequeada'
-          : `${camion.detalle.length} líneas chequeadas`}
+        {chequeadas} de {plural(camion.detalle.length, 'línea chequeada', 'líneas chequeadas')}
         {faltantes.length > 0 ? ` · ${faltantes.length} sin producto suficiente` : ''}
       </p>
 
@@ -273,9 +270,7 @@ export function DespachoForm({
               <>
                 <p className="text-sm text-azul/60">
                   {camion.pendientes > 0
-                    ? camion.pendientes === 1
-                      ? 'Queda 1 tarea de surtido abierta.'
-                      : `Quedan ${camion.pendientes} tareas de surtido abiertas.`
+                    ? `${camion.pendientes === 1 ? 'Queda' : 'Quedan'} ${plural(camion.pendientes, 'tarea de surtido abierta', 'tareas de surtido abiertas')}.`
                     : 'Falta chequear líneas.'}{' '}
                   El camión se cierra cuando esté todo arriba.
                 </p>

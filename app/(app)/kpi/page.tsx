@@ -1,6 +1,6 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { plural } from '@/lib/plural'
+import { palabra, plural } from '@/lib/plural'
 
 export const metadata = { title: 'Indicadores · WMS Palmerola' }
 
@@ -59,7 +59,7 @@ export default async function KpiPage() {
                 pie={
                   num(hoy.cajas_por_hora) === null
                     ? 'sin turno registrado'
-                    : `${numero(num(hoy.cajas))} cajas en ${numero(num(hoy.horas_turno), 1)} h`
+                    : `${numero(num(hoy.cajas))} ${palabra(num(hoy.cajas) ?? 0, 'caja', 'cajas')} en ${numero(num(hoy.horas_turno), 1)} h`
                 }
               />
               <Cifra
@@ -95,7 +95,8 @@ export default async function KpiPage() {
                 <li key={f.dia} className="flex items-baseline gap-3 py-2 text-sm">
                   <span className="w-16 shrink-0 text-azul/60">{fecha(f.dia!)}</span>
                   <span className="flex-1 tabular-nums">
-                    {numero(num(f.cajas))} cajas · {numero(num(f.tareas))} tareas
+                    {numero(num(f.cajas))} {palabra(num(f.cajas) ?? 0, 'caja', 'cajas')} ·{' '}
+                    {numero(num(f.tareas))} {palabra(num(f.tareas) ?? 0, 'tarea', 'tareas')}
                   </span>
                   <span className="shrink-0 tabular-nums">
                     {num(f.cajas_por_hora) === null ? '—' : `${numero(num(f.cajas_por_hora), 1)}/h`}
@@ -133,7 +134,8 @@ export default async function KpiPage() {
                   </span>
                 </div>
                 <span className="text-sm text-azul/60 tabular-nums">
-                  {numero(num(p.tareas))} tareas · {numero(num(p.cajas))} cajas ·{' '}
+                  {numero(num(p.tareas))} {palabra(num(p.tareas) ?? 0, 'tarea', 'tareas')} ·{' '}
+                  {numero(num(p.cajas))} {palabra(num(p.cajas) ?? 0, 'caja', 'cajas')} ·{' '}
                   {numero(num(p.horas_turno), 1)} h de turno
                   {num(p.improductivo_pct) === null
                     ? ''

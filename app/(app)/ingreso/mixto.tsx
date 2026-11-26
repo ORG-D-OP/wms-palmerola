@@ -214,7 +214,7 @@ export function Mixto({
 
       {renglones.length >= 2 && !producto ? (
         <button type="button" onClick={recibir} disabled={pending} className={BOTON}>
-          {pending ? 'Recibiendo...' : `Recibir y desarmar: ${renglones.length} productos`}
+          {pending ? 'Recibiendo...' : `Recibir y desarmar: ${plural(renglones.length, 'producto', 'productos')}`}
         </button>
       ) : null}
 

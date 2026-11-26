@@ -568,7 +568,8 @@ export function IngresoForm({
         <div className="flex flex-col gap-3 rounded-2xl bg-[var(--verde)]/20 p-4 text-center">
           <p className="text-lg">Camión completo</p>
           <p className="text-sm text-azul/70">
-            Los {doc.pallets} pallets del pedido {doc.pedido} están recibidos.
+            {doc.pallets === 1 ? 'El' : 'Los'} {plural(doc.pallets, 'pallet', 'pallets')} del pedido{' '}
+            {doc.pedido} {doc.pallets === 1 ? 'está recibido' : 'están recibidos'}.
           </p>
           <button
             type="button"

@@ -1,8 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
-import { redirect } from 'next/navigation'
+import { forbidden, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { ForbiddenError } from '@/lib/errors'
 import { can, rolDe, type Permission, type UserRole } from '@/lib/auth/roles'
 
 export type SessionUser = {
@@ -88,9 +87,15 @@ export async function requireUser(): Promise<SessionUser> {
   return user
 }
 
+/**
+ * `forbidden()` y no una excepción: una excepción acaba en `error.tsx`, que contestaba **500**
+ * con «Algo se cayó», un botón de volver a intentar que no iba a funcionar nunca y un número
+ * de diez cifras para molestar al jefe de bodega. No se había caído nada: era que no le toca.
+ * Ahora es un **403** de verdad y una pantalla que lo dice.
+ */
 export async function requirePermission(permission: Permission): Promise<SessionUser> {
   const user = await requireUser()
-  if (!can(user.roles, permission)) throw new ForbiddenError()
+  if (!can(user.roles, permission)) forbidden()
   return user
 }
 
@@ -107,11 +112,6 @@ export async function requirePermission(permission: Permission): Promise<Session
  */
 export async function requireDeBodega(permission: Permission): Promise<SessionUser> {
   const user = await requirePermission(permission)
-  if (user.workingRole === 'chequeador' && !user.tareasEnMano) {
-    throw new ForbiddenError(
-      'De chequeador tu trabajo es el andén: verificar lo que entra y lo que sale. ' +
-        'Meter y sacar producto les toca a los auxiliares y a los montacarguistas.',
-    )
-  }
+  if (user.workingRole === 'chequeador' && !user.tareasEnMano) forbidden()
   return user
 }

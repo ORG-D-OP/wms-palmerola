@@ -5,6 +5,7 @@ import { ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { CAMPO } from '@/components/ui/campos'
 import { asignarAnden } from './actions'
+import { plural } from '@/lib/plural'
 
 export type Persona = {
   id: string
@@ -58,9 +59,8 @@ export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) 
       const partes = [`${nombre} pasa a ${donde}.`]
       if (res.liberadas > 0) {
         partes.push(
-          res.liberadas === 1
-            ? 'Soltó 1 tarea que no había empezado y vuelve a la cola del andén que deja.'
-            : `Soltó ${res.liberadas} tareas que no había empezado y vuelven a la cola del andén que deja.`,
+          `Soltó ${plural(res.liberadas, 'tarea', 'tareas')} que no había empezado y ` +
+            `${res.liberadas === 1 ? 'vuelve' : 'vuelven'} a la cola del andén que deja.`,
         )
       }
       if (res.enCurso) {

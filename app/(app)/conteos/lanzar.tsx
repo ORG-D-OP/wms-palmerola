@@ -65,7 +65,7 @@ export function Lanzar({ zonas, areas, niveles }: {
 
       {estado?.ok ? (
         <Logro>
-          {estado.lanzado.tareas} posiciones que contar.{' '}
+          {plural(estado.lanzado.tareas, 'posición que contar', 'posiciones que contar')}.{' '}
           {estado.lanzado.personas > 0
             ? `Repartidas entre ${plural(estado.lanzado.personas, 'persona', 'personas')}, un tramo seguido cada quien.`
             : 'Nadie está trabajando ahora mismo, así que quedan en la cola para el que entre.'}

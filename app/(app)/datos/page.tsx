@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NOMBRE, type Reporte } from '@/lib/sap/reportes'
 import { fechaYHora as cuando } from '@/lib/warehouse/hora'
 import { DatosForm } from './datos-form'
+import { plural } from '@/lib/plural'
 
 export const metadata = { title: 'Datos de SAP · WMS Palmerola' }
 
@@ -44,7 +45,7 @@ export default async function DatosPage() {
                 {c ? (
                   <>
                     <span className="shrink-0 tabular-nums text-azul/60">
-                      {c.rows_read?.toLocaleString('es-HN')} filas
+                      {plural(c.rows_read ?? 0, 'fila', 'filas')}
                     </span>
                     <span className="w-28 shrink-0 text-right tabular-nums">
                       {cuando(c.uploaded_at)}

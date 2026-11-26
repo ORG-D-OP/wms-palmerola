@@ -83,6 +83,12 @@ const Recuento = z.object({
   sueltas: z.coerce.number().min(0, 'Las unidades sueltas no pueden ser menos que cero.'),
   pallet: Codigo.optional(),
   tarea: z.string().uuid().optional(),
+  /**
+   * Por qué no cuadra. Lo exige la base cuando lo contado no es lo que el sistema creía: un
+   * ajuste de inventario mueve el saldo igual que un despacho, y despachar corto pide razón
+   * desde el primer día. Si cuadra no se pregunta nada.
+   */
+  motivo: z.string().trim().max(200, 'El motivo es una línea, no un informe.').optional(),
 })
 
 export async function recontar(
@@ -102,6 +108,7 @@ export async function recontar(
       p_cajas: parsed.data.cajas,
       p_sueltas: parsed.data.sueltas,
       p_pallet: parsed.data.pallet ?? undefined,
+      p_nota: parsed.data.motivo || undefined,
       p_task_id: parsed.data.tarea ?? undefined,
     })
     .single()

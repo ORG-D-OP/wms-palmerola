@@ -18,6 +18,9 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  // `forbidden()` y su pantalla `app/forbidden.tsx`. Sin esto, un permiso negado sale por
+  // `error.tsx` con un 500 y un numero de diez cifras, que es el fallo 108.
+  experimental: { authInterrupts: true },
   // Todo vive detras del login y depende del usuario: no hay nada que prerenderizar.
   // cacheComponents obligaria a envolver cada pagina en Suspense sin ganar nada.
   cacheComponents: false,

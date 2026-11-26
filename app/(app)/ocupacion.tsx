@@ -11,6 +11,7 @@ import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
 import { fecha } from '@/lib/fechas'
 import { buscarCara, queHayEn, type Hueco } from './actions'
+import { plural } from '@/lib/plural'
 
 /**
  * La ocupación del almacén, en dos vistas que responden a dos preguntas distintas.
@@ -159,7 +160,7 @@ function Cuadro({
           </p>
           {apila ? (
             <p className="text-sm text-azul/60">
-              {pallets} de {primero.caben} pallets apilados
+              {pallets} de {plural(primero.caben ?? 0, 'pallet apilado', 'pallets apilados')}
             </p>
           ) : null}
         </div>
@@ -189,7 +190,9 @@ function Cuadro({
                     {h.sku} · {h.nombre}
                   </span>
                   <span className="text-azul/60">
-                    {h.cajas ? `${h.cajas} cajas` : `${h.qty_base} unidades`}
+                    {h.cajas
+                      ? plural(h.cajas, 'caja', 'cajas')
+                      : plural(h.qty_base ?? 0, 'unidad', 'unidades')}
                     {h.lot ? ` · lote ${h.lot}` : ''} · vence {fecha(h.expiry_date)}
                     {h.lpn_code ? ` · ${h.lpn_code}` : ''}
                   </span>
