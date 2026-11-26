@@ -1,4 +1,5 @@
 import { requirePermission } from '@/lib/auth/session'
+import { plural } from '@/lib/plural'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { todas } from '@/lib/supabase/paginar'
 import { Icon } from '@/components/ui/icon'
@@ -134,7 +135,7 @@ export default async function AreasPage({
                 ) : null}
               </span>
               <span className="shrink-0 text-sm tabular-nums text-azul/70">
-                {(a.total ?? 0).toLocaleString('es-HN')} posiciones
+                {plural(a.total ?? 0, 'posición', 'posiciones')}
                 {(a.ocupadas ?? 0) > 0 ? ` · ${a.ocupadas} con producto` : ''}
               </span>
             </li>
@@ -203,7 +204,7 @@ export default async function AreasPage({
           <>
             <div className="rounded-2xl border border-borde p-4">
               <p className="text-2xl tabular-nums">
-                {filas.length.toLocaleString('es-HN')} posiciones
+                {plural(filas.length, 'posición', 'posiciones')}
               </p>
               <p className="text-sm text-azul/60">
                 de {filas[0]?.code} a {filas[filas.length - 1]?.code}

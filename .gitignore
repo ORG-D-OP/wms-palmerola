@@ -49,5 +49,9 @@ yarn-error.log*
 # lo copia scripts/copiar-wasm.mjs antes de dev y build
 /public/zxing_reader.wasm
 
+# worktrees de Claude Code: son una copia entera del repo, con su .next dentro. Sin esto, un
+# `git add .` mete el arbol duplicado en un repositorio publico.
+/.claude/worktrees/
+
 .vercel
 .env*

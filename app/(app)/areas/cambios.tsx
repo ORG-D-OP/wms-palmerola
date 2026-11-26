@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { plural } from '@/lib/plural'
 import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { cambiarUso, moverArea } from './actions'
@@ -50,7 +51,9 @@ export function Cambios({
         <button type="submit" disabled={moviendo} className={BOTON}>
           {moviendo ? 'Moviendo...' : 'Mover'}
         </button>
-        {area?.ok ? <Logro>{area.movidas} posiciones movidas.</Logro> : null}
+        {area?.ok ? (
+          <Logro>{plural(area.movidas, 'posición movida', 'posiciones movidas')}.</Logro>
+        ) : null}
         {area && !area.ok ? <Aviso>{area.error}</Aviso> : null}
       </form>
 
@@ -72,7 +75,9 @@ export function Cambios({
         <button type="submit" disabled={cambiando} className={BOTON_SUAVE}>
           {cambiando ? 'Cambiando...' : 'Cambiar el uso'}
         </button>
-        {uso?.ok ? <Logro>{uso.movidas} posiciones cambiadas.</Logro> : null}
+        {uso?.ok ? (
+          <Logro>{plural(uso.movidas, 'posición cambiada', 'posiciones cambiadas')}.</Logro>
+        ) : null}
         {uso && !uso.ok ? <Aviso>{uso.error}</Aviso> : null}
       </form>
     </div>

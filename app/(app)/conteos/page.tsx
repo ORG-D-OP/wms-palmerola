@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Lanzar, type Opcion } from './lanzar'
 import { plural } from '@/lib/plural'
+import { fechaYHora } from '@/lib/warehouse/hora'
 import { textoCajas } from '@/lib/cajas'
 
 export const metadata = { title: 'Conteos · WMS Palmerola' }
@@ -28,16 +29,6 @@ const diferencia = (r: { diferencia: number | null; por_caja: number | null }) =
   if (unidades === 0) return 'cuadra'
   return `${unidades > 0 ? '+' : '-'}${textoCajas(Math.abs(unidades), Number(r.por_caja || 1))}`
 }
-
-const fecha = (iso: string | null) =>
-  iso
-    ? new Date(iso).toLocaleString('es-HN', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : ''
 
 /**
  * El panel del conteo cíclico: lanzarlo, ver lo que está abierto y ver quién falla.
@@ -153,7 +144,7 @@ export default async function ConteosPage() {
                   <span className="min-w-0 truncate">
                     {r.sku} · {r.persona ?? ''}
                   </span>
-                  <span className="shrink-0 tabular-nums">{fecha(r.counted_at)}</span>
+                  <span className="shrink-0 tabular-nums">{fechaYHora(r.counted_at)}</span>
                 </span>
               </li>
             ))}

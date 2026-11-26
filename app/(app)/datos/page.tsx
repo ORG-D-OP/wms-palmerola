@@ -1,17 +1,10 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NOMBRE, type Reporte } from '@/lib/sap/reportes'
+import { fechaYHora as cuando } from '@/lib/warehouse/hora'
 import { DatosForm } from './datos-form'
 
 export const metadata = { title: 'Datos de SAP · WMS Palmerola' }
-
-const cuando = (iso: string) =>
-  new Date(iso).toLocaleString('es-HN', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 
 /**
  * De aquí come el sistema entero: el ingreso sabe qué trae el camión y el despacho qué lleva
@@ -54,7 +47,7 @@ export default async function DatosPage() {
                       {c.rows_read?.toLocaleString('es-HN')} filas
                     </span>
                     <span className="w-28 shrink-0 text-right tabular-nums">
-                      {cuando(c.uploaded_at as string)}
+                      {cuando(c.uploaded_at)}
                     </span>
                   </>
                 ) : (
