@@ -975,4 +975,26 @@ check(conCeros.id === camion, 'y los ceros de la izquierda no lo esconden')
 const transporteManda = await one(`select buscar_despacho('3916464') as id`)
 check(transporteManda.id === camion, 'y el transporte sigue mandando sobre los demas')
 
+// --- un escaneo marca el producto, no una linea de las veintiuna ---------------------------
+
+// El ZRDT trae una linea por parada, asi que el mismo producto viene repetido. En el anden eso
+// no existe: lo que sube es producto, y el chequeador no sabe a que parada va cada caja.
+await como(chequeador)
+const marcadaJuntas = await one(`select * from verificar_linea($1, 'P-1')`, [camionJuntas])
+const chequeadasJuntas = await one(
+  `select count(*) filter (where checked_at is not null) as marcadas, count(*) as total
+   from order_line where order_id = $1`,
+  [camionJuntas],
+)
+check(
+  Number(chequeadasJuntas.marcadas) === 3 && Number(chequeadasJuntas.total) === 3,
+  `un escaneo marca las tres lineas del mismo producto (${chequeadasJuntas.marcadas})`,
+)
+check(
+  Number(marcadaJuntas.cajas) === 144,
+  `y canta lo que subio de ese producto, no lo de una linea suelta (${marcadaJuntas.cajas})`,
+)
+const repetidaJuntas = await one(`select * from verificar_linea($1, 'P-1')`, [camionJuntas])
+check(repetidaJuntas.ya_estaba === true, 'y el segundo escaneo avisa de que ya estaba')
+
 await db.close()

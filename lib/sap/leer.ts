@@ -1,4 +1,4 @@
-import type { Libro } from '../xlsx.ts'
+import type { Libro } from "../xlsx.ts";
 import {
   fecha,
   filasDe,
@@ -8,82 +8,82 @@ import {
   sinCeros,
   type Donde,
   type Reporte,
-} from './reportes.ts'
+} from "./reportes.ts";
 
 export type FilaIngreso = {
-  pedido: string
-  pallet: string
-  material: string
-  nombre: string
-  cajas: number
-  lote: string
-  vencimiento: string | null
-  planta: string
-  fecha: string | null
-  entrega: string
-  salida: string
-  mix: string
-  centro: string
-  a_ciegas: boolean
-}
+  pedido: string;
+  pallet: string;
+  material: string;
+  nombre: string;
+  cajas: number;
+  lote: string;
+  vencimiento: string | null;
+  planta: string;
+  fecha: string | null;
+  entrega: string;
+  salida: string;
+  mix: string;
+  centro: string;
+  a_ciegas: boolean;
+};
 
 export type FilaDespacho = {
-  transporte: string
-  entrega: string
-  posicion: number
-  material: string
-  cantidad: number
-  um: string
-  cliente: string
-}
+  transporte: string;
+  entrega: string;
+  posicion: number;
+  material: string;
+  cantidad: number;
+  um: string;
+  cliente: string;
+};
 
 export type FilaInventario = {
-  centro: string
-  almacen: string
-  material: string
-  nombre: string
-  uom: string
-  libre: number
-  pendiente: number
-  bloqueado: number
-  transito: number
-}
+  centro: string;
+  almacen: string;
+  material: string;
+  nombre: string;
+  uom: string;
+  libre: number;
+  pendiente: number;
+  bloqueado: number;
+  transito: number;
+};
 
 export type FilaPronostico = {
-  zona: string
-  material: string
-  nombre: string
-  anio: number
-  periodo: number
-  cajas: number
-  pallets: number
-  cajas_por_pallet: number
-}
+  zona: string;
+  material: string;
+  nombre: string;
+  anio: number;
+  periodo: number;
+  cajas: number;
+  pallets: number;
+  cajas_por_pallet: number;
+};
 
 export type FilaSalida = {
-  pedido: string
-  entrega: string
-  documento: string
-  material: string
-  nombre: string
-  cantidad: number
-  centro: string
-  centro_receptor: string
-  clase: string
-  fecha: string | null
-}
+  pedido: string;
+  entrega: string;
+  documento: string;
+  material: string;
+  nombre: string;
+  cantidad: number;
+  centro: string;
+  centro_receptor: string;
+  clase: string;
+  fecha: string | null;
+};
 
 export type Leido = {
-  kind: Reporte
-  leidas: number
-  avisos: string[]
-  ingresos?: FilaIngreso[]
-  despachos?: FilaDespacho[]
-  inventario?: FilaInventario[]
-  pronostico?: FilaPronostico[]
-  salidas?: FilaSalida[]
-  resumen?: Record<string, number>
-}
+  kind: Reporte;
+  leidas: number;
+  avisos: string[];
+  ingresos?: FilaIngreso[];
+  despachos?: FilaDespacho[];
+  inventario?: FilaInventario[];
+  pronostico?: FilaPronostico[];
+  salidas?: FilaSalida[];
+  resumen?: Record<string, number>;
+};
 
 /**
  * El ZRDN trae quince hojas y los datos están en `RawData`. Se lee **por nombre de columna**,
@@ -95,34 +95,34 @@ export type Leido = {
  * mientras no se sepa qué número viene impreso en su papel.
  */
 async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
+  const { indice, filas } = await filasDe(libro, donde);
   const C = {
-    planta: indice('Planta'),
-    pallet: indice('Pallet'),
-    vencimiento: indice('Vencimiento'),
-    lote: indice('Lote'),
-    cantidad: indice('Cantidad'),
-    material: indice('Material'),
+    planta: indice("Planta"),
+    pallet: indice("Pallet"),
+    vencimiento: indice("Vencimiento"),
+    lote: indice("Lote"),
+    cantidad: indice("Cantidad"),
+    material: indice("Material"),
     // Lo único que el archivo dice de un material que el maestro no tiene.
-    nombre: indice('Denominación'),
-    fecha: indice('Fecha'),
-    nombreDestino: indice('Nest Nombre Destino'),
-    centroDestino: indice('Nest Centro Destino'),
-    pedido: indice('Pedido Traslado'),
-    entrega: indice('Entrega'),
-    salida: indice('Salida Mercancia'),
-    documento: indice('Documento'),
-  }
+    nombre: indice("Denominación"),
+    fecha: indice("Fecha"),
+    nombreDestino: indice("Nest Nombre Destino"),
+    centroDestino: indice("Nest Centro Destino"),
+    pedido: indice("Pedido Traslado"),
+    entrega: indice("Entrega"),
+    salida: indice("Salida Mercancia"),
+    documento: indice("Documento"),
+  };
 
-  const avisos: string[] = []
-  let sinPedido = 0
-  let sinLlave = 0
+  const avisos: string[] = [];
+  let sinPedido = 0;
+  let sinLlave = 0;
 
   const salida = filas
     .map((f): FilaIngreso => {
-      const pedido = sinCeros(f[C.pedido])
-      const entrega = sinCeros(f[C.entrega])
-      if (!pedido) sinPedido++
+      const pedido = sinCeros(f[C.pedido]);
+      const entrega = sinCeros(f[C.entrega]);
+      if (!pedido) sinPedido++;
       return {
         pedido: pedido || entrega,
         pallet: limpio(f[C.pallet]),
@@ -138,81 +138,100 @@ async function ingresos(libro: Libro, donde: Donde): Promise<Leido> {
         mix: limpio(f[C.documento]),
         centro: limpio(f[C.centroDestino]) || limpio(f[C.nombreDestino]),
         a_ciegas: !pedido,
-      }
+      };
     })
     .filter((f) => {
-      const vale = f.pedido && f.pallet && f.material && f.cajas > 0
-      if (!vale && (f.pallet || f.material)) sinLlave++
-      return vale
-    })
+      const vale = f.pedido && f.pallet && f.material && f.cajas > 0;
+      if (!vale && (f.pallet || f.material)) sinLlave++;
+      return vale;
+    });
 
   if (sinPedido) {
     avisos.push(
       `${sinPedido} filas sin pedido de traslado: se guardan bajo su entrega y esos camiones ` +
-        'se reciben a ciegas.',
-    )
+        "se reciben a ciegas.",
+    );
   }
   if (sinLlave) {
     avisos.push(
       `${sinLlave} filas sin ninguna llave —ni pedido ni entrega— o sin pallet, material o ` +
-        'cantidad: no entran. Son pallets ya hechos que todavía no tienen envío.',
-    )
+        "cantidad: no entran. Son pallets ya hechos que todavía no tienen envío.",
+    );
   }
 
-  return { kind: 'INGRESO', leidas: filas.length, avisos, ingresos: salida }
+  return { kind: "INGRESO", leidas: filas.length, avisos, ingresos: salida };
 }
+
+/** Lo que `cargar_despachos` sabe convertir; lo demás entra como unidades sueltas. */
+const UM_CONOCIDAS = new Set(["CA", "DOC", "UN"]);
 
 /**
  * El ZRDT es una sola hoja de 86 columnas. La clave es transporte + entrega + posición, y se
  * comprobó única en las 25,873 filas del extracto de noviembre.
  */
 async function despachos(libro: Libro, donde: Donde): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
+  const { indice, filas } = await filasDe(libro, donde);
   const C = {
-    transporte: indice('Número Transporte'),
-    entrega: indice('Entrega'),
-    posicion: indice('Posición'),
-    material: indice('Material'),
-    cantidad: indice('Cantidad'),
-    um: indice('UM venta'),
-    cliente: indice('Nombre Cliente'),
-  }
+    transporte: indice("Número Transporte"),
+    entrega: indice("Entrega"),
+    posicion: indice("Posición"),
+    material: indice("Material"),
+    cantidad: indice("Cantidad"),
+    um: indice("UM venta"),
+    cliente: indice("Nombre Cliente"),
+  };
 
-  const avisos: string[] = []
-  let enCero = 0
-  let sinUm = 0
+  const avisos: string[] = [];
+  let enCero = 0;
+  let sinUm = 0;
+  /**
+   * Las unidades de venta que la carga sabe convertir a unidades base: la caja trae las
+   * suyas, la docena son doce y la unidad es una. Cualquier otra se cargaría como unidades
+   * sueltas sin decir nada, y una caja contada como una unidad es un camión que sale vacío.
+   */
+  const otrasUm = new Set<string>();
 
   const salida = filas
-    .map(
-      (f): FilaDespacho => ({
-        transporte: sinCeros(f[C.transporte]),
-        entrega: sinCeros(f[C.entrega]),
-        posicion: numero(f[C.posicion]),
-        material: limpio(f[C.material]),
-        cantidad: numero(f[C.cantidad]),
-        um: limpio(f[C.um]),
-        cliente: limpio(f[C.cliente]),
-      }),
-    )
+    .map((f): FilaDespacho => ({
+      transporte: sinCeros(f[C.transporte]),
+      entrega: sinCeros(f[C.entrega]),
+      posicion: numero(f[C.posicion]),
+      material: limpio(f[C.material]),
+      cantidad: numero(f[C.cantidad]),
+      um: limpio(f[C.um]),
+      cliente: limpio(f[C.cliente]),
+    }))
     .filter((f) => {
-      if (!f.transporte || !f.material) return false
+      if (!f.transporte || !f.material) return false;
       if (f.cantidad <= 0) {
-        enCero++
-        return false
+        enCero++;
+        return false;
       }
       if (!f.um) {
-        sinUm++
-        return false
+        sinUm++;
+        return false;
       }
-      return true
-    })
+      if (!UM_CONOCIDAS.has(f.um)) otrasUm.add(f.um);
+      return true;
+    });
 
   if (enCero) {
-    avisos.push(`${enCero} líneas con cantidad cero: traen material pero nada que surtir.`)
+    avisos.push(
+      `${enCero} líneas con cantidad cero: traen material pero nada que surtir.`,
+    );
   }
-  if (sinUm) avisos.push(`${sinUm} líneas sin unidad de venta: no se puede saber cuánto es.`)
+  if (sinUm)
+    avisos.push(
+      `${sinUm} líneas sin unidad de venta: no se puede saber cuánto es.`,
+    );
+  if (otrasUm.size > 0) {
+    avisos.push(
+      `Unidad de venta desconocida (${[...otrasUm].sort().join(", ")}): esas líneas entran` +
+        " como unidades sueltas. Si alguna es una caja, el camión saldría corto.",
+    );
+  }
 
-  return { kind: 'DESPACHO', leidas: filas.length, avisos, despachos: salida }
+  return { kind: "DESPACHO", leidas: filas.length, avisos, despachos: salida };
 }
 
 /**
@@ -221,47 +240,50 @@ async function despachos(libro: Libro, donde: Donde): Promise<Leido> {
  * columna `Trans./Trasl.` por encima de cero. Esas sí entran.
  */
 async function inventario(libro: Libro, donde: Donde): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
+  const { indice, filas } = await filasDe(libro, donde);
   const C = {
-    centro: indice('Centro'),
-    almacen: indice('Almacén'),
-    material: indice('Material'),
-    nombre: indice('Texto breve de material'),
-    uom: indice('Unidad medida base'),
-    libre: indice('Libre utilización'),
-    pendiente: indice('Cantidad pendiente'),
-    bloqueado: indice('Bloqueado'),
-    transito: indice('Trans./Trasl.'),
-  }
+    centro: indice("Centro"),
+    almacen: indice("Almacén"),
+    material: indice("Material"),
+    nombre: indice("Texto breve de material"),
+    uom: indice("Unidad medida base"),
+    libre: indice("Libre utilización"),
+    pendiente: indice("Cantidad pendiente"),
+    bloqueado: indice("Bloqueado"),
+    transito: indice("Trans./Trasl."),
+  };
 
-  const avisos: string[] = []
-  let totales = 0
+  const avisos: string[] = [];
+  let totales = 0;
 
   const salida = filas
-    .map(
-      (f): FilaInventario => ({
-        centro: limpio(f[C.centro]),
-        almacen: limpio(f[C.almacen]),
-        material: limpio(f[C.material]),
-        nombre: limpio(f[C.nombre]),
-        uom: limpio(f[C.uom]) || 'CA',
-        libre: numero(f[C.libre]),
-        pendiente: numero(f[C.pendiente]),
-        bloqueado: numero(f[C.bloqueado]),
-        transito: numero(f[C.transito]),
-      }),
-    )
+    .map((f): FilaInventario => ({
+      centro: limpio(f[C.centro]),
+      almacen: limpio(f[C.almacen]),
+      material: limpio(f[C.material]),
+      nombre: limpio(f[C.nombre]),
+      uom: limpio(f[C.uom]) || "CA",
+      libre: numero(f[C.libre]),
+      pendiente: numero(f[C.pendiente]),
+      bloqueado: numero(f[C.bloqueado]),
+      transito: numero(f[C.transito]),
+    }))
     .filter((f) => {
       if (!f.centro || !f.material) {
-        totales++
-        return false
+        totales++;
+        return false;
       }
-      return true
-    })
+      return true;
+    });
 
-  if (totales) avisos.push(`${totales} fila de totales del reporte: no entra.`)
+  if (totales) avisos.push(`${totales} fila de totales del reporte: no entra.`);
 
-  return { kind: 'INVENTARIO', leidas: filas.length, avisos, inventario: salida }
+  return {
+    kind: "INVENTARIO",
+    leidas: filas.length,
+    avisos,
+    inventario: salida,
+  };
 }
 
 /**
@@ -269,36 +291,40 @@ async function inventario(libro: Libro, donde: Donde): Promise<Leido> {
  * la bodega y se suma por material y mes, que es el grano que el ABC necesita. El archivo se
  * llama «Nov-Ene» pero trae doce meses.
  */
-async function pronostico(libro: Libro, donde: Donde, zona: string): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
+async function pronostico(
+  libro: Libro,
+  donde: Donde,
+  zona: string,
+): Promise<Leido> {
+  const { indice, filas } = await filasDe(libro, donde);
   const C = {
-    pais: indice('País'),
-    material: indice('Material'),
-    nombre: indice('Descripción de Material'),
-    anio: indice('Año'),
-    periodo: indice('Período'),
-    pronostico: indice('Pronóstico'),
-    pallets: indice('PP'),
-    cajasPallet: indice('Cantidad cajas Pallet'),
-  }
+    pais: indice("País"),
+    material: indice("Material"),
+    nombre: indice("Descripción de Material"),
+    anio: indice("Año"),
+    periodo: indice("Período"),
+    pronostico: indice("Pronóstico"),
+    pallets: indice("PP"),
+    cajasPallet: indice("Cantidad cajas Pallet"),
+  };
 
-  const juntas = new Map<string, FilaPronostico>()
-  let deLaZona = 0
-  let sinEstiba = 0
+  const juntas = new Map<string, FilaPronostico>();
+  let deLaZona = 0;
+  let sinEstiba = 0;
 
   for (const f of filas) {
-    if (limpio(f[C.pais]) !== zona) continue
-    deLaZona++
-    const material = limpio(f[C.material])
-    const anio = numero(f[C.anio])
-    const periodo = numero(f[C.periodo])
-    const clave = `${material}|${anio}|${periodo}`
-    const previa = juntas.get(clave)
-    const cajasPallet = numero(f[C.cajasPallet])
-    if (!cajasPallet) sinEstiba++
+    if (limpio(f[C.pais]) !== zona) continue;
+    deLaZona++;
+    const material = limpio(f[C.material]);
+    const anio = numero(f[C.anio]);
+    const periodo = numero(f[C.periodo]);
+    const clave = `${material}|${anio}|${periodo}`;
+    const previa = juntas.get(clave);
+    const cajasPallet = numero(f[C.cajasPallet]);
+    if (!cajasPallet) sinEstiba++;
     if (previa) {
-      previa.cajas += numero(f[C.pronostico])
-      previa.pallets += numero(f[C.pallets])
+      previa.cajas += numero(f[C.pronostico]);
+      previa.pallets += numero(f[C.pallets]);
     } else {
       juntas.set(clave, {
         zona,
@@ -309,23 +335,28 @@ async function pronostico(libro: Libro, donde: Donde, zona: string): Promise<Lei
         cajas: numero(f[C.pronostico]),
         pallets: numero(f[C.pallets]),
         cajas_por_pallet: cajasPallet,
-      })
+      });
     }
   }
 
-  const avisos: string[] = []
-  if (!deLaZona) avisos.push(`El archivo no trae ninguna fila de «${zona}».`)
+  const avisos: string[] = [];
+  if (!deLaZona) avisos.push(`El archivo no trae ninguna fila de «${zona}».`);
   if (sinEstiba) {
-    avisos.push(`${sinEstiba} filas sin cajas por pallet: de ésas no se puede calcular espacio.`)
+    avisos.push(
+      `${sinEstiba} filas sin cajas por pallet: de ésas no se puede calcular espacio.`,
+    );
   }
 
   return {
-    kind: 'PRONOSTICO',
+    kind: "PRONOSTICO",
     leidas: filas.length,
     avisos,
     pronostico: [...juntas.values()],
-    resumen: { de_la_zona: deLaZona, materiales: new Set([...juntas.values()].map((f) => f.material)).size },
-  }
+    resumen: {
+      de_la_zona: deLaZona,
+      materiales: new Set([...juntas.values()].map((f) => f.material)).size,
+    },
+  };
 }
 
 /**
@@ -341,33 +372,33 @@ async function pronostico(libro: Libro, donde: Donde, zona: string): Promise<Lei
  * receptor». Se busca cada columna por sus dos nombres y el que exista gana.
  */
 async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
-  const corto = indice('Doc.mat.') >= 0
+  const { indice, filas } = await filasDe(libro, donde);
+  const corto = indice("Doc.mat.") >= 0;
   const C = {
-    material: indice('Material'),
-    nombre: indice('Texto breve de material'),
-    cantidad: indice('Ctd.en UM entrada'),
-    centro: indice(corto ? 'Ce.' : 'Centro'),
-    receptor: indice(corto ? 'Centro' : 'Centro receptor'),
-    clase: indice(corto ? 'CMv' : 'Clase de movimiento'),
-    documento: indice(corto ? 'Doc.mat.' : 'Documento material'),
-    pedido: indice('Pedido'),
+    material: indice("Material"),
+    nombre: indice("Texto breve de material"),
+    cantidad: indice("Ctd.en UM entrada"),
+    centro: indice(corto ? "Ce." : "Centro"),
+    receptor: indice(corto ? "Centro" : "Centro receptor"),
+    clase: indice(corto ? "CMv" : "Clase de movimiento"),
+    documento: indice(corto ? "Doc.mat." : "Documento material"),
+    pedido: indice("Pedido"),
     // La `Referencia` del 641 es la entrega, y es la única llave que ata este archivo con el
     // ZRDN de las plantas que no mandan pedido de traslado: sin ella el mismo camión se abre
     // dos veces, una por cada número.
-    entrega: indice('Referencia'),
-    fecha: indice(corto ? 'Fe.contab.' : 'Fe.contabilización'),
-  }
+    entrega: indice("Referencia"),
+    fecha: indice(corto ? "Fe.contab." : "Fe.contabilización"),
+  };
 
-  const porClase = new Map<string, number>()
-  const salida: FilaSalida[] = []
+  const porClase = new Map<string, number>();
+  const salida: FilaSalida[] = [];
 
   for (const f of filas) {
-    const clase = limpio(f[C.clase])
-    if (!clase) continue
-    porClase.set(clase, (porClase.get(clase) ?? 0) + 1)
-    const pedido = sinCeros(f[C.pedido])
-    if (clase !== '641' || !pedido) continue
+    const clase = limpio(f[C.clase]);
+    if (!clase) continue;
+    porClase.set(clase, (porClase.get(clase) ?? 0) + 1);
+    const pedido = sinCeros(f[C.pedido]);
+    if (clase !== "641" || !pedido) continue;
     salida.push({
       pedido,
       entrega: sinCeros(f[C.entrega]),
@@ -379,26 +410,28 @@ async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
       centro_receptor: limpio(f[C.receptor]),
       clase,
       fecha: fecha(f[C.fecha]),
-    })
+    });
   }
 
-  const avisos: string[] = []
-  const con641 = porClase.get('641') ?? 0
+  const avisos: string[] = [];
+  const con641 = porClase.get("641") ?? 0;
   if (!con641) {
     avisos.push(
-      'Este extracto no trae ni un movimiento 641, que es el único que lleva pedido de ' +
-        'traslado y el único que ata con el ZRDN. Sin ellos no hay nada que cargar: hay que ' +
-        'pedir el reporte sin filtrar la clase de movimiento.',
-    )
+      "Este extracto no trae ni un movimiento 641, que es el único que lleva pedido de " +
+        "traslado y el único que ata con el ZRDN. Sin ellos no hay nada que cargar: hay que " +
+        "pedir el reporte sin filtrar la clase de movimiento.",
+    );
   }
 
   return {
-    kind: 'SALIDAS',
+    kind: "SALIDAS",
     leidas: filas.length,
     avisos,
     salidas: salida,
-    resumen: Object.fromEntries([...porClase].map(([c, n]) => [`clase_${c}`, n])),
-  }
+    resumen: Object.fromEntries(
+      [...porClase].map(([c, n]) => [`clase_${c}`, n]),
+    ),
+  };
 }
 
 /**
@@ -413,38 +446,47 @@ async function salidas(libro: Libro, donde: Donde): Promise<Leido> {
  * manda ni una fila a la base.
  */
 async function traza(libro: Libro, donde: Donde): Promise<Leido> {
-  const { indice, filas } = await filasDe(libro, donde)
-  const pallets = new Set(filas.map((f) => limpio(f[indice('Pallet Actual')])))
-  const materiales = new Set(filas.map((f) => limpio(f[indice('Código Material SAP')])))
-  const plantas = new Set(filas.map((f) => limpio(f[indice('Planta')])))
+  const { indice, filas } = await filasDe(libro, donde);
+  const pallets = new Set(filas.map((f) => limpio(f[indice("Pallet Actual")])));
+  const materiales = new Set(
+    filas.map((f) => limpio(f[indice("Código Material SAP")])),
+  );
+  const plantas = new Set(filas.map((f) => limpio(f[indice("Planta")])));
   return {
-    kind: 'TRAZA',
+    kind: "TRAZA",
     leidas: filas.length,
     avisos: [
-      'Este archivo no se guarda ni hace falta: el pallet, el lote y el vencimiento ya vienen ' +
-        'en el ZRDN y se comprobó que coinciden. Además sólo lo etiquetan algunas plantas, ' +
-        'así que nunca va a estar completo. Queda el registro de que se subió.',
+      "Este archivo no se guarda ni hace falta: el pallet, el lote y el vencimiento ya vienen " +
+        "en el ZRDN y se comprobó que coinciden. Además sólo lo etiquetan algunas plantas, " +
+        "así que nunca va a estar completo. Queda el registro de que se subió.",
     ],
-    resumen: { pallets: pallets.size, materiales: materiales.size, plantas: plantas.size },
-  }
+    resumen: {
+      pallets: pallets.size,
+      materiales: materiales.size,
+      plantas: plantas.size,
+    },
+  };
 }
 
 /** Lee el archivo que sea y devuelve sus filas ya entendidas, o nada si no se reconoce. */
-export async function leer(libro: Libro, zonaDelPronostico: string): Promise<Leido | null> {
-  const donde = await reconocer(libro)
-  if (!donde) return null
+export async function leer(
+  libro: Libro,
+  zonaDelPronostico: string,
+): Promise<Leido | null> {
+  const donde = await reconocer(libro);
+  if (!donde) return null;
   switch (donde.kind) {
-    case 'INGRESO':
-      return ingresos(libro, donde)
-    case 'DESPACHO':
-      return despachos(libro, donde)
-    case 'INVENTARIO':
-      return inventario(libro, donde)
-    case 'PRONOSTICO':
-      return pronostico(libro, donde, zonaDelPronostico)
-    case 'SALIDAS':
-      return salidas(libro, donde)
-    case 'TRAZA':
-      return traza(libro, donde)
+    case "INGRESO":
+      return ingresos(libro, donde);
+    case "DESPACHO":
+      return despachos(libro, donde);
+    case "INVENTARIO":
+      return inventario(libro, donde);
+    case "PRONOSTICO":
+      return pronostico(libro, donde, zonaDelPronostico);
+    case "SALIDAS":
+      return salidas(libro, donde);
+    case "TRAZA":
+      return traza(libro, donde);
   }
 }
