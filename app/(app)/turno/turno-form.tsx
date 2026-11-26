@@ -68,6 +68,10 @@ export function TurnoForm({
   roles: UserRole[]
 }) {
   const [estado, accion, pending] = useActionState(iniciarTurno, null)
+  // El rol que está escogiendo, porque de él depende si «a pie» vale: de montacarguista no
+  // vale, y ofrecerlo por omisión era un callejón —entraba y la base lo rechazaba—.
+  const [rol, setRol] = useState<UserRole>(roles[0] ?? rango)
+  const conMontacargas = rol === 'montacargista'
 
   if (turno) {
     return (
@@ -145,7 +149,12 @@ export function TurnoForm({
       {roles.length > 1 ? (
         <label className="flex flex-col gap-1.5">
           <span className={ETIQUETA}>¿Como qué vas a trabajar?</span>
-          <select name="rol" defaultValue={roles[0]} className={CAMPO}>
+          <select
+            name="rol"
+            value={rol}
+            onChange={(e) => setRol(e.target.value as UserRole)}
+            className={CAMPO}
+          >
             {roles.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABELS[r]}
@@ -157,8 +166,10 @@ export function TurnoForm({
 
       <label className="flex flex-col gap-1.5">
         <span className={ETIQUETA}>¿Con qué vas a andar?</span>
-        <select name="tipo" defaultValue="" className={CAMPO}>
-          <option value="">A pie o con burro · sólo piso</option>
+        <select name="tipo" defaultValue="" className={CAMPO} required={conMontacargas}>
+          <option value="">
+            {conMontacargas ? 'Escoge: ¿de piso o de rack?' : 'A pie o con burro · sólo piso'}
+          </option>
           {tipos.map((t) => (
             <option key={t.code} value={t.code}>
               {t.name} · {franja(t)}
@@ -182,8 +193,12 @@ export function TurnoForm({
  * Es lo que pasa cuando no llegó el de rack: el supervisor le cambia de puesto a alguien y le
  * da el montacargas especial. Antes el equipo era de sólo lectura aquí, así que la única
  * manera era salir de trabajo y volver a entrar, y en el camino se perdía el andén y el rol
- * con el que andaba. Y quien ya es montacarguista no puede quedarse sin máquina: si va a pie,
- * lo que cambia es el rol, no el equipo.
+ * con el que andaba.
+ *
+ * Sólo le sale al que anda de montacarguista, y por dos razones: es el único para quien la
+ * máquina cambia qué tareas le caen, y es el único cuyos botones de rol no la traen ya —su
+ * rol no está entre los «otros»—. A los demás esta fila y la de abajo serían dos hileras de
+ * los mismos tres botones haciendo cosas distintas.
  */
 function CambiarEquipo({
   actual,
@@ -195,13 +210,12 @@ function CambiarEquipo({
   rol: UserRole
 }) {
   const otros = tipos.filter((t) => t.code !== actual)
-  const aPie = actual !== null && rol !== 'montacargista'
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  if (otros.length === 0 && !aPie) return null
+  if (rol !== 'montacargista' || otros.length === 0) return null
 
-  const cambiar = (code?: string) =>
+  const cambiar = (code: string) =>
     startTransition(async () => {
       const res = await cambiarEquipo(code)
       setError(res.ok ? null : res.error)
@@ -209,7 +223,7 @@ function CambiarEquipo({
 
   return (
     <div className="flex flex-col gap-2 border-t border-borde pt-4">
-      <span className={ETIQUETA}>Cambiar de equipo</span>
+      <span className={ETIQUETA}>Cambiar de montacargas</span>
       <div className="flex flex-wrap gap-2">
         {otros.map((t) => (
           <button
@@ -222,16 +236,6 @@ function CambiarEquipo({
             {t.name}
           </button>
         ))}
-        {aPie ? (
-          <button
-            type="button"
-            disabled={pending}
-            className={BOTON_SUAVE}
-            onClick={() => cambiar()}
-          >
-            Dejar el equipo
-          </button>
-        ) : null}
       </div>
       {error ? <Aviso>{error}</Aviso> : null}
     </div>

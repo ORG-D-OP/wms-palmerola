@@ -119,16 +119,14 @@ export async function trabajarComo(rol: string, tipo?: string) {
  * máquina especial. Antes el equipo era de sólo lectura dentro del turno: había que salir y
  * volver a entrar, y en el camino se perdía el andén y el rol con el que andaba.
  */
-export async function cambiarEquipo(tipo?: string) {
+export async function cambiarEquipo(tipo: string) {
   await requirePermission('turno:iniciar')
 
-  const equipo = z.string().trim().max(24).safeParse(tipo ?? '')
+  const equipo = z.string().trim().min(1).max(24).safeParse(tipo)
   if (!equipo.success) return { ok: false as const, error: 'Revisa el equipo.' }
 
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('cambiar_equipo', {
-    p_tipo_equipo: equipo.data || undefined,
-  })
+  const { error } = await supabase.rpc('cambiar_equipo', { p_tipo_equipo: equipo.data })
 
   if (error) return fallo(error)
   refrescar()
