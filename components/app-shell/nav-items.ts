@@ -67,7 +67,9 @@ const TODOS = [
   {
     href: '/turno',
     label: 'Disponibilidad',
-    icon: 'badge',
+    // `badge` es el de Personal, y los dos salían seguidos en la barra lateral con el mismo
+    // dibujo. Éste es el del turno: a qué hora se entra y a qué hora se sale.
+    icon: 'schedule',
     permiso: 'turno:iniciar',
     movil: false,
     grupo: 'operacion',
@@ -116,7 +118,7 @@ const TODOS = [
   },
   {
     href: '/conteos',
-    label: 'Conteos cíclicos',
+    label: 'Mandar a contar',
     icon: 'event_repeat',
     permiso: 'conteo:lanzar',
     movil: false,
@@ -134,7 +136,10 @@ const TODOS = [
     href: '/productos',
     label: 'Productos',
     icon: 'inventory_2',
-    permiso: null,
+    // El maestro de artículos se consulta: el mismo permiso que Buscar. No tenía ninguno.
+    // De grupo no se mueve: «Administración» es el bloque del jefe, y meterlo ahí le abriría
+    // ese bloque, con su título, al menú del auxiliar por un enlace que sí es suyo.
+    permiso: 'inventario:ver',
     movil: false,
     grupo: 'inventario',
   },

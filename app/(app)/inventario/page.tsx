@@ -4,7 +4,7 @@ import { Buscador } from './buscador'
 import { plural } from '@/lib/plural'
 import { fecha } from '@/lib/fechas'
 
-export const metadata = { title: 'Inventario · WMS Palmerola' }
+export const metadata = { title: 'Buscar · WMS Palmerola' }
 
 const LIMITE = 100
 
@@ -35,7 +35,8 @@ export default async function InventarioPage({
 
   const filas = data ?? []
   const vinoJunto = hermanas ?? []
-  const totalUnidades = filas.reduce((a, f) => a + Number(f.qty_base ?? 0), 0)
+  // Redondeado, como en todas partes: el sistema cuenta en unidades enteras.
+  const totalUnidades = Math.round(filas.reduce((a, f) => a + Number(f.qty_base ?? 0), 0))
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 pb-8 md:p-8">

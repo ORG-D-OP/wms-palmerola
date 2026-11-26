@@ -1,10 +1,18 @@
 const numero = (n: number) => n.toLocaleString('es-HN')
 
-/** Cuántas cajas completas y cuántas unidades sueltas son una cantidad en unidades base. */
+/**
+ * Cuántas cajas completas y cuántas unidades sueltas son una cantidad en unidades base.
+ *
+ * En unidades enteras, porque media bolsa no existe. Antes redondeaba a tres decimales y lo
+ * que salía por pantalla era «4.956 sueltas» y «0.18 sueltas»: el decimal viene de SAP, que
+ * cuenta en cajas partidas, y se arrastraba hasta la hoja del chequeador. La misma cuenta
+ * que `texto_cajas` en la base.
+ */
 export function desglose(qty: number, porCaja: number) {
   const factor = porCaja > 0 ? porCaja : 1
-  const cajas = Math.floor(qty / factor)
-  return { cajas, sueltas: Math.round((qty - cajas * factor) * 1000) / 1000 }
+  const enteras = Math.round(qty)
+  const cajas = Math.floor(enteras / factor)
+  return { cajas, sueltas: enteras - cajas * factor }
 }
 
 /**

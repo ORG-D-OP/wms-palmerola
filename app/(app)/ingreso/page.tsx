@@ -1,16 +1,26 @@
 import { requirePermission } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { IngresoForm, type Abierto } from './ingreso-form'
+import { IngresoForm, type Abierto, type Anunciado } from './ingreso-form'
 import { buscarIngreso } from './actions'
 
 export const metadata = { title: 'Ingreso · WMS Palmerola' }
+
+/**
+ * Cuántos camiones anunciados se listan.
+ *
+ * El respaldo de SAP trae todo lo que no se ha cerrado —hoy pasan de novecientos, de
+ * octubre para acá— y eso no es una cola de trabajo. La cola son los de estos días: veinte
+ * y pico al día es lo que anuncia la planta. El que busque uno más viejo lo escanea, que
+ * para eso está la caja de arriba.
+ */
+const ANUNCIADOS = 25
 
 export default async function IngresoPage() {
   const user = await requirePermission('inventario:mover')
 
   const supabase = await createSupabaseServerClient()
-  const [{ data }, { data: enCurso }, { data: medias }] = await Promise.all([
+  const [{ data }, { data: enCurso }, { data: medias }, { data: esperando }] = await Promise.all([
     supabase.from('anden_de_recibo').select('location_id, anden').order('anden'),
     supabase.rpc('ingreso_en_curso'),
     // El de su andén primero, y luego el que se tocó hace menos: ése es el orden en que se
@@ -20,6 +30,14 @@ export default async function IngresoPage() {
       .select('pedido, anden, pallets, recibidos, sin_aviso')
       .order('de_mi_anden', { ascending: false })
       .order('ultimo', { ascending: false, nullsFirst: false }),
+    // Los que SAP anunció y nadie ha abierto todavía. El ingreso empezaba escribiendo ocho
+    // cifras: quien no las trae apuntadas no tenía dónde mirarlas.
+    supabase
+      .from('inbound_doc')
+      .select('pedido, planned_at, inbound_line(count)')
+      .eq('status', 'ARRIVED')
+      .order('planned_at', { ascending: false })
+      .limit(ANUNCIADOS),
   ])
 
   const docks = (data ?? []).map((d) => ({ id: d.location_id!, code: d.anden! }))
@@ -43,6 +61,13 @@ export default async function IngresoPage() {
               pallets: m.pallets ?? 0,
               recibidos: m.recibidos ?? 0,
               sinAviso: m.sin_aviso ?? false,
+            }),
+          )}
+          anunciados={(esperando ?? []).map(
+            (a): Anunciado => ({
+              pedido: a.pedido,
+              fecha: a.planned_at,
+              productos: a.inbound_line[0]?.count ?? 0,
             }),
           )}
           deAnden={can(user.roles, 'ingresos:administrar')}

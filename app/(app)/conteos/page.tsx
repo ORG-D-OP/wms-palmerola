@@ -5,7 +5,7 @@ import { plural } from '@/lib/plural'
 import { fechaYHora } from '@/lib/warehouse/hora'
 import { textoCajas } from '@/lib/cajas'
 
-export const metadata = { title: 'Conteos · WMS Palmerola' }
+export const metadata = { title: 'Mandar a contar · WMS Palmerola' }
 
 const NIVELES = [0, 1, 2, 3, 4, 5, 6]
 
@@ -75,7 +75,7 @@ export default async function ConteosPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
-      <h1 className="text-xl">Conteos cíclicos</h1>
+      <h1 className="text-xl">Mandar a contar</h1>
 
       <Lanzar
         zonas={[...porClase, ...porZona]}

@@ -183,6 +183,14 @@ check(
 
 const { rows: suelo } = await db.query(`select * from que_hay_en('F1-001-01')`)
 check(suelo.length === 1, 'un cuadro de piso es una sola posicion')
+// El panel escribia «ALMACEN», que es el codigo con el que la tabla se llama a si misma. El
+// nombre bueno esta en `area.name` y lo pone la funcion: una lista de codigos a nombres
+// escrita en la pantalla se desfasa el dia que el jefe de bodega crea un area.
+check(
+  suelo[0].area === 'Almacen de pallets completos' ||
+    suelo[0].area === 'Almacén de pallets completos',
+  `el area sale con su nombre, no con su codigo (salio «${suelo[0].area}»)`,
+)
 check(
   (await db.query(`select * from que_hay_en('F1')`)).rows.length === 0,
   'un bloque entero no es un cuadro: no devuelve nada',

@@ -32,11 +32,19 @@ export type Abierto = {
   sinAviso: boolean
 }
 
+/** Un camión que SAP anunció y que nadie ha abierto todavía. */
+export type Anunciado = {
+  pedido: string
+  fecha: string | null
+  productos: number
+}
+
 export function IngresoForm({
   docks,
   anden,
   abierto,
   abiertos,
+  anunciados,
   deAnden,
 }: {
   docks: Dock[]
@@ -50,6 +58,12 @@ export function IngresoForm({
    * el pedido de ocho cifras.
    */
   abiertos: Abierto[]
+  /**
+   * Los que vienen y no ha abierto nadie, del último anunciado hacia atrás. Es la otra mitad
+   * de lo mismo: sin esta lista, el que llega sin el papel en la mano no tiene por dónde
+   * empezar.
+   */
+  anunciados: Anunciado[]
   /**
    * El que manda en el andén: abre un ingreso sin aviso y corrige las cajas que bajaron. El
    * auxiliar sí recibe pallets de un ingreso ya abierto, pero no hace ninguna de esas dos.
@@ -236,6 +250,35 @@ export function IngresoForm({
                       {a.sinAviso
                         ? `${plural(a.recibidos, 'pallet bajado', 'pallets bajados')}, sin lista`
                         : `${a.recibidos} de ${a.pallets} bajados`}
+                    </span>
+                    <Icon name="chevron_right" className="!text-[18px] shrink-0" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {anunciados.length > 0 ? (
+          <section className="flex flex-col gap-2 border-t border-borde pt-5">
+            <span className={ETIQUETA}>Camiones anunciados</span>
+
+            <ul className="flex flex-col divide-y divide-borde">
+              {anunciados.map((a) => (
+                <li key={a.pedido}>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setError(null)
+                      cargar(a.pedido)
+                    }}
+                    className="flex w-full items-baseline gap-3 py-2 text-left"
+                  >
+                    <span className="font-mono tabular-nums">{a.pedido}</span>
+                    <span className="min-w-0 flex-1 text-xs text-azul/60">
+                      {a.fecha ? fecha(a.fecha) : 'sin fecha'} ·{' '}
+                      {plural(a.productos, 'producto', 'productos')}
                     </span>
                     <Icon name="chevron_right" className="!text-[18px] shrink-0" />
                   </button>

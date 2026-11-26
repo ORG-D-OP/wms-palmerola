@@ -32,6 +32,13 @@ export type SessionUser = {
    * así que va escrito arriba, donde se ve sin preguntar.
    */
   anden: string | null
+  /**
+   * Con qué máquina anda hoy. Desde que el reparto es por clase —el de piso sólo a piso, el
+   * de rack sólo a rack— esto decide qué tareas le caen, así que va arriba, al lado del
+   * andén: quien no ve una tarea en toda la mañana tiene que poder saber si es que no hay o
+   * es que no le toca. Nulo mientras no haya turno abierto, o si entró a pie.
+   */
+  equipo: string | null
 }
 
 /** cache() evita repetir la consulta cuando varios componentes del mismo render la piden. */
@@ -58,7 +65,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const [{ data: turno }, { count: enMano }] = await Promise.all([
     supabase
       .from('shift_assignment')
-      .select('working_role, dock_door(code)')
+      .select('working_role, dock_door(code), equipment_type(name)')
       .eq('profile_id', user.id)
       .is('ended_at', null)
       .maybeSingle(),
@@ -78,6 +85,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     workingRole: turno?.working_role ? rolDe(turno.working_role) : rango,
     tareasEnMano: (enMano ?? 0) > 0,
     anden: turno?.dock_door?.code ?? null,
+    equipo: turno?.equipment_type?.name ?? null,
   }
 })
 

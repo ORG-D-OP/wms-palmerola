@@ -217,3 +217,18 @@ check((await cajasDe('T1')) === 120 && (await cajasDe('T2')) === 72, 'los dos ca
 await despachar([linea('T2', 10, 3), linea('T2', 20, 4)])
 check((await cajasDe('T1')) === 120, 'el camión que no viene en la ventana se queda como estaba')
 check((await cajasDe('T2')) === 168, 'y el que viene queda con su complemento entero')
+
+// SAP cuenta en cajas con tres decimales —5.415 CA— y nosotros en unidades enteras, porque
+// media bolsa no existe. Sin redondear, 5.415 x 24 = 129.96 y ese .96 se arrastraba hasta la
+// hoja que el chequeador tiene en la mano: «faltan 3 cajas y 4.956 sueltas».
+await despachar([linea('T3', 10, 5.415)])
+check(
+  (await cajasDe('T3')) === 130,
+  'la caja partida de SAP entra en unidades enteras, no con el decimal pegado',
+)
+
+// Y al salir por pantalla, lo mismo: lo que ya esta escrito con decimal se dice en entero.
+check(
+  (await one(`select texto_cajas(129.96, 24) as t`)).t === '5 cajas y 10 sueltas',
+  'y ninguna pantalla imprime un pedazo de unidad',
+)
