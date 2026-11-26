@@ -490,6 +490,7 @@ export type Database = {
       inbound_doc: {
         Row: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
@@ -508,6 +509,7 @@ export type Database = {
         }
         Insert: {
           cajas_sap?: number | null
+          cierre_nota?: string | null
           created_at?: string
           dock_door_id?: string | null
           entrega?: string | null
@@ -526,6 +528,7 @@ export type Database = {
         }
         Update: {
           cajas_sap?: number | null
+          cierre_nota?: string | null
           created_at?: string
           dock_door_id?: string | null
           entrega?: string | null
@@ -652,6 +655,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           lot: string | null
+          no_llego_at: string | null
           pallet_code: string
           product_id: string
           qty_cases: number
@@ -664,6 +668,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           lot?: string | null
+          no_llego_at?: string | null
           pallet_code: string
           product_id: string
           qty_cases: number
@@ -676,6 +681,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           lot?: string | null
+          no_llego_at?: string | null
           pallet_code?: string
           product_id?: string
           qty_cases?: number
@@ -3727,6 +3733,18 @@ export type Database = {
         }
         Relationships: []
       }
+      ingresos_abiertos: {
+        Row: {
+          anden: string | null
+          de_mi_anden: boolean | null
+          pallets: number | null
+          pedido: string | null
+          recibidos: number | null
+          sin_aviso: boolean | null
+          ultimo: string | null
+        }
+        Relationships: []
+      }
       inventario: {
         Row: {
           area_code: string | null
@@ -4527,6 +4545,7 @@ export type Database = {
         Args: { p_nota?: string; p_origen?: string }
         Returns: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
@@ -4812,10 +4831,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      cerrar_ingreso_sin_aviso: {
-        Args: { p_pedido: string }
+      cerrar_ingreso: {
+        Args: { p_forzar?: boolean; p_nota?: string; p_pedido: string }
         Returns: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
