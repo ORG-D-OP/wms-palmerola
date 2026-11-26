@@ -27,6 +27,12 @@ export type SessionUser = {
    * rol con algo empezado.
    */
   tareasEnMano: boolean
+  /**
+   * El andén en el que está parada hoy. Decide qué tareas le caen —`claim_next_task` sólo le
+   * da las que salen o entran por ahí— y qué camión retoma al volver a Ingreso o a Despacho,
+   * así que va escrito arriba, donde se ve sin preguntar.
+   */
+  anden: string | null
 }
 
 /** cache() evita repetir la consulta cuando varios componentes del mismo render la piden. */
@@ -53,7 +59,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const [{ data: turno }, { count: enMano }] = await Promise.all([
     supabase
       .from('shift_assignment')
-      .select('working_role')
+      .select('working_role, dock_door(code)')
       .eq('profile_id', user.id)
       .is('ended_at', null)
       .maybeSingle(),
@@ -72,6 +78,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     roles: [...new Set([rango, ...concedidos])],
     workingRole: turno?.working_role ? rolDe(turno.working_role) : rango,
     tareasEnMano: (enMano ?? 0) > 0,
+    anden: turno?.dock_door?.code ?? null,
   }
 })
 

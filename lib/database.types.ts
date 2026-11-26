@@ -488,6 +488,7 @@ export type Database = {
         Row: {
           cajas_sap: number | null
           created_at: string
+          dock_door_id: string | null
           entrega: string | null
           goods_issue: string | null
           id: string
@@ -505,6 +506,7 @@ export type Database = {
         Insert: {
           cajas_sap?: number | null
           created_at?: string
+          dock_door_id?: string | null
           entrega?: string | null
           goods_issue?: string | null
           id?: string
@@ -522,6 +524,7 @@ export type Database = {
         Update: {
           cajas_sap?: number | null
           created_at?: string
+          dock_door_id?: string | null
           entrega?: string | null
           goods_issue?: string | null
           id?: string
@@ -536,7 +539,29 @@ export type Database = {
           transporte?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inbound_doc_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "anden_de_carga"
+            referencedColumns: ["dock_door_id"]
+          },
+          {
+            foreignKeyName: "inbound_doc_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "anden_de_recibo"
+            referencedColumns: ["dock_door_id"]
+          },
+          {
+            foreignKeyName: "inbound_doc_dock_door_id_fkey"
+            columns: ["dock_door_id"]
+            isOneToOne: false
+            referencedRelation: "dock_door"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inbound_line: {
         Row: {
@@ -2166,6 +2191,7 @@ export type Database = {
           entregas: string[] | null
           id: string
           released_at: string | null
+          released_by: string | null
           ship_note: string | null
           shipped_at: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -2181,6 +2207,7 @@ export type Database = {
           entregas?: string[] | null
           id?: string
           released_at?: string | null
+          released_by?: string | null
           ship_note?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -2196,6 +2223,7 @@ export type Database = {
           entregas?: string[] | null
           id?: string
           released_at?: string | null
+          released_by?: string | null
           ship_note?: string | null
           shipped_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -2222,6 +2250,20 @@ export type Database = {
             columns: ["dock_door_id"]
             isOneToOne: false
             referencedRelation: "dock_door"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
           {
@@ -3580,6 +3622,7 @@ export type Database = {
       inbound_detail: {
         Row: {
           base_code: string | null
+          destino: string | null
           doc_id: string | null
           expiry_date: string | null
           id: string | null
@@ -3634,6 +3677,7 @@ export type Database = {
       }
       inbound_progress: {
         Row: {
+          anden: string | null
           cajas: number | null
           cajas_sap: number | null
           entrega: string | null
@@ -4478,6 +4522,7 @@ export type Database = {
         Returns: {
           cajas_sap: number | null
           created_at: string
+          dock_door_id: string | null
           entrega: string | null
           goods_issue: string | null
           id: string
@@ -4614,6 +4659,7 @@ export type Database = {
       buscar_ingreso: {
         Args: { p_pedido: string }
         Returns: {
+          anden: string | null
           cajas: number | null
           cajas_sap: number | null
           entrega: string | null
@@ -4742,6 +4788,7 @@ export type Database = {
         Returns: {
           cajas_sap: number | null
           created_at: string
+          dock_door_id: string | null
           entrega: string | null
           goods_issue: string | null
           id: string
@@ -4957,6 +5004,7 @@ export type Database = {
         Args: { p_forzar?: boolean; p_nota?: string; p_order_id: string }
         Returns: undefined
       }
+      despacho_en_curso: { Args: never; Returns: string }
       destino_valido: {
         Args: { p_codigo: string }
         Returns: {
@@ -5098,6 +5146,7 @@ export type Database = {
         Args: { p_codigos: string[]; p_kind: string }
         Returns: Json
       }
+      ingreso_en_curso: { Args: never; Returns: string }
       ingreso_por_codigo: { Args: { p_codigo: string }; Returns: string }
       iniciar_turno: {
         Args: {
@@ -5296,11 +5345,14 @@ export type Database = {
       que_hay_en: {
         Args: { p_cuadro: string }
         Returns: {
+          apartada: boolean
           area: string
+          caben: number
           cajas: number
           dist_despacho_m: number
           expiry_date: string
           grupo: string
+          guarda: boolean
           level: number
           location_code: string
           lot: string

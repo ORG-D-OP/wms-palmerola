@@ -5,10 +5,27 @@ import { navAgrupado, navMovil } from '@/components/app-shell/nav-items'
 import { BottomNav } from '@/components/app-shell/bottom-nav'
 import { SideNav } from '@/components/app-shell/side-nav'
 import { Icon } from '@/components/ui/icon'
+import { nombrePosicion } from '@/lib/posiciones'
 import { logout } from '@/app/(public)/login/actions'
 
 const BOTON_SALIR =
   'flex size-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white'
+
+/**
+ * El andén, arriba del todo y en las dos armazones.
+ *
+ * No es un adorno: es lo que decide qué tareas le caen y qué camión retoma al entrar a
+ * Ingreso o a Despacho. Quien se cambia de andén tiene que verlo cambiar.
+ */
+function Anden({ anden }: { anden: string | null }) {
+  if (!anden) return null
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-white/15 py-1 pl-1.5 pr-2.5 text-sm">
+      <Icon name="pin_drop" className="!text-[18px]" />
+      {nombrePosicion(anden)}
+    </span>
+  )
+}
 
 /**
  * Dos armazones, no uno estirado: el teléfono lleva la barra azul arriba y los cinco botones
@@ -24,9 +41,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1 flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-dvh w-61 shrink-0 flex-col bg-azul text-white md:flex">
-        <div className="flex flex-col gap-1.5 px-5 py-5">
+        <div className="flex flex-col items-start gap-1.5 px-5 py-5">
           <Image src="/logo-dinant.png" alt="Dinant" width={112} height={32} priority />
-          <p className="text-sm text-white/60">WMS Palmerola</p>
+          {user.anden ? (
+            <Anden anden={user.anden} />
+          ) : (
+            <p className="text-sm text-white/60">WMS Palmerola</p>
+          )}
         </div>
 
         <SideNav sueltos={sueltos} grupos={grupos} />
@@ -48,6 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-10 bg-azul text-white md:hidden">
           <div className="flex w-full items-center gap-4 px-4 py-3">
             <Image src="/logo-dinant.png" alt="Dinant" width={96} height={27} priority />
+            <Anden anden={user.anden} />
 
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden text-right leading-tight sm:block">

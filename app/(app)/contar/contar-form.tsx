@@ -14,7 +14,14 @@ import {
 } from './actions'
 import { plural } from '@/lib/plural'
 
-export type Pendiente = { tarea: string; posicion: string; zona: string; nivel: number | null }
+export type Pendiente = {
+  tarea: string
+  posicion: string
+  zona: string
+  nivel: number | null
+  /** Ya la abrió alguna vez: es donde se quedó. */
+  empezado: boolean
+}
 
 const numero = (n: number) =>
   n.toLocaleString('es-HN', { maximumFractionDigits: 2 })
@@ -149,6 +156,7 @@ export function ContarForm({
                     <span className="text-sm text-azul/60">
                       {p.zona}
                       {p.nivel ? ` · nivel ${p.nivel}` : ''}
+                      {p.empezado ? ' · empezada' : ''}
                     </span>
                   </button>
                 </li>

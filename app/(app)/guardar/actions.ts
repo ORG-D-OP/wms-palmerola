@@ -21,6 +21,12 @@ export type Job = {
   toCode: string | null
   /** La cara del rack al que va, cuando va a un rack. En piso no hay nada que levantar. */
   cara: Cara | null
+  /**
+   * Si el pallet ya está en los brazos. La tarea queda `IN_PROGRESS` desde que se escanea la
+   * matrícula, y sin mirarlo la pantalla volvía a pedirla cada vez que la persona entraba:
+   * el pallet iba camino al rack y el teléfono seguía diciendo «ve al andén».
+   */
+  empezada: boolean
 }
 
 type Fail = { ok: false; error: string }
@@ -75,6 +81,7 @@ export async function claimPutaway(): Promise<
       fromCode: data.from_location?.code ?? null,
       toCode,
       cara: await caraDe(supabase, toCode),
+      empezada: task.status === 'IN_PROGRESS',
     },
   }
 }

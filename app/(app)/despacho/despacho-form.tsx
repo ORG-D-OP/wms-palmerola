@@ -39,12 +39,15 @@ import { nombrePosicion } from '@/lib/posiciones'
  */
 export function DespachoForm({
   puedeCerrar,
+  abierto,
   andenes,
 }: {
   puedeCerrar: boolean
+  /** El camión que se está cargando en su andén, traído ya por el servidor. */
+  abierto: Camion | null
   andenes: string[]
 }) {
-  const [camion, setCamion] = useState<Camion | null>(null)
+  const [camion, setCamion] = useState<Camion | null>(abierto)
   const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
   const [cerrandoCorto, setCerrandoCorto] = useState(false)
@@ -352,6 +355,15 @@ function Renglon({
               <span className="text-rojo"> · faltan {textoCajas(falta, linea.porCaja)}</span>
             ) : null}
           </span>
+          {/*
+            De dónde sale. El chequeador lo usa para preguntar de dónde lo trajeron: si el
+            que sube el producto dice otra posición, algo se movió sin registrarse.
+          */}
+          {linea.desde.length > 0 ? (
+            <span className="block text-sm tabular-nums text-azul/60">
+              de {linea.desde.map(nombrePosicion).join(', ')}
+            </span>
+          ) : null}
         </span>
         <span className="shrink-0 text-right tabular-nums">
           <span className="block">{textoCajas(linea.pedido, linea.porCaja)}</span>
