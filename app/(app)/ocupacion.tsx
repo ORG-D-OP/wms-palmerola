@@ -5,6 +5,7 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { RackFace, type Cara } from '@/components/rack-face'
 import { WarehouseView } from '@/components/warehouse-view'
 import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
+import type { Pilas } from '@/lib/warehouse/plano'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
@@ -22,10 +23,12 @@ import { buscarCara, queHayEn, type Hueco } from './actions'
 export function Ocupacion({
   estados,
   segmentos,
+  pilas,
   permite3D,
 }: {
   estados: Estados
   segmentos: Segmentos
+  pilas: Pilas
   permite3D: boolean
 }) {
   const [cara, setCara] = useState<Cara | null>(null)
@@ -99,6 +102,7 @@ export function Ocupacion({
           <WarehouseView
             ocupacion={estados}
             segmentos={segmentos}
+            pilas={pilas}
             permite3D={permite3D}
             onTocar={(t) => tocar(t.celda)}
           />
@@ -106,6 +110,19 @@ export function Ocupacion({
       )}
     </section>
   )
+}
+
+/**
+ * Por qué no hay nada en esa posición, que no es lo mismo que estar libre.
+ *
+ * Una apartada por una tarea ya tiene dueño: alguien va en camino con su pallet, y mandarle
+ * otro encima es el descuadre de mañana. El mapa lo pintaba de celeste y el panel decía
+ * «libre», que es la contraria de lo que el color estaba diciendo.
+ */
+function porQueEstaVacia(h: Hueco): string {
+  if (h.apartada) return 'apartada por una tarea'
+  if (!h.guarda) return h.usage_name ?? 'otro uso'
+  return 'libre'
 }
 
 /**
@@ -124,6 +141,9 @@ function Cuadro({
 }) {
   const primero = cuadro.huecos[0]
   const llenos = cuadro.huecos.filter((h) => h.sku !== null)
+  // Un pallet mixto son varias filas de la misma matrícula: lo que se apila son matrículas.
+  const pallets = new Set(llenos.map((h) => h.lpn_code ?? h.location_code)).size
+  const apila = primero && primero.caben !== null && primero.caben > 1
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-borde p-4">
@@ -137,6 +157,11 @@ function Cuadro({
                 }${primero.dist_despacho_m ? ` · ${primero.dist_despacho_m} m a despacho` : ''}`
               : 'No hay ninguna posición con ese código'}
           </p>
+          {apila ? (
+            <p className="text-sm text-azul/60">
+              {pallets} de {primero.caben} pallets apilados
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -170,7 +195,7 @@ function Cuadro({
                   </span>
                 </>
               ) : (
-                <span className="text-azul/60">libre</span>
+                <span className="text-azul/60">{porQueEstaVacia(h)}</span>
               )}
             </li>
           ))}

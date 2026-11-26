@@ -98,3 +98,34 @@ const niveles = await one(
   `select count(*)::int as n from apilado_en_piso where sku = 'AP-2'`,
 )
 check(niveles.n === 1, 'la vista de apilado muestra solo lo que se apila')
+
+/*
+  Y que el mapa se entere, que es lo que faltaba: el dato estaba desde la 0047 y el tablero
+  pintaba un pallet donde hay dos. `planta()` manda la pila de cada posicion de piso y de ahi
+  salen el tono del cuadro, las rayas de los pallets y la pila del isometrico.
+*/
+const pilas = (await one(`select planta()->'pilas' as pilas`)).pilas ?? {}
+
+check(
+  pilas[pisoCode]?.hay === 2 && pilas[pisoCode]?.caben === 2,
+  `la planta dice que en ${pisoCode} hay 2 pallets de 2 que caben`,
+)
+check(
+  pilas[otroCode]?.hay === 1 && pilas[otroCode]?.caben === 1,
+  'y que al que no se apila le cabe uno y ese uno esta puesto',
+)
+
+await dejar(rack, apilable, 'PAL-R1')
+const conRack = (await one(`select planta()->'pilas' as pilas`)).pilas ?? {}
+check(
+  Object.keys(conRack).every((code) => !code.startsWith('R-')),
+  'la pila es cosa del piso: el rack no entra, que ahi la pila es la estanteria',
+)
+
+// Lo que sale al tocar el cuadro: cuantos caben, para poder decir «2 de 2 pallets apilados».
+const cuadro = (await db.query(`select * from que_hay_en($1)`, [pisoCode])).rows
+check(cuadro.length === 2, `tocar ${pisoCode} trae los dos pallets que tiene encima`)
+check(
+  cuadro.every((f) => f.caben === 2 && f.guarda === true && f.apartada === false),
+  'y cada uno dice que caben dos, que guarda producto y que no esta apartada',
+)

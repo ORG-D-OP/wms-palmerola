@@ -10,7 +10,12 @@ import {
   colorPlanimetria,
   FRANJAS,
   NAVE,
+  OCUPACION,
+  type Pilas,
+  type Punto,
+  rectangulo,
   ruta,
+  tonoOcupada,
   ubicar,
 } from '@/lib/warehouse/plano'
 import { Icon } from '@/components/ui/icon'
@@ -52,20 +57,20 @@ function porCuadro(ocupacion: Ocupacion): Map<string, Conteo> {
   return cuadros
 }
 
-const LIBRE = 'rgba(44, 43, 143, 0.1)'
-const OTRO_USO = 'rgba(44, 43, 143, 0.055)'
-const APARTADA = 'rgba(0, 155, 221, 0.45)'
-
 /**
- * El tono dice qué tan llena está esa posición. En piso es sí o no; en rack, cuántos de
- * sus niveles están ocupados, porque desde arriba los seis niveles son un solo cuadro. La
- * cara con nivel por nivel sale al llegar al rack, en Guardar y en Surtir.
+ * El tono dice qué tan llena está esa posición. En rack, cuántos de sus niveles están
+ * ocupados, porque desde arriba los seis niveles son un solo cuadro. En piso no hay niveles
+ * pero sí apilado: un cuadro con tres pallets encima no es lo mismo que uno con uno, y antes
+ * los dos salían del mismo azul. La cara con nivel por nivel sale al llegar al rack, en
+ * Guardar y en Surtir.
  */
-function tono(c: Conteo | undefined, niveles: number) {
-  if (!c) return LIBRE
-  if (c.ocupadas > 0) return `rgba(44, 43, 143, ${0.3 + (c.ocupadas / niveles) * 0.7})`
-  if (c.apartadas > 0) return APARTADA
-  return OTRO_USO
+function tono(c: Conteo | undefined, niveles: number, pila?: { hay: number; caben: number }) {
+  if (!c) return OCUPACION.libre
+  if (c.ocupadas > 0) {
+    return tonoOcupada(pila && pila.caben > 0 ? pila.hay / pila.caben : c.ocupadas / niveles)
+  }
+  if (c.apartadas > 0) return OCUPACION.apartada
+  return OCUPACION.otroUso
 }
 
 /**
@@ -83,6 +88,7 @@ function pintarEstatico(
   ocupacion: Ocupacion,
   modo: Modo,
   segmentos?: Segmentos,
+  pilas: Pilas = {},
 ) {
   const k = PX_POR_METRO
   const cuadros = porCuadro(ocupacion)
@@ -120,10 +126,30 @@ function pintarEstatico(
     }
     const niveles = b.niveles ?? 1
     for (const c of b.celdas) {
+      const pila = pilas[c.code]
       ctx.fillStyle = plano
         ? colorPlanimetria(c.code, noAlimento, picking)
-        : tono(cuadros.get(c.code), niveles)
+        : tono(cuadros.get(c.code), niveles, pila)
       ctx.fillRect(c.x * k, c.y * k, c.w * k, c.h * k)
+
+      /*
+        Los pallets apilados, uno por raya. El tono ya dice cuán lleno va el cuadro, pero de
+        lejos «lleno» y «lleno a la mitad» son dos azules y nadie cuenta azules: las rayas
+        dicen cuántos pallets hay, y al alejarse se funden en el tono sin estorbar.
+      */
+      if (!plano && pila && pila.hay > 1) {
+        ctx.save()
+        ctx.strokeStyle = COLOR.blanco
+        ctx.lineWidth = Math.max(1, 0.06 * k)
+        ctx.beginPath()
+        for (let n = 1; n < pila.hay; n++) {
+          const y = (c.y + (c.h * n) / pila.hay) * k
+          ctx.moveTo(c.x * k, y)
+          ctx.lineTo((c.x + c.w) * k, y)
+        }
+        ctx.stroke()
+        ctx.restore()
+      }
     }
   }
 
@@ -175,54 +201,131 @@ function etiquetas(ctx: CanvasRenderingContext2D, v: Vista) {
   ctx.restore()
 }
 
-/** Dibuja el camino y marca el destino encima de la planta ya pintada. */
-function guiado(ctx: CanvasRenderingContext2D, v: Vista, origen?: string, destino?: string) {
+/** La raya de la ruta: trozo pintado y hueco. Camina un ciclo entero por vuelta. */
+const RAYA = [10, 8]
+/** Lo que dura una vuelta del latido y del caminar de la raya, en milisegundos. */
+const CICLO = 1400
+/** Lo más chico que se deja ver la marca del destino, aunque el cuadro sea de un píxel. */
+const MARCA_MINIMA = 16
+
+/** La punta de flecha al final del camino, apuntando como el último tramo. */
+function puntaDeFlecha(ctx: CanvasRenderingContext2D, desde: Punto, hasta: Punto) {
+  const angulo = Math.atan2(hasta.y - desde.y, hasta.x - desde.x)
+  ctx.save()
+  ctx.translate(hasta.x, hasta.y)
+  ctx.rotate(angulo)
+  ctx.fillStyle = COLOR.verde
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.lineTo(-11, -6)
+  ctx.lineTo(-11, 6)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+/**
+ * Dibuja el camino y marca el destino encima de la planta ya pintada.
+ *
+ * El destino se ilumina en **su cuadro**, no en un círculo encima: lo que la persona va a
+ * mirar es la posición, y un círculo tapaba justo el cuadro que buscaba. La ruta es una raya
+ * que camina hacia allá, porque una raya quieta no dice para qué lado se va.
+ */
+function guiado(
+  ctx: CanvasRenderingContext2D,
+  v: Vista,
+  fase: number,
+  origen?: string,
+  destino?: string,
+) {
   const fin = destino ? ubicar(destino) : null
   if (!fin) return
   // Sin origen explicito, se traza desde el anden de descarga mas cercano.
   const ini = ubicar(origen ?? andenMasCercano(fin))
-  const aPantalla = (p: { x: number; y: number }) => ({
-    x: p.x * v.escala + v.x,
-    y: p.y * v.escala + v.y,
-  })
+  const aPantalla = (p: Punto) => ({ x: p.x * v.escala + v.x, y: p.y * v.escala + v.y })
 
   ctx.save()
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+
   if (ini) {
     const puntos = ruta(ini, fin).map(aPantalla)
+    const trazo = () => {
+      ctx.beginPath()
+      ctx.moveTo(puntos[0]!.x, puntos[0]!.y)
+      for (const p of puntos.slice(1)) ctx.lineTo(p.x, p.y)
+      ctx.stroke()
+    }
+
     ctx.strokeStyle = COLOR.verde
+    // El halo: sin él la raya se pierde sobre los cuadros azules.
+    ctx.globalAlpha = 0.3
+    ctx.lineWidth = 11
+    trazo()
+    ctx.globalAlpha = 1
     ctx.lineWidth = 4
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
-    ctx.setLineDash([10, 7])
-    ctx.beginPath()
-    ctx.moveTo(puntos[0]!.x, puntos[0]!.y)
-    for (const p of puntos.slice(1)) ctx.lineTo(p.x, p.y)
-    ctx.stroke()
+    ctx.setLineDash(RAYA)
+    ctx.lineDashOffset = -fase * (RAYA[0]! + RAYA[1]!)
+    trazo()
     ctx.setLineDash([])
 
+    const ultimo = puntos[puntos.length - 1]!
+    const penultimo = puntos[puntos.length - 2] ?? puntos[0]!
+    puntaDeFlecha(ctx, penultimo, ultimo)
+
     const a = aPantalla(ini)
-    ctx.fillStyle = COLOR.blanco
-    ctx.strokeStyle = COLOR.azul
-    ctx.lineWidth = 2
+    ctx.fillStyle = COLOR.azul
     ctx.beginPath()
-    ctx.arc(a.x, a.y, 7, 0, Math.PI * 2)
+    ctx.arc(a.x, a.y, 9, 0, Math.PI * 2)
     ctx.fill()
-    ctx.stroke()
+    ctx.fillStyle = COLOR.blanco
+    ctx.beginPath()
+    ctx.arc(a.x, a.y, 3.5, 0, Math.PI * 2)
+    ctx.fill()
   }
 
-  const b = aPantalla(fin)
-  ctx.fillStyle = COLOR.verde
-  ctx.strokeStyle = COLOR.azul
-  ctx.lineWidth = 2.5
-  ctx.beginPath()
-  ctx.arc(b.x, b.y, 11, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
+  const centro = aPantalla(fin)
+  const celda = rectangulo(destino!)
+  const ancho = Math.max(MARCA_MINIMA, (celda?.w ?? 0) * v.escala)
+  const alto = Math.max(MARCA_MINIMA, (celda?.h ?? 0) * v.escala)
+  const x = centro.x - ancho / 2
+  const y = centro.y - alto / 2
 
-  ctx.fillStyle = COLOR.azul
+  // El latido: el cuadro se enciende y se apaga, como en el diseño del celular.
+  const latido = 0.55 + 0.45 * Math.cos(fase * Math.PI * 2)
+  ctx.fillStyle = COLOR.blanco
+  ctx.fillRect(x, y, ancho, alto)
+  ctx.globalAlpha = latido
+  ctx.fillStyle = COLOR.verde
+  ctx.fillRect(x, y, ancho, alto)
+  ctx.globalAlpha = 1
+
+  ctx.strokeStyle = COLOR.azul
+  ctx.lineWidth = 2
+  ctx.strokeRect(x - 3, y - 3, ancho + 6, alto + 6)
+
+  // El aro que se abre y se desvanece: dice «aquí» sin tapar nada.
+  const radio = Math.max(ancho, alto) / 2
+  ctx.globalAlpha = 0.9 * (1 - fase)
+  ctx.beginPath()
+  ctx.arc(centro.x, centro.y, radio + fase * radio * 2.5, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.globalAlpha = 1
+
   ctx.font = '500 13px Inter, system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText(destino!, b.x, b.y - 18)
+  const etiqueta = destino!
+  const anchoTexto = ctx.measureText(etiqueta).width + 12
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)'
+  ctx.beginPath()
+  ctx.roundRect(centro.x - anchoTexto / 2, y - 28, anchoTexto, 20, 5)
+  ctx.fill()
+  ctx.strokeStyle = COLOR.borde
+  ctx.lineWidth = 1
+  ctx.stroke()
+  ctx.fillStyle = COLOR.azul
+  ctx.textBaseline = 'middle'
+  ctx.fillText(etiqueta, centro.x, y - 18)
   ctx.restore()
 }
 
@@ -284,6 +387,7 @@ export function WarehouseCanvas({
   onTocar,
   modo = 'ocupacion',
   segmentos,
+  pilas,
 }: {
   ocupacion: Ocupacion
   origen?: string
@@ -292,6 +396,8 @@ export function WarehouseCanvas({
   onTocar?: (toque: Toque) => void
   modo?: Modo
   segmentos?: Segmentos
+  /** Los pallets apilados en cada posición de piso. Sin esto, el piso se pinta de a uno. */
+  pilas?: Pilas
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const estaticoRef = useRef<HTMLCanvasElement | null>(null)
@@ -302,6 +408,8 @@ export function WarehouseCanvas({
   const pinchRef = useRef<number | null>(null)
   // Un toque es un puntero que bajo y subio casi en el mismo sitio; mas que eso es arrastre.
   const toqueRef = useRef<{ x: number; y: number; movido: boolean } | null>(null)
+  // En que punto del ciclo va la animacion del destino. En un ref: late sin re-renderizar.
+  const faseRef = useRef(0)
 
   const pintar = useCallback(() => {
     const canvas = canvasRef.current
@@ -322,7 +430,7 @@ export function WarehouseCanvas({
     const v = vistaRef.current
     ctx.drawImage(estatico, v.x, v.y, NAVE.ancho * v.escala, NAVE.alto * v.escala)
     etiquetas(ctx, v)
-    guiado(ctx, v, origen, destino)
+    guiado(ctx, v, faseRef.current, origen, destino)
   }, [origen, destino])
 
   /** Nunca deja que la nave se salga de la vista: si cabe entera, la centra. */
@@ -373,10 +481,30 @@ export function WarehouseCanvas({
     off.width = NAVE.ancho * PX_POR_METRO
     off.height = NAVE.alto * PX_POR_METRO
     const ctx = off.getContext('2d')
-    if (ctx) pintarEstatico(ctx, ocupacion, modo, segmentos)
+    if (ctx) pintarEstatico(ctx, ocupacion, modo, segmentos, pilas)
     estaticoRef.current = off
     encuadrar()
-  }, [ocupacion, modo, segmentos, encuadrar])
+  }, [ocupacion, modo, segmentos, pilas, encuadrar])
+
+  /*
+    Mientras haya un destino, el cuadro late y la raya camina. Fuera de eso el mapa no se
+    repinta solo: un bucle permanente es la pestaña del jefe gastando batería todo el día.
+  */
+  useEffect(() => {
+    if (!destino) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let id = 0
+    const paso = (t: number) => {
+      faseRef.current = (t % CICLO) / CICLO
+      pintar()
+      id = requestAnimationFrame(paso)
+    }
+    id = requestAnimationFrame(paso)
+    return () => {
+      cancelAnimationFrame(id)
+      faseRef.current = 0
+    }
+  }, [destino, pintar])
 
   // ResizeObserver: al montar el canvas todavia no tiene su ancho final.
   useEffect(() => {
@@ -423,7 +551,12 @@ export function WarehouseCanvas({
     <div className="relative overflow-hidden rounded-2xl border border-borde bg-white">
       <canvas
         ref={canvasRef}
-        className="block h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-grab touch-none active:cursor-grabbing"
+        /*
+          La flecha de siempre, no la manita de arrastrar: lo que casi siempre se hace aquí
+          es darle clic a un cuadro, y con la manita uno no sabe si va a mover el mapa.
+          Arrastrar sigue arrastrando, y ahí sí cambia el cursor.
+        */
+        className="block h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-default touch-none active:cursor-grabbing"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
           punterosRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })

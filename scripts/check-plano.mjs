@@ -188,4 +188,56 @@ check(
   'un bloque entero no es un cuadro: no devuelve nada',
 )
 
+/*
+  Vacia no es libre. Una posicion apartada por una tarea tiene dueno: alguien va en camino con
+  su pallet, y mandarle otro encima es el descuadre de manana. El mapa la pintaba de celeste y
+  el panel de abajo decia «libre», la contraria de lo que el color estaba diciendo, porque
+  `que_hay_en` no devolvia ni la reserva ni si la posicion guarda producto.
+*/
+const { rows: tarea } = await db.query(
+  `insert into task (type, status) values ('PUTAWAY', 'READY') returning id`,
+)
+await db.query(
+  `update location set reserved_by_task_id = $1 where code = 'F1-002-01'`,
+  [tarea[0].id],
+)
+const { rows: apartada } = await db.query(`select * from que_hay_en('F1-002-01')`)
+check(
+  apartada[0].apartada === true && apartada[0].sku === null,
+  'una posicion apartada por una tarea sale apartada y sin producto',
+)
+check(
+  apartada[0].guarda === true,
+  'y sigue siendo de las que guardan producto: lo suyo es que ya tiene dueno',
+)
+const { rows: enMapa } = await db.query(
+  `select planta()->'apartadas' ? 'F1-002-01' as esta`,
+)
+check(enMapa[0].esta === true, 'y el mapa la pinta de apartada, no de libre')
+
+await db.query(`update location set usage_code = 'PALLET_VACIO' where code = 'F1-002-02'`)
+const { rows: otroUso } = await db.query(`select * from que_hay_en('F1-002-02')`)
+check(
+  otroUso[0].guarda === false && otroUso[0].usage_name === 'Guarda pallets vacíos',
+  'una que no guarda producto lo dice, y dice para que es',
+)
+
+/*
+  Y el isometrico tiene que levantar la pila: una posicion de piso con tres pallets son tres
+  cajas, una sobre otra, no una sola. El dibujo lo pide por posicion, asi que aqui se le dan
+  las pilas a mano y se cuentan las cajas que devuelve.
+*/
+const delPiso = (pilas) =>
+  cajas(pilas)
+    .flatMap((g) => g.cajas)
+    .filter((c) => c.code === 'F1-001-01')
+
+check(delPiso({}).length === 1, 'sin pilas, una posicion de piso es una caja')
+const tres = delPiso({ 'F1-001-01': { hay: 3, caben: 3 } })
+check(tres.length === 3, `con tres pallets son tres cajas (son ${tres.length})`)
+check(
+  new Set(tres.map((c) => c.y)).size === 3 && Math.min(...tres.map((c) => c.y)) === 0,
+  'y cada una va a su altura, la primera en el suelo',
+)
+
 await db.close()
