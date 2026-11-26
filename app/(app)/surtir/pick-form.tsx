@@ -16,6 +16,38 @@ import { nombrePosicion } from '@/lib/posiciones'
 type Paso = 'buscando' | 'ir' | 'tomar' | 'sin'
 
 /**
+ * Qué hay que sacar y, sobre todo, **cuál**.
+ *
+ * La pantalla decía el producto, la cantidad y el lote, y con eso mandaba a buscar entre
+ * varios pallets o varias cajas que se ven iguales: el mismo producto, el mismo lote y la
+ * misma cara. Lo que distingue uno de otro es la matrícula, y la tarea la sabe desde que
+ * nace. Así que se enseña grande, que es el número que va a leer en la etiqueta, y debajo si
+ * se lleva el pallet entero o cuántas cajas saca.
+ *
+ * Sin matrícula —hay tareas que no apuntan a un pallet concreto— no se inventa ninguna: se
+ * dice sólo la cantidad y de dónde sale.
+ */
+function QueSacar({ pick }: { pick: Pick }) {
+  const cuanto = pick.palletEntero
+    ? 'El pallet entero, sin contar nada'
+    : `Saca ${textoCajas(pick.qty, pick.porCaja)}`
+
+  return (
+    <div className="flex flex-col gap-0.5 rounded-xl border border-borde p-3 text-center">
+      {pick.lpnCode ? (
+        <>
+          <span className={ETIQUETA}>
+            {pick.palletEntero ? 'Llévate este pallet' : 'De este pallet'}
+          </span>
+          <span className="text-3xl tabular-nums">{pick.lpnCode}</span>
+        </>
+      ) : null}
+      <span className={pick.lpnCode ? 'text-sm text-azul/60' : 'text-xl'}>{cuanto}</span>
+    </div>
+  )
+}
+
+/**
  * Surtir. Dos tareas distintas con la misma forma: llevarse un pallet completo, que es lo
  * más común, o sacar cajas de una posición de picking.
  *
@@ -156,9 +188,7 @@ export function PickForm() {
             <p className="text-sm text-azul/60">Ve a</p>
             <p className="text-5xl tabular-nums">{nombrePosicion(pick?.fromCode)}</p>
           </div>
-          {pick?.palletEntero ? (
-            <p className="text-center">Llévate el pallet completo: {pick.lpnCode}</p>
-          ) : null}
+          {pick ? <QueSacar pick={pick} /> : null}
 
           {pick?.fromCode ? (
             <div className="flex flex-col gap-3">
@@ -186,15 +216,18 @@ export function PickForm() {
           </div>
 
           {!codigo ? (
-            <ScanInput
-              label={
-                pick?.palletEntero
-                  ? 'Escanea la matrícula del pallet'
-                  : 'Escanea el código de la caja o la matrícula'
-              }
-              disabled={pending}
-              onScan={escanearCodigo}
-            />
+            <>
+              {pick ? <QueSacar pick={pick} /> : null}
+              <ScanInput
+                label={
+                  pick?.palletEntero
+                    ? 'Escanea la matrícula del pallet'
+                    : 'Escanea el código de la caja o la matrícula'
+                }
+                disabled={pending}
+                onScan={escanearCodigo}
+              />
+            </>
           ) : (
             <form action={confirmar} className="flex flex-col gap-4">
               {pick?.palletEntero ? (
