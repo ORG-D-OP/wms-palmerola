@@ -1,55 +1,56 @@
-'use server'
+"use server";
 
-import { z } from 'zod'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requirePermission } from '@/lib/auth/session'
-import { toErrorResponse } from '@/lib/errors'
-import { textoCajas } from '@/lib/cajas'
+import { z } from "zod";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth/session";
+import { toErrorResponse } from "@/lib/errors";
+import { textoCajas } from "@/lib/cajas";
 
 export type Linea = {
-  id: string
-  lineNo: number
-  sku: string
-  name: string
-  porCaja: number
+  id: string;
+  lineNo: number;
+  sku: string;
+  name: string;
+  porCaja: number;
   /** Todo en unidades base: la pantalla las dice en cajas y sueltas. */
-  pedido: number
-  apartado: number
-  surtido: number
-  chequeada: boolean
+  pedido: number;
+  apartado: number;
+  surtido: number;
+  chequeada: boolean;
   /** Lo que el chequeador dijo que subió de verdad. Nulo mientras no la haya chequeado. */
-  arriba: number | null
+  arriba: number | null;
   /**
    * De dónde sale el producto de esta línea. Con eso el chequeador puede preguntar de dónde
    * lo trajeron y comprobar si es cierto.
    */
-  desde: string[]
-}
+  desde: string[];
+};
 
 export type Camion = {
-  id: string
-  code: string
-  transporte: string | null
-  entregas: string[]
-  cliente: string | null
-  estado: string
-  anden: string | null
-  lineas: number
-  pedido: number
-  surtido: number
-  pendientes: number
-  detalle: Linea[]
-}
+  id: string;
+  code: string;
+  transporte: string | null;
+  entregas: string[];
+  cliente: string | null;
+  estado: string;
+  anden: string | null;
+  lineas: number;
+  pedido: number;
+  surtido: number;
+  pendientes: number;
+  detalle: Linea[];
+};
 
-type Fail = { ok: false; error: string }
+type Fail = { ok: false; error: string };
 
 /** Los mensajes que lanzan las funciones estan escritos para el operario: van tal cual. */
 function fallo(error: { code?: string; message: string }): Fail {
-  if (error.code === 'P0001' || error.code === '23514') return { ok: false, error: error.message }
-  return { ok: false, error: toErrorResponse(error).body.error }
+  if (error.code === "P0001" || error.code === "23514")
+    return { ok: false, error: error.message };
+  return { ok: false, error: toErrorResponse(error).body.error };
 }
 
-const Codigo = z.string().trim().min(1).max(40)
+const Codigo = z.string().trim().min(1).max(40);
 
 /**
  * Un escaneo abre el camion, y abrirlo es repartir el trabajo.
@@ -62,31 +63,40 @@ const Codigo = z.string().trim().min(1).max(40)
  * otro momento ni otra pantalla donde hacerlo: la hoja en la mano es lo que dice que ese
  * camión es trabajo de hoy.
  */
-export async function buscarDespacho(codigo: string): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('inventario:mover')
+export async function buscarDespacho(
+  codigo: string,
+): Promise<{ ok: true; camion: Camion } | Fail> {
+  await requirePermission("inventario:mover");
 
-  const parsed = Codigo.safeParse(codigo)
-  if (!parsed.success) return { ok: false, error: 'Código inválido.' }
+  const parsed = Codigo.safeParse(codigo);
+  if (!parsed.success) return { ok: false, error: "Código inválido." };
 
-  const supabase = await createSupabaseServerClient()
-  const { data: id, error: errorBusqueda } = await supabase.rpc('buscar_despacho', {
-    p_codigo: parsed.data,
-  })
-  if (errorBusqueda) return fallo(errorBusqueda)
-  if (!id) return { ok: false, error: `No hay ningún camión con el código ${parsed.data}.` }
+  const supabase = await createSupabaseServerClient();
+  const { data: id, error: errorBusqueda } = await supabase.rpc(
+    "buscar_despacho",
+    {
+      p_codigo: parsed.data,
+    },
+  );
+  if (errorBusqueda) return fallo(errorBusqueda);
+  if (!id)
+    return {
+      ok: false,
+      error: `No hay ningún camión con el código ${parsed.data}.`,
+    };
 
-  const abierto = await cargar(supabase, id)
-  if (!abierto.ok || abierto.camion.estado !== 'DRAFT') return abierto
+  const abierto = await cargar(supabase, id);
+  if (!abierto.ok || abierto.camion.estado !== "DRAFT") return abierto;
 
   // SAP no dice en qué andén se carga el camión: eso lo sabe quien está ahí parado. Si el
   // camión viene de un Excel y todavía no tiene andén, la pantalla lo pregunta antes de
   // repartir el surtido; sin él `release_order` no abre nada.
-  if (!abierto.camion.anden) return abierto
+  if (!abierto.camion.anden) return abierto;
 
-  const { error } = await supabase.rpc('release_order', { p_order_id: id })
-  if (error) return fallo(error)
+  const { error } = await supabase.rpc("release_order", { p_order_id: id });
+  if (error) return fallo(error);
 
-  return cargar(supabase, id)
+  return cargar(supabase, id);
 }
 
 /** Poner el andén y abrir: los dos pasos van juntos porque son un solo gesto en el andén. */
@@ -94,28 +104,30 @@ export async function abrirEnAnden(
   id: string,
   anden: string,
 ): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('inventario:mover')
+  await requirePermission("inventario:mover");
 
-  const parsed = Codigo.safeParse(anden)
-  if (!parsed.success) return { ok: false, error: 'Andén inválido.' }
+  const parsed = Codigo.safeParse(anden);
+  if (!parsed.success) return { ok: false, error: "Andén inválido." };
 
-  const supabase = await createSupabaseServerClient()
-  const { error: errorAnden } = await supabase.rpc('poner_anden', {
+  const supabase = await createSupabaseServerClient();
+  const { error: errorAnden } = await supabase.rpc("poner_anden", {
     p_order_id: id,
     p_anden: parsed.data,
-  })
-  if (errorAnden) return fallo(errorAnden)
+  });
+  if (errorAnden) return fallo(errorAnden);
 
-  const { error } = await supabase.rpc('release_order', { p_order_id: id })
-  if (error) return fallo(error)
+  const { error } = await supabase.rpc("release_order", { p_order_id: id });
+  if (error) return fallo(error);
 
-  return cargar(supabase, id)
+  return cargar(supabase, id);
 }
 
-export async function recargarDespacho(id: string): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('inventario:mover')
-  const supabase = await createSupabaseServerClient()
-  return cargar(supabase, id)
+export async function recargarDespacho(
+  id: string,
+): Promise<{ ok: true; camion: Camion } | Fail> {
+  await requirePermission("inventario:mover");
+  const supabase = await createSupabaseServerClient();
+  return cargar(supabase, id);
 }
 
 /**
@@ -129,32 +141,36 @@ export async function chequear(
   id: string,
   codigo: string,
 ): Promise<{ ok: true; camion: Camion; aviso: string } | Fail> {
-  await requirePermission('despachos:administrar')
+  await requirePermission("despachos:administrar");
 
-  const parsed = Codigo.safeParse(codigo)
-  if (!parsed.success) return { ok: false, error: 'Código inválido.' }
+  const parsed = Codigo.safeParse(codigo);
+  if (!parsed.success) return { ok: false, error: "Código inválido." };
 
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.rpc('verificar_linea', {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("verificar_linea", {
     p_order_id: id,
     p_codigo: parsed.data,
-  })
-  if (error) return fallo(error)
+  });
+  if (error) return fallo(error);
 
-  const marcada = data?.[0]
-  const recargado = await cargar(supabase, id)
-  if (!recargado.ok) return recargado
+  const marcada = data?.[0];
+  const recargado = await cargar(supabase, id);
+  if (!recargado.ok) return recargado;
 
-  const linea = recargado.camion.detalle.find((l) => l.lineNo === marcada?.linea)
+  const linea = recargado.camion.detalle.find(
+    (l) => l.lineNo === marcada?.linea,
+  );
 
+  // La cantidad la canta la base: un escaneo marca todas las lineas de ese producto —el ZRDT
+  // trae una por parada del camion— y lo que subio es la suma, no lo de una linea suelta.
   return {
     ...recargado,
     aviso: marcada?.ya_estaba
       ? `${marcada.nombre} ya estaba marcado.`
       : linea
-        ? `${marcada?.nombre ?? 'Línea'}: ${textoCajas(linea.surtido, linea.porCaja)} arriba.`
-        : `${marcada?.nombre ?? 'Línea'} marcado.`,
-  }
+        ? `${marcada?.nombre ?? "Línea"}: ${textoCajas(Number(marcada?.cajas ?? 0), linea.porCaja)} arriba.`
+        : `${marcada?.nombre ?? "Línea"} marcado.`,
+  };
 }
 
 /**
@@ -168,71 +184,80 @@ export async function corregirCantidad(
   lineaId: string,
   cajas: number,
 ): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('despachos:administrar')
+  await requirePermission("despachos:administrar");
 
   if (!Number.isInteger(cajas) || cajas < 0) {
-    return { ok: false, error: 'Escribe cuántas cajas subieron.' }
+    return { ok: false, error: "Escribe cuántas cajas subieron." };
   }
 
-  const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('corregir_chequeo', {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("corregir_chequeo", {
     p_order_line_id: lineaId,
     p_cajas: cajas,
-  })
-  if (error) return fallo(error)
+  });
+  if (error) return fallo(error);
 
-  return cargar(supabase, orderId)
+  return cargar(supabase, orderId);
 }
 
 export async function despachar(
   id: string,
   nota?: string,
 ): Promise<{ ok: true; camion: Camion } | Fail> {
-  await requirePermission('despachos:administrar')
+  await requirePermission("despachos:administrar");
 
-  const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('despachar', {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("despachar", {
     p_order_id: id,
     p_forzar: Boolean(nota),
     p_nota: nota ?? undefined,
-  })
-  if (error) return fallo(error)
+  });
+  if (error) return fallo(error);
 
-  return cargar(supabase, id)
+  return cargar(supabase, id);
 }
 
-type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>
+type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
-async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camion: Camion } | Fail> {
-  const [{ data: resumen, error: errorResumen }, { data: lineas, error: errorLineas }] =
-    await Promise.all([
-      supabase.from('despacho_progreso').select('*').eq('id', id).maybeSingle(),
-      supabase
-        .from('order_line')
-        .select(
-          'id, line_no, qty_base, checked_at, checked_qty_base, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status, from_location:location!task_from_location_id_fkey(code)))',
-        )
-        .eq('order_id', id)
-        .order('line_no'),
-    ])
+async function cargar(
+  supabase: Supabase,
+  id: string,
+): Promise<{ ok: true; camion: Camion } | Fail> {
+  const [
+    { data: resumen, error: errorResumen },
+    { data: lineas, error: errorLineas },
+  ] = await Promise.all([
+    supabase.from("despacho_progreso").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("order_line")
+      .select(
+        "id, line_no, qty_base, checked_at, checked_qty_base, product(sku, name, packaging_level(code, qty_base_units)), allocation(qty_base, task(status, from_location:location!task_from_location_id_fkey(code)))",
+      )
+      .eq("order_id", id)
+      .order("line_no"),
+  ]);
 
-  if (errorResumen) return fallo(errorResumen)
-  if (errorLineas) return fallo(errorLineas)
-  if (!resumen) return { ok: false, error: 'Ese camión ya no existe.' }
+  if (errorResumen) return fallo(errorResumen);
+  if (errorLineas) return fallo(errorLineas);
+  if (!resumen) return { ok: false, error: "Ese camión ya no existe." };
 
   const detalle: Linea[] = (lineas ?? []).map((l) => ({
     id: l.id,
     lineNo: l.line_no,
-    sku: l.product?.sku ?? '',
-    name: l.product?.name ?? '',
+    sku: l.product?.sku ?? "",
+    name: l.product?.name ?? "",
     porCaja:
       Number(
-        (l.product?.packaging_level ?? []).find((n) => n.code === 'CASE')?.qty_base_units ?? 1,
+        (l.product?.packaging_level ?? []).find((n) => n.code === "CASE")
+          ?.qty_base_units ?? 1,
       ) || 1,
     pedido: Number(l.qty_base),
-    apartado: (l.allocation ?? []).reduce((suma, a) => suma + Number(a.qty_base), 0),
+    apartado: (l.allocation ?? []).reduce(
+      (suma, a) => suma + Number(a.qty_base),
+      0,
+    ),
     surtido: (l.allocation ?? [])
-      .filter((a) => a.task?.status === 'DONE')
+      .filter((a) => a.task?.status === "DONE")
       .reduce((suma, a) => suma + Number(a.qty_base), 0),
     chequeada: l.checked_at !== null,
     arriba: l.checked_qty_base === null ? null : Number(l.checked_qty_base),
@@ -243,17 +268,17 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
           .filter((c): c is string => Boolean(c)),
       ),
     ],
-  }))
+  }));
 
   return {
     ok: true,
     camion: {
       id,
-      code: resumen.code ?? '',
+      code: resumen.code ?? "",
       transporte: resumen.transporte,
       entregas: resumen.entregas ?? [],
       cliente: resumen.customer,
-      estado: resumen.status ?? '',
+      estado: resumen.status ?? "",
       anden: resumen.anden,
       lineas: resumen.lineas ?? 0,
       pedido: Number(resumen.pedido ?? 0),
@@ -261,5 +286,5 @@ async function cargar(supabase: Supabase, id: string): Promise<{ ok: true; camio
       pendientes: resumen.pendientes ?? 0,
       detalle,
     },
-  }
+  };
 }
