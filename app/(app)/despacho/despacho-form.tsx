@@ -55,6 +55,7 @@ export function DespachoForm({
   const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
   const [cerrandoCorto, setCerrandoCorto] = useState(false)
+  const [cerrando, setCerrando] = useState(false)
   const [pending, empezar] = useTransition()
 
   function resolver(respuesta: Awaited<ReturnType<typeof buscarDespacho>>) {
@@ -149,9 +150,16 @@ export function DespachoForm({
       setError('')
     })
 
+  /**
+   * Y el botón dice lo que está pasando de verdad. La transición es una sola para toda la
+   * pantalla, así que mientras el chequeador escaneaba una caja el botón de cerrar ponía
+   * «Despachando...»: visto a clic, y es de las cosas que asustan en un andén.
+   */
   const cerrar = (nota?: string) =>
     empezar(async () => {
+      setCerrando(true)
       const res = await despachar(camion.id, nota)
+      setCerrando(false)
       if (!res.ok) return setError(res.error)
       setCamion(res.camion)
       setCerrandoCorto(false)
@@ -245,7 +253,7 @@ export function DespachoForm({
               guardada en la hoja.
             </p>
             <button type="submit" disabled={pending} className={BOTON}>
-              {pending ? 'Cerrando...' : 'Cerrar el camión así'}
+              {cerrando ? 'Cerrando...' : 'Cerrar el camión así'}
             </button>
             <button type="button" onClick={() => setCerrandoCorto(false)} className={BOTON_SUAVE}>
               Mejor no
@@ -259,7 +267,7 @@ export function DespachoForm({
               onClick={() => (corto ? setCerrandoCorto(true) : cerrar())}
               className={BOTON}
             >
-              {pending ? 'Despachando...' : 'Marcar camión despachado'}
+              {cerrando ? 'Despachando...' : 'Marcar camión despachado'}
             </button>
             {!completo ? (
               <>
