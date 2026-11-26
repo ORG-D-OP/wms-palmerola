@@ -1,4 +1,5 @@
 import { requireDeBodega, requireUser } from '@/lib/auth/session'
+import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { ContarForm, type Pendiente } from './contar-form'
 
@@ -38,6 +39,15 @@ async function enLaCola(): Promise<number> {
   return count ?? 0
 }
 
+/**
+ * Contar son dos oficios con dos dueños.
+ *
+ * La **tarea** de conteo cíclico le cae a cualquiera: se reparte como el surtido. El
+ * **recuento suelto** —escanear una posición porque uno ve que hay menos de lo que el sistema
+ * dice— cambia la existencia sin que nadie lo haya mandado, y eso es del jefe de bodega. Lo
+ * dijo él el 12/11 y hasta hoy no se aplicaba. La base lo defiende en `recontar`; esto sólo
+ * evita ofrecer un escaneo que siempre va a contestar que no.
+ */
 export default async function ContarPage() {
   await requireDeBodega('conteo:ejecutar')
   const user = await requireUser()
@@ -46,7 +56,11 @@ export default async function ContarPage() {
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
       <h1 className="text-xl">Contar</h1>
-      <ContarForm pendientes={pendientes} cola={cola} />
+      <ContarForm
+        pendientes={pendientes}
+        cola={cola}
+        puedeAjustar={can(user.roles, 'inventario:ajustar')}
+      />
     </main>
   )
 }

@@ -46,9 +46,12 @@ const cantidad = (cajas: number, sueltas: number) => {
 export function ContarForm({
   pendientes,
   cola,
+  puedeAjustar,
 }: {
   pendientes: Pendiente[]
   cola: number
+  /** Cambiar la cantidad sin que nadie lo haya mandado es del jefe de bodega. */
+  puedeAjustar: boolean
 }) {
   const [lugar, setLugar] = useState<string | null>(null)
   const [lineas, setLineas] = useState<Linea[]>([])
@@ -122,15 +125,27 @@ export function ContarForm({
   if (!lugar) {
     return (
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3">
-          <ScanInput label="Escanea el lugar" disabled={pending} onScan={(c) => abrir(c)} />
-          <p className="text-sm text-azul/60">
-            La posición, o la matrícula del pallet. El sistema te dice lo que cree que hay y tú
-            lo corriges. Lo que te caiga de tarea se cuenta a ciegas.
-          </p>
-          {resultado ? <Resumen resultado={resultado} /> : null}
-          {error ? <Aviso>{error}</Aviso> : null}
-        </div>
+        {puedeAjustar ? (
+          <div className="flex flex-col gap-3">
+            <ScanInput label="Escanea el lugar" disabled={pending} onScan={(c) => abrir(c)} />
+            <p className="text-sm text-azul/60">
+              La posición, o la matrícula del pallet. El sistema te dice lo que cree que hay y
+              tú lo corriges. Lo que te caiga de tarea se cuenta a ciegas.
+            </p>
+            {resultado ? <Resumen resultado={resultado} /> : null}
+            {error ? <Aviso>{error}</Aviso> : null}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-azul/60">
+              Aquí sale lo que te toque contar. Cambiar la cantidad de una posición sin que
+              nadie lo haya mandado lo hace el jefe de bodega: si ves que hay menos de lo que
+              dice el sistema, avísale.
+            </p>
+            {resultado ? <Resumen resultado={resultado} /> : null}
+            {error ? <Aviso>{error}</Aviso> : null}
+          </div>
+        )}
 
         {pendientes.length === 0 && cola > 0 ? (
           <section className="flex flex-col gap-2 rounded-2xl bg-azul-08 p-4">
@@ -141,6 +156,10 @@ export function ContarForm({
               Tomar una
             </button>
           </section>
+        ) : null}
+
+        {!puedeAjustar && pendientes.length === 0 && cola === 0 ? (
+          <p className="text-sm text-azul/60">No tienes nada que contar ahora mismo.</p>
         ) : null}
 
         {pendientes.length > 0 ? (
