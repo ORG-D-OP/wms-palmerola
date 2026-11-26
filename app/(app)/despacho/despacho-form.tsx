@@ -327,8 +327,15 @@ export function DespachoForm({
 }
 
 /**
- * Una línea de la hoja. Tres estados y se distinguen de un vistazo desde un metro: chequeada
- * en verde, corta de producto en rojo, y pendiente en gris.
+ * Una línea de la hoja. Cuatro estados y se distinguen de un vistazo desde un metro:
+ * completa y chequeada en verde, chequeada pero corta en rojo con fondo, corta sin chequear
+ * en rojo sin fondo, y pendiente en gris.
+ *
+ * Antes la palomita verde la ponía el chequeo solo, así que una línea de la que subieron la
+ * mitad salía igual que una completa: el verde decía «alguien la tocó», no «está completa».
+ * Y lo que falta se cuenta contra lo que subió de verdad en cuanto hay chequeo; antes se
+ * contaba siempre contra lo apartado, que es lo que la bodega prometió, no lo que hay en el
+ * andén.
  */
 function Renglon({
   linea,
@@ -340,24 +347,24 @@ function Renglon({
   onCorregir: (cajas: number) => void
 }) {
   const [corrigiendo, setCorrigiendo] = useState(false)
-  const corta = linea.apartado < linea.pedido
-  const falta = linea.pedido - linea.apartado
   // Sin corregir nada, lo que sube es todo lo que bajó: el escaneo no congela una cifra,
   // porque una línea casi nunca baja de un solo viaje.
   const arriba = linea.arriba ?? linea.surtido
+  const falta = linea.pedido - (linea.chequeada ? arriba : linea.apartado)
+  const corta = falta > 0
   const { cajas: cajasArriba } = desglose(arriba, linea.porCaja)
   const deMenos = linea.chequeada && arriba < linea.surtido
 
   return (
     <li
       className={`-mx-2 flex flex-col gap-2 rounded-xl px-2 py-3 ${
-        linea.chequeada ? 'bg-[var(--verde)]/20' : ''
+        linea.chequeada ? (corta ? 'bg-rojo/10' : 'bg-[var(--verde)]/20') : ''
       }`}
     >
       <div className="flex items-center gap-3">
         <Icon
-          name={linea.chequeada ? 'check_circle' : corta ? 'error' : 'radio_button_unchecked'}
-          className={linea.chequeada ? 'text-azul' : corta ? 'text-rojo' : 'text-azul/30'}
+          name={corta ? 'error' : linea.chequeada ? 'check_circle' : 'radio_button_unchecked'}
+          className={corta ? 'text-rojo' : linea.chequeada ? 'text-azul' : 'text-azul/30'}
         />
         <span className="min-w-0 flex-1">
           <span className="block truncate">{linea.name}</span>

@@ -7,7 +7,7 @@ import { Lista, type Correo, type Persona } from './lista'
 export const metadata = { title: 'Personal · WMS Palmerola' }
 
 export default async function PersonalPage() {
-  await requirePermission('personal:administrar')
+  const yo = await requirePermission('personal:administrar')
   const supabase = await createSupabaseServerClient()
 
   const [{ data: filas, error }, { data: correos }] = await Promise.all([
@@ -49,6 +49,7 @@ export default async function PersonalPage() {
         dentro={gente.filter((p) => p.aceptada && p.activa)}
         fuera={gente.filter((p) => p.aceptada && !p.activa)}
         correos={(correos ?? []) as Correo[]}
+        yo={yo.id}
       />
     </main>
   )

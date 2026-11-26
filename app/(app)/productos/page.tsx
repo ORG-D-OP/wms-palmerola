@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { requireUser } from '@/lib/auth/session'
+import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Icon } from '@/components/ui/icon'
 import { CAMPO } from '@/components/ui/campos'
@@ -22,7 +22,7 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<{ q?: string; filtro?: string }>
 }) {
-  await requireUser()
+  await requirePermission('inventario:ver')
   const { q = '', filtro = '' } = await searchParams
   const texto = q.trim()
   const supabase = await createSupabaseServerClient()

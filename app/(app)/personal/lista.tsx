@@ -56,11 +56,14 @@ export function Lista({
   dentro,
   fuera,
   correos,
+  yo,
 }: {
   pendientes: Persona[]
   dentro: Persona[]
   fuera: Persona[]
   correos: Correo[]
+  /** Quién está mirando: a sí mismo no se da de baja ni se cambia el rango. */
+  yo: string
 }) {
   const [error, setError] = useState<string | null>(null)
   const [elegido, setElegido] = useState<Record<string, string>>({})
@@ -130,39 +133,52 @@ export function Lista({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg">En la bodega ({dentro.length})</h2>
         <ul className="flex flex-col gap-3">
-          {dentro.map((p) => (
-            <Ficha key={p.id} p={p}>
-              <label className="flex flex-col gap-1.5">
-                <span className={ETIQUETA}>Rol</span>
-                <select
-                  value={rolDe(p)}
-                  onChange={(e) => {
-                    setElegido({ ...elegido, [p.id]: e.target.value })
-                    hacer(() => ponerRol(p.id, e.target.value))
-                  }}
+          {dentro.map((p) =>
+            p.id === yo ? (
+              /*
+                La fila de uno mismo no lleva botones. «Dar de baja» salía también aquí y la
+                base siempre lo rechaza —«No puedes darte de baja a ti mismo»—, que es un botón
+                que no puede hacer nada; y el rango propio tampoco se toca uno solo.
+              */
+              <Ficha key={p.id} p={p}>
+                <p className="text-sm text-azul/60">
+                  Eres tú. Tu rango y tu baja los cambia otro administrador.
+                </p>
+              </Ficha>
+            ) : (
+              <Ficha key={p.id} p={p}>
+                <label className="flex flex-col gap-1.5">
+                  <span className={ETIQUETA}>Rol</span>
+                  <select
+                    value={rolDe(p)}
+                    onChange={(e) => {
+                      setElegido({ ...elegido, [p.id]: e.target.value })
+                      hacer(() => ponerRol(p.id, e.target.value))
+                    }}
+                    disabled={pending}
+                    className={CAMPO}
+                  >
+                    {ASIGNABLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <Cubre p={p} pending={pending} hacer={hacer} />
+
+                <button
+                  type="button"
                   disabled={pending}
-                  className={CAMPO}
+                  onClick={() => hacer(() => sacar(p.id))}
+                  className={BOTON_SUAVE}
                 >
-                  {ASIGNABLES.map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <Cubre p={p} pending={pending} hacer={hacer} />
-
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => hacer(() => sacar(p.id))}
-                className={BOTON_SUAVE}
-              >
-                Dar de baja
-              </button>
-            </Ficha>
-          ))}
+                  Dar de baja
+                </button>
+              </Ficha>
+            ),
+          )}
         </ul>
       </section>
 

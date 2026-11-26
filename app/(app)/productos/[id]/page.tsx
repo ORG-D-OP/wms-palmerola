@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { requireUser } from '@/lib/auth/session'
+import { requirePermission } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { AssignBarcode } from './assign-barcode'
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser()
+  const user = await requirePermission('inventario:ver')
   const { id } = await params
   const supabase = await createSupabaseServerClient()
 

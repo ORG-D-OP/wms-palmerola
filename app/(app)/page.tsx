@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { requireUser } from '@/lib/auth/session'
-import { can } from '@/lib/auth/roles'
 import { atajos, navMovil } from '@/components/app-shell/nav-items'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
@@ -168,12 +167,12 @@ export default async function DashboardPage() {
         </dl>
 
         <div className="contents xl:col-start-1 xl:row-start-1 xl:row-end-4 xl:block">
-          <Ocupacion
-            estados={ocupacion}
-            segmentos={segmentos}
-            pilas={pilas}
-            permite3D={can(user.roles, 'kpi:ver')}
-          />
+          {/*
+            El 3D es sólo mirar, así que lo ve cualquiera que entre al tablero. Estaba colgado
+            de `kpi:ver`, que es el permiso de los indicadores: auxiliares, montacarguistas y
+            chequeadores no tenían siquiera el botón.
+          */}
+          <Ocupacion estados={ocupacion} segmentos={segmentos} pilas={pilas} permite3D />
         </div>
 
         {areas.length > 0 ? (

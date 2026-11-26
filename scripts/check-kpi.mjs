@@ -326,4 +326,56 @@ check(
   'a quien hizo tareas y chequeo lineas si se le mide el improductivo',
 )
 
+// --- el 100 % improductivo -----------------------------------------------------------------
+
+/*
+  Dos tareas cortas en un turno largo daban 99.6 %, que al redondear subia a 100: el renglon
+  de Indicadores decia «dos tareas hechas» y al lado «100 % improductivo», que quiere decir ni
+  un minuto en tarea. Se trunca, asi que el 100 queda para el unico caso en que es verdad.
+
+  Va al final y con su propia gente: las cuentas de arriba son por persona y una hora de turno
+  de mas se las cambia.
+*/
+const { id: suplente } = await one(
+  `insert into auth.users (email) values ('suplente-kpi@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'montacargista',
+     full_name = 'Montacarguista dos' where id = '${suplente}'`,
+)
+const corto = await one(
+  `select ((current_date - 3 + interval '8 hours') at time zone reloj_de_bodega()) as cuando,
+          (current_date - 3)::text as dia`,
+)
+await one(
+  `insert into shift_assignment (profile_id, started_at, ended_at)
+   values ($1, $2::timestamptz, $2::timestamptz + interval '1 hour')`,
+  [suplente, corto.cuando],
+)
+await one(
+  `insert into task (type, status, product_id, qty_base, packaging_level_id, assigned_to,
+     created_at, assigned_at, started_at, completed_at)
+   values ('PICK', 'DONE', $1, 24, $2, $3,
+     $4::timestamptz, $4::timestamptz, $4::timestamptz,
+     $4::timestamptz + interval '12 seconds')`,
+  [producto, caja, suplente, corto.cuando],
+)
+
+const casi = await one(`select tareas, improductivo_pct from kpi_dia where dia = $1::date`, [
+  corto.dia,
+])
+check(Number(casi.tareas) === 1, 'una tarea de doce segundos en una hora de turno cuenta')
+check(
+  Number(casi.improductivo_pct) === 99,
+  'y no sale como 100 % improductivo: el 100 es para quien no hizo ninguna',
+)
+
+const sinNada = (await db.query(`select * from kpi_por_persona()`)).rows.find(
+  (r) => r.profile_id === suplente,
+)
+check(
+  Number(sinNada.improductivo_pct) === 99,
+  'lo mismo en el desglose por persona, que es la misma cuenta dos veces',
+)
+
 await db.close()

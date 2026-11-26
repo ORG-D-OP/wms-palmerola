@@ -24,6 +24,21 @@
 -- La nota del libro mayor lleva ahora las dos cosas, lo que se movió y por qué: antes la
 -- razón del que contaba **sustituía** al «el sistema decía X, y había Y», así que un
 -- movimiento que dijera «se dañó» ya no dejaba saber cuánto decía el sistema.
+--
+-- ---------------------------------------------------------------------------------------
+-- Y de paso, el recuento suelto vuelve a ser del jefe de bodega
+-- ---------------------------------------------------------------------------------------
+--
+-- El 12 de noviembre quedó dicho, con estas palabras: «me equivoqué en algo que te dije,
+-- **sólo el supervisor** va a poder hacer los ajustes de recuentos; el conteo le cae la tarea
+-- a todos, pero el recuento de decir "uy, acá hay menos de lo que dice el sistema" **sólo el
+-- supervisor puede cambiar la cantidad**». No se aplicó, y quedó apuntado como el fallo 18 de
+-- la prueba a clic, que lleva tres vueltas saliendo.
+--
+-- Lo que faltaba era distinguir los dos casos, y la propia función ya tenía con qué:
+-- `p_task_id`. Con tarea, cualquiera —es el conteo cíclico, repartido—. Sin tarea, es el
+-- ajuste espontáneo, y ése es del jefe. El permiso `inventario:ajustar` existía en
+-- `lib/auth/roles.ts` desde el principio **sin que lo comprobara nadie**.
 
 create or replace function el_descuadre_lleva_razon() returns trigger
 language plpgsql set search_path = public as $$
@@ -91,6 +106,14 @@ declare
 begin
   if not has_role('auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin') then
     raise exception 'No tienes permiso para contar';
+  end if;
+
+  -- El recuento suelto —«uy, aquí hay menos de lo que dice el sistema»— es del jefe de
+  -- bodega. La tarea de conteo cíclico le cae a cualquiera. Son dos cosas distintas y hasta
+  -- hoy la función no las distinguía, aunque `p_task_id` ya decía cuál es cuál.
+  if p_task_id is null and not has_role('supervisor', 'admin') then
+    raise exception
+      'Cambiar la cantidad lo hace el jefe de bodega. Si te cayó una tarea de conteo, cuéntala desde tu lista';
   end if;
   if v_lugar = '' then
     raise exception 'Escanea el lugar';

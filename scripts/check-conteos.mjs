@@ -223,7 +223,15 @@ await como(miron)
 const sinPermiso = await fails(`select * from recontar('F3-001-03', 5)`)
 check(sinPermiso?.includes('No tienes permiso'), 'quien solo mira no cambia cantidades')
 
+// El recuento suelto es del jefe de bodega; la tarea de conteo le cae a cualquiera.
 await como(auxiliar)
+const sueltoDelAuxiliar = await fails(`select * from recontar('F3-001-03', 5)`)
+check(
+  sueltoDelAuxiliar?.includes('lo hace el jefe de bodega'),
+  'el recuento suelto no lo hace quien quiera: cambia la existencia sin que nadie lo mande',
+)
+
+await como(jefe)
 
 const cero = await fails(`select * from recontar('F3-001-03', null)`)
 check(cero?.includes('cuántas cajas hay'), 'sin cantidad no hay recuento')
@@ -333,14 +341,14 @@ const hayAhi = Number((await saldo('F3-001-03')).qty) / 24
 const cuadra = await one(`select * from recontar('F3-001-03', $1)`, [hayAhi])
 check(Number(cuadra.diferencia) === 0, 'un recuento que cuadra no mueve nada')
 const conteosDe = await one(`select conteos, descuadres from inexactitud where profile_id = $1`, [
-  auxiliar,
+  jefe,
 ])
 check(
   Number(conteosDe.conteos) === 2 && Number(conteosDe.descuadres) === 1,
   'el porcentaje de inexactitud sale de los dos: los que cuadraron y los que no',
 )
 const pct = await one(`select pct_conteos_con_descuadre from inexactitud where profile_id = $1`, [
-  auxiliar,
+  jefe,
 ])
 check(Number(pct.pct_conteos_con_descuadre) === 50, 'uno de dos descuadrado es el 50%')
 
@@ -426,6 +434,9 @@ const empezada = await one(`select status::text from task where id = $1`, [enMan
 check(empezada.status === 'IN_PROGRESS', 'y la empieza: ya esta parada frente a la posicion')
 
 const menos = Number(enMano.qty_base) - 24
+// El recuento suelto lo hace el jefe, que es quien puede cambiar la cantidad. Lo que se
+// prueba aqui es lo de siempre: que recortar no deje colgada la tarea que ya esta en la mano.
+await como(jefe)
 const recortada = await one(`select * from recontar($1, $2, $3, null, $4)`, [
   dondeEstaba.code,
   Math.floor(menos / 24),
@@ -433,6 +444,7 @@ const recortada = await one(`select * from recontar($1, $2, $3, null, $4)`, [
   'se llevaron una caja sin apuntarla',
 ])
 check(Number(recortada.diferencia) < 0, 'el recuento baja la cantidad con la tarea ya repartida')
+await como(auxiliar)
 
 const quedo = await one(`select status::text, qty_base from task where id = $1`, [enMano.id])
 check(

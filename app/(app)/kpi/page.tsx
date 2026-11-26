@@ -127,8 +127,13 @@ export default async function KpiPage() {
               <li key={p.profile_id} className="flex flex-col gap-1 py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="min-w-0 truncate">{p.nombre}</span>
+                  {/*
+                    Al chequeador no se le ponía «0 cajas/h» en grande y debajo la nota de que
+                    a él no se le mide así. Las dos cosas no pueden estar en el mismo renglón:
+                    o se mide, o no se mide.
+                  */}
                   <span className="shrink-0 tabular-nums">
-                    {num(p.cajas_por_hora) === null
+                    {soloAnden || num(p.cajas_por_hora) === null
                       ? '—'
                       : `${numero(num(p.cajas_por_hora), 1)} cajas/h`}
                   </span>

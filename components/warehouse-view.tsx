@@ -55,11 +55,23 @@ const LEYENDA_GUIADO: Viñeta[] = [
   { color: COLOR.verde, texto: 'cómo llegar', forma: 'raya' },
 ]
 
+/**
+ * El mapa, con su leyenda y sus dos interruptores.
+ *
+ * Ni el modo ni el destino son suyos: los lleva quien lo usa. El modo, porque el título y el
+ * texto de la tarjeta tienen que decir lo que el mapa está pintando —en Planimetría el tono
+ * ya no cuenta posiciones ocupadas—, y el destino, porque la caja de búsqueda es una sola y
+ * está arriba, donde también se escanea. Antes el mapa traía la suya: eran dos cajas que
+ * hacían cosas distintas con lo mismo.
+ */
 export function WarehouseView({
   ocupacion,
   permite3D,
   segmentos,
   pilas,
+  modo,
+  onModo,
+  destino,
   onTocar,
 }: {
   ocupacion: Ocupacion
@@ -68,51 +80,33 @@ export function WarehouseView({
   segmentos?: Segmentos
   /** Los pallets apilados en cada posición de piso. */
   pilas?: Pilas
+  modo: Modo
+  onModo: (modo: Modo) => void
+  /** La posición que se buscó: se ilumina su cuadro y se dibuja cómo llegar. */
+  destino?: string
   onTocar?: (toque: Toque) => void
 }) {
   const [vista, setVista] = useState<'2D' | '3D'>('2D')
-  const [modo, setModo] = useState<Modo>('ocupacion')
-  const [destino, setDestino] = useState<string | undefined>()
 
   const enDosD = vista === '2D' || !permite3D
   // La leyenda dice lo que esta vista está pintando y nada más: el destino y la ruta sólo
-  // existen en la planta, así que en el isométrico no se anuncian.
-  const viñetas =
-    modo === 'planimetria'
-      ? LEYENDA_PLANIMETRIA
-      : [...LEYENDA_OCUPACION, ...(enDosD && destino ? LEYENDA_GUIADO : [])]
+  // existen en la planta, así que en el isométrico no se anuncian. En los dos modos, eso sí,
+  // porque `guiado()` pinta el destino también sobre la planimetría.
+  const viñetas = [
+    ...(modo === 'planimetria' ? LEYENDA_PLANIMETRIA : LEYENDA_OCUPACION),
+    ...(enDosD && destino ? LEYENDA_GUIADO : []),
+  ]
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <form
-          className="flex min-w-0 flex-1 gap-2"
-          action={(datos) => {
-            const code = String(datos.get('posicion') ?? '').trim().toUpperCase()
-            setDestino(code || undefined)
-            setVista('2D')
-          }}
-        >
-          <input
-            name="posicion"
-            placeholder="Buscar posición, por ejemplo F3-012-07"
-            className="h-11 min-w-0 flex-1 rounded-xl border border-borde px-3 outline-none focus:border-celeste"
-          />
-          <button
-            aria-label="Buscar"
-            className="flex h-11 items-center rounded-xl bg-azul px-4 text-white"
-          >
-            <Icon name="search" />
-          </button>
-        </form>
-
         {segmentos ? (
           <div className="flex rounded-lg border border-borde p-0.5">
             {MODOS.map((m) => (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => setModo(m.id)}
+                onClick={() => onModo(m.id)}
                 aria-pressed={modo === m.id}
                 className={`flex h-9 items-center rounded-md px-3 text-sm ${
                   modo === m.id ? 'bg-azul text-white' : 'text-azul/60'

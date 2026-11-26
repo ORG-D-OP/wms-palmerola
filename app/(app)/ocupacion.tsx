@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react'
 import { ScanInput } from '@/components/ui/scan-input'
 import { RackFace, type Cara } from '@/components/rack-face'
 import { WarehouseView } from '@/components/warehouse-view'
-import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
-import type { Pilas } from '@/lib/warehouse/plano'
+import type { Modo, Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
+import { claveDePlanta, type Pilas } from '@/lib/warehouse/plano'
 import { Aviso } from '@/components/ui/feedback'
 import { BOTON_SUAVE } from '@/components/ui/campos'
 import { Icon } from '@/components/ui/icon'
@@ -14,12 +14,37 @@ import { buscarCara, queHayEn, type Hueco } from './actions'
 import { plural } from '@/lib/plural'
 
 /**
+ * Lo que la tarjeta dice de sí misma, que no es lo mismo en los dos modos.
+ *
+ * En Ocupación el tono cuenta posiciones llenas; en Planimetría cuenta el oficio de cada
+ * una. El encabezado se quedaba en «Ocupación del almacén» pasara lo que pasara, con un
+ * párrafo debajo explicando un tono que en ese modo ya no significaba eso.
+ */
+const TARJETA: Record<Modo, { titulo: string; texto: string }> = {
+  ocupacion: {
+    titulo: 'Ocupación del almacén',
+    texto:
+      'Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles y el tono dice cuántos están ocupados; para verlos uno por uno, busca el rack arriba.',
+  },
+  planimetria: {
+    titulo: 'Planimetría del almacén',
+    texto:
+      'Cada cuadro va pintado por lo que le toca guardar: alimento o no alimento, cara de picking o almacén de pallets completos. El tono no dice nada de lo lleno que está.',
+  },
+}
+
+/**
  * La ocupación del almacén, en dos vistas que responden a dos preguntas distintas.
  *
  * La planta contesta «cómo va la bodega»: cada cuadro es una posición y el tono dice cuánto
  * tiene. La cara del rack contesta «qué hay en ese rack», que la planta no puede: desde
  * arriba los seis niveles son un solo cuadro. Se cambia buscando el rack, porque en el
  * tablero no hay uno «al que vas»: hay el que uno quiera mirar.
+ *
+ * Y se busca en una sola caja: antes había ésta y otra dentro del mapa, cada una con sus
+ * reglas, y la de dentro marcaba el cuadro sin decir qué tenía. Ahora una búsqueda contesta
+ * lo mismo que un toque —qué hay dentro, con lote, vencimiento y matrícula—, ilumina el
+ * cuadro en el mapa y, si además es un rack, dibuja su cara.
  */
 export function Ocupacion({
   estados,
@@ -36,19 +61,27 @@ export function Ocupacion({
   const [marcada, setMarcada] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cuadro, setCuadro] = useState<{ code: string; huecos: Hueco[] } | null>(null)
+  const [modo, setModo] = useState<Modo>('ocupacion')
+  const [destino, setDestino] = useState<string | undefined>()
   const [pending, empezar] = useTransition()
 
   const buscar = (texto: string) => {
-    if (!texto.trim()) return
+    const code = texto.trim().toUpperCase()
+    if (!code) return
     setError(null)
+    setCuadro(null)
     empezar(async () => {
-      const res = await buscarCara(texto)
-      if (!res.ok) {
-        setCara(null)
-        return setError(res.error)
-      }
-      setCara(res.cara)
-      setMarcada(res.marcada)
+      // Las dos preguntas de una vez: qué hay en ese cuadro y, si es rack, cómo está su
+      // cara. Juntas, porque quien escribe un código no sabe de antemano cuál de las dos
+      // le va a contestar.
+      const [hay, rack] = await Promise.all([queHayEn(claveDePlanta(code)), buscarCara(code)])
+      if (!hay.ok) return setError(hay.error)
+      if (hay.huecos.length === 0 && !rack.ok) return setError(rack.error)
+
+      setCuadro(hay.huecos.length > 0 ? { code: claveDePlanta(code), huecos: hay.huecos } : null)
+      setDestino(hay.huecos.length > 0 ? code : undefined)
+      setCara(rack.ok ? rack.cara : null)
+      setMarcada(rack.ok ? rack.marcada : null)
     })
   }
 
@@ -65,11 +98,11 @@ export function Ocupacion({
   return (
     <section className="flex flex-col gap-3">
       <div className="contents xl:flex xl:items-start xl:gap-8">
-        <h2 className="text-lg">Ocupación del almacén</h2>
+        <h2 className="text-lg">{cara ? 'La cara del rack' : TARJETA[modo].titulo}</h2>
 
         <div className="max-w-md xl:flex-1">
           <ScanInput
-            label="Mira un rack: escanea o escribe su código"
+            label="Busca una posición o un rack: escanea o escribe su código"
             disabled={pending}
             onScan={buscar}
           />
@@ -77,6 +110,10 @@ export function Ocupacion({
       </div>
 
       {error ? <Aviso>{error}</Aviso> : null}
+
+      {/* Lo que hay dentro va antes del dibujo y en los dos casos: es la respuesta, y el
+          dibujo -la planta o la cara- es dónde cae. */}
+      {cuadro ? <Cuadro cuadro={cuadro} onCerrar={() => setCuadro(null)} /> : null}
 
       {cara ? (
         <div className="flex flex-col gap-3 xl:max-w-5xl">
@@ -95,16 +132,15 @@ export function Ocupacion({
         </div>
       ) : (
         <>
-          <p className="text-sm text-azul/60">
-            Cada cuadro es una posición. En los racks, un cuadro son todos sus niveles y el
-            tono dice cuántos están ocupados; para verlos uno por uno, busca el rack arriba.
-          </p>
-          {cuadro ? <Cuadro cuadro={cuadro} onCerrar={() => setCuadro(null)} /> : null}
+          <p className="text-sm text-azul/60">{TARJETA[modo].texto}</p>
           <WarehouseView
             ocupacion={estados}
             segmentos={segmentos}
             pilas={pilas}
             permite3D={permite3D}
+            modo={modo}
+            onModo={setModo}
+            destino={destino}
             onTocar={(t) => tocar(t.celda)}
           />
         </>
@@ -192,7 +228,7 @@ function Cuadro({
                   <span className="text-azul/60">
                     {h.cajas
                       ? plural(h.cajas, 'caja', 'cajas')
-                      : plural(h.qty_base ?? 0, 'unidad', 'unidades')}
+                      : plural(Math.round(h.qty_base ?? 0), 'unidad', 'unidades')}
                     {h.lot ? ` · lote ${h.lot}` : ''} · vence {fecha(h.expiry_date)}
                     {h.lpn_code ? ` · ${h.lpn_code}` : ''}
                   </span>

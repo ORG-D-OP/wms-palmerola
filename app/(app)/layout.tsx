@@ -11,19 +11,31 @@ import { logout } from '@/app/(public)/login/actions'
 const BOTON_SALIR =
   'flex size-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white'
 
-/**
- * El andén, arriba del todo y en las dos armazones.
- *
- * No es un adorno: es lo que decide qué tareas le caen y qué camión retoma al entrar a
- * Ingreso o a Despacho. Quien se cambia de andén tiene que verlo cambiar.
- */
-function Anden({ anden }: { anden: string | null }) {
-  if (!anden) return null
+function Pastilla({ icono, children }: { icono: string; children: React.ReactNode }) {
   return (
     <span className="flex items-center gap-1 rounded-full bg-white/15 py-1 pl-1.5 pr-2.5 text-sm">
-      <Icon name="pin_drop" className="!text-[18px]" />
-      {nombrePosicion(anden)}
+      <Icon name={icono} className="!text-[18px]" />
+      {children}
     </span>
+  )
+}
+
+/**
+ * El andén y la máquina, arriba del todo y en las dos armazones.
+ *
+ * El andén decide qué tareas le caen y qué camión retoma al entrar a Ingreso o a Despacho;
+ * la máquina decide a qué altura del rack llegan esas tareas, porque el de piso no sube y
+ * el de rack no baja. Antes la máquina sólo se veía en Disponibilidad, así que quien no
+ * recibía nada en toda la mañana no tenía cómo saber si era que no había tareas o que no
+ * le tocaban. Van juntas y se devuelve nulo cuando no hay ninguna de las dos.
+ */
+function Turno({ anden, equipo }: { anden: string | null; equipo: string | null }) {
+  if (!anden && !equipo) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {anden ? <Pastilla icono="pin_drop">{nombrePosicion(anden)}</Pastilla> : null}
+      {equipo ? <Pastilla icono="forklift">{equipo}</Pastilla> : null}
+    </div>
   )
 }
 
@@ -43,8 +55,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="sticky top-0 hidden h-dvh w-61 shrink-0 flex-col bg-azul text-white md:flex">
         <div className="flex flex-col items-start gap-1.5 px-5 py-5">
           <Image src="/logo-dinant.png" alt="Dinant" width={112} height={32} priority />
-          {user.anden ? (
-            <Anden anden={user.anden} />
+          {user.anden || user.equipo ? (
+            <Turno anden={user.anden} equipo={user.equipo} />
           ) : (
             <p className="text-sm text-white/60">WMS Palmerola</p>
           )}
@@ -69,7 +81,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-10 bg-azul text-white md:hidden">
           <div className="flex w-full items-center gap-4 px-4 py-3">
             <Image src="/logo-dinant.png" alt="Dinant" width={96} height={27} priority />
-            <Anden anden={user.anden} />
 
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden text-right leading-tight sm:block">
@@ -83,6 +94,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </form>
             </div>
           </div>
+
+          {/* En su propia línea: en un teléfono las dos pastillas no caben al lado del logo. */}
+          {user.anden || user.equipo ? (
+            <div className="px-4 pb-3">
+              <Turno anden={user.anden} equipo={user.equipo} />
+            </div>
+          ) : null}
         </header>
 
         <div className="flex w-full flex-1 flex-col">{children}</div>
