@@ -25,7 +25,7 @@ export async function porQueNoHayNada(
 ): Promise<string> {
   const { data } = await supabase
     .from('task_queue')
-    .select('al_alcance, de_mi_flujo')
+    .select('al_alcance, de_mi_flujo, de_mi_equipo')
     .eq('type', tipo)
 
   const cola = data ?? []
@@ -41,6 +41,15 @@ export async function porQueNoHayNada(
     return `Queda trabajo por ${oficio}, pero está en alturas que tu equipo no alcanza. Avisa al jefe para que lo tome un montacarguista de rack.`
   }
 
-  // Al alcance y del flujo, y aun así la cola no suelta nada: lo que queda es de otro andén.
+  // Las dos razones del equipo se cuentan al revés una de la otra, así que no se pueden
+  // juntar: al que anda a pie lo que queda le está demasiado alto, y al que anda con el
+  // montacargas de rack le queda demasiado bajo. Decirle «no lo alcanzas» al de rack cuando
+  // lo que sobra es trabajo de piso sería mandarlo a buscar al que ya es.
+  const deMiEquipo = alAlcance.filter((t) => t.de_mi_equipo)
+  if (deMiEquipo.length === 0) {
+    return `Lo que queda por ${oficio} es de piso, y andas con el montacargas de rack. Si te toca el piso, pídele al jefe que te cambie el equipo.`
+  }
+
+  // Del flujo y de su equipo, y aun así la cola no suelta nada: lo que queda es de otro andén.
   return `Queda trabajo por ${oficio}, pero no en tu andén. Si tienes que atender otro, pídele al jefe que te mueva.`
 }

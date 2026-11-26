@@ -18,11 +18,16 @@ export default async function TurnoPage() {
       supabase
         .from('shift_assignment')
         .select(
-          'started_at, paused_at, pause_note, working_role, dock_door(code), equipment_type(code, name, max_level)',
+          'started_at, paused_at, pause_note, working_role, dock_door(code), equipment_type(code, name, min_level, max_level)',
         )
         .is('ended_at', null)
         .eq('profile_id', user.id),
-      supabase.from('equipment_type').select('code, name, max_level').eq('is_active', true),
+      supabase
+        .from('equipment_type')
+        .select('code, name, min_level, max_level')
+        .eq('is_active', true)
+        .order('min_level')
+        .order('name'),
       reparte
         ? supabase
             .from('disponibles')
@@ -41,7 +46,10 @@ export default async function TurnoPage() {
   const turno = abierto
     ? {
         rol: rolDe(abierto.working_role ?? user.role),
+        equipo: abierto.equipment_type?.code ?? null,
         tipo: abierto.equipment_type?.name ?? null,
+        // Sin equipo la franja es el piso, que es lo que dice `nivel_minimo_de`.
+        min: abierto.equipment_type?.min_level ?? 0,
         alcance: abierto.equipment_type?.max_level ?? 0,
         desde: abierto.started_at,
         pausado: abierto.paused_at !== null,
@@ -55,7 +63,14 @@ export default async function TurnoPage() {
       <h1 className="text-xl">Disponibilidad</h1>
       <TurnoForm
         turno={turno}
-        tipos={(tipos ?? []).map((t): Tipo => ({ code: t.code, name: t.name, alcance: t.max_level }))}
+        tipos={(tipos ?? []).map(
+          (t): Tipo => ({
+            code: t.code,
+            name: t.name,
+            min: t.min_level,
+            alcance: t.max_level,
+          }),
+        )}
         rango={rolDe(user.role)}
         roles={rolesDeTrabajoDe(user.roles)}
       />

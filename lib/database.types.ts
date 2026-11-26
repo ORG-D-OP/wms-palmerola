@@ -468,18 +468,21 @@ export type Database = {
           code: string
           is_active: boolean
           max_level: number
+          min_level: number
           name: string
         }
         Insert: {
           code: string
           is_active?: boolean
           max_level: number
+          min_level?: number
           name: string
         }
         Update: {
           code?: string
           is_active?: boolean
           max_level?: number
+          min_level?: number
           name?: string
         }
         Relationships: []
@@ -487,6 +490,7 @@ export type Database = {
       inbound_doc: {
         Row: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
@@ -505,6 +509,7 @@ export type Database = {
         }
         Insert: {
           cajas_sap?: number | null
+          cierre_nota?: string | null
           created_at?: string
           dock_door_id?: string | null
           entrega?: string | null
@@ -523,6 +528,7 @@ export type Database = {
         }
         Update: {
           cajas_sap?: number | null
+          cierre_nota?: string | null
           created_at?: string
           dock_door_id?: string | null
           entrega?: string | null
@@ -649,6 +655,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           lot: string | null
+          no_llego_at: string | null
           pallet_code: string
           product_id: string
           qty_cases: number
@@ -661,6 +668,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           lot?: string | null
+          no_llego_at?: string | null
           pallet_code: string
           product_id: string
           qty_cases: number
@@ -673,6 +681,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           lot?: string | null
+          no_llego_at?: string | null
           pallet_code?: string
           product_id?: string
           qty_cases?: number
@@ -3724,6 +3733,18 @@ export type Database = {
         }
         Relationships: []
       }
+      ingresos_abiertos: {
+        Row: {
+          anden: string | null
+          de_mi_anden: boolean | null
+          pallets: number | null
+          pedido: string | null
+          recibidos: number | null
+          sin_aviso: boolean | null
+          ultimo: string | null
+        }
+        Relationships: []
+      }
       inventario: {
         Row: {
           area_code: string | null
@@ -4274,6 +4295,7 @@ export type Database = {
         Row: {
           al_alcance: boolean | null
           created_at: string | null
+          de_mi_equipo: boolean | null
           de_mi_flujo: boolean | null
           flow: string | null
           from_location_id: string | null
@@ -4289,6 +4311,7 @@ export type Database = {
         Insert: {
           al_alcance?: never
           created_at?: string | null
+          de_mi_equipo?: never
           de_mi_flujo?: never
           flow?: string | null
           from_location_id?: string | null
@@ -4304,6 +4327,7 @@ export type Database = {
         Update: {
           al_alcance?: never
           created_at?: string | null
+          de_mi_equipo?: never
           de_mi_flujo?: never
           flow?: string | null
           from_location_id?: string | null
@@ -4521,6 +4545,7 @@ export type Database = {
         Args: { p_nota?: string; p_origen?: string }
         Returns: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
@@ -4683,6 +4708,29 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cambiar_equipo: {
+        Args: { p_tipo_equipo?: string }
+        Returns: {
+          auto_closed: boolean
+          dock_door_id: string | null
+          ended_at: string | null
+          equipment_id: string | null
+          equipment_type_code: string | null
+          flow: string
+          id: string
+          pause_note: string | null
+          paused_at: string | null
+          profile_id: string
+          started_at: string
+          working_role: Database["public"]["Enums"]["user_role"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_assignment"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cambiar_rol: {
         Args: { p_id: string; p_role: Database["public"]["Enums"]["user_role"] }
         Returns: {
@@ -4783,10 +4831,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      cerrar_ingreso_sin_aviso: {
-        Args: { p_pedido: string }
+      cerrar_ingreso: {
+        Args: { p_forzar?: boolean; p_nota?: string; p_pedido: string }
         Returns: {
           cajas_sap: number | null
+          cierre_nota: string | null
           created_at: string
           dock_door_id: string | null
           entrega: string | null
@@ -5235,6 +5284,7 @@ export type Database = {
       }
       manda_sobre_personal: { Args: never; Returns: boolean }
       medianoche_de_su_dia: { Args: { p_momento: string }; Returns: string }
+      nivel_minimo_de: { Args: { p_profile_id: string }; Returns: number }
       pallets_de_carga_inicial: { Args: never; Returns: number }
       pallets_que_caben: {
         Args: { p_location_id: string; p_product_id: string }
@@ -5708,7 +5758,10 @@ export type Database = {
       }
       tope_de_turno: { Args: never; Returns: string }
       trabajar_como: {
-        Args: { p_rol: Database["public"]["Enums"]["user_role"] }
+        Args: {
+          p_rol: Database["public"]["Enums"]["user_role"]
+          p_tipo_equipo?: string
+        }
         Returns: {
           auto_closed: boolean
           dock_door_id: string | null

@@ -1,7 +1,7 @@
 import { requirePermission } from '@/lib/auth/session'
 import { can } from '@/lib/auth/roles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { IngresoForm } from './ingreso-form'
+import { IngresoForm, type Abierto } from './ingreso-form'
 import { buscarIngreso } from './actions'
 
 export const metadata = { title: 'Ingreso · WMS Palmerola' }
@@ -10,9 +10,16 @@ export default async function IngresoPage() {
   const user = await requirePermission('inventario:mover')
 
   const supabase = await createSupabaseServerClient()
-  const [{ data }, { data: enCurso }] = await Promise.all([
+  const [{ data }, { data: enCurso }, { data: medias }] = await Promise.all([
     supabase.from('anden_de_recibo').select('location_id, anden').order('anden'),
     supabase.rpc('ingreso_en_curso'),
+    // El de su andén primero, y luego el que se tocó hace menos: ése es el orden en que se
+    // busca el camión que alguien dejó a medias.
+    supabase
+      .from('ingresos_abiertos')
+      .select('pedido, anden, pallets, recibidos, sin_aviso')
+      .order('de_mi_anden', { ascending: false })
+      .order('ultimo', { ascending: false, nullsFirst: false }),
   ])
 
   const docks = (data ?? []).map((d) => ({ id: d.location_id!, code: d.anden! }))
@@ -29,6 +36,15 @@ export default async function IngresoPage() {
           docks={docks}
           anden={user.anden}
           abierto={abierto?.ok ? abierto.doc : null}
+          abiertos={(medias ?? []).map(
+            (m): Abierto => ({
+              pedido: m.pedido ?? '',
+              anden: m.anden,
+              pallets: m.pallets ?? 0,
+              recibidos: m.recibidos ?? 0,
+              sinAviso: m.sin_aviso ?? false,
+            }),
+          )}
           deAnden={can(user.roles, 'ingresos:administrar')}
         />
       ) : (

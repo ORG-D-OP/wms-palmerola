@@ -214,18 +214,56 @@ check(
 )
 
 await como(operario)
-const cierreSinPermiso = await falla(`select cerrar_ingreso_sin_aviso($1)`, [doc.pedido])
-check(cierreSinPermiso?.includes('permiso'), 'un auxiliar no cierra el acta')
+const cierreSinPermiso = await falla(`select cerrar_ingreso($1)`, [doc.pedido])
+check(cierreSinPermiso?.includes('chequea el andén'), 'un auxiliar no cierra el acta')
 
-await como(jefe)
-const noAplica = await falla(`select cerrar_ingreso_sin_aviso($1)`, [conDocumento])
-check(
-  noAplica?.includes('último pallet'),
-  'los ingresos con documento se cierran solos, no a mano',
+// El camion con papeles que llega corto. Antes esto no lo podia cerrar nadie: la unica funcion
+// de cerrar se negaba en seco —«se cierra solo cuando entra el ultimo pallet de la lista»— y el
+// pedido se quedaba en RECEIVING para siempre, ocupando su anden.
+//
+// Se le ponen dos pallets de lista y no baja ninguno, que es el camion que no llego.
+await db.query(
+  `insert into inbound_pallet (doc_id, pallet_code, product_id, qty_cases, expiry_date)
+   select ingreso_por_codigo($1), c.code, (select id from product order by sku limit 1), 20,
+          current_date + 200
+   from (values ('NO-LLEGO-1'), ('NO-LLEGO-2')) as c(code)`,
+  [conDocumento],
 )
 
-const cerrado = await one(`select * from cerrar_ingreso_sin_aviso($1)`, [doc.pedido])
-check(cerrado.status === 'CLOSED', 'el chequeador cierra el acta')
+await como(jefe)
+const sinRazon = await falla(`select cerrar_ingreso($1)`, [conDocumento])
+check(
+  sinRazon?.includes('ciérralo con razón'),
+  'un camion al que le falta lista no se cierra de un boton, por si siguen descargando',
+)
+
+const forzadoMudo = await falla(`select cerrar_ingreso($1, true)`, [conDocumento])
+check(
+  forzadoMudo?.includes('hace falta decir por qué'),
+  'y cerrarlo corto sin razon tampoco: un faltante sin explicacion no se reclama a planta',
+)
+
+const corto = await one(`select * from cerrar_ingreso($1, true, 'No venian en el camion')`, [
+  conDocumento,
+])
+check(corto.status === 'CLOSED', 'con la razon escrita el camion corto si cierra')
+check(
+  corto.cierre_nota === 'No venian en el camion',
+  'y la razon queda en el documento, igual que la del despacho incompleto',
+)
+
+const noLlegaron = await db.query(
+  `select count(*)::int as n, count(no_llego_at)::int as marcados
+   from inbound_pallet where doc_id = ingreso_por_codigo($1) and received_at is null`,
+  [conDocumento],
+)
+check(
+  noLlegaron.rows[0].n > 0 && noLlegaron.rows[0].marcados === noLlegaron.rows[0].n,
+  'y lo que no bajo queda marcado pallet por pallet, no en un numero suelto',
+)
+
+const cerrado = await one(`select * from cerrar_ingreso($1)`, [doc.pedido])
+check(cerrado.status === 'CLOSED', 'el chequeador cierra el acta del camion a ciegas, sin razon')
 
 const despues = await falla(
   `select * from recibir_sin_aviso($1, '61244C4', 10, $2, 'L-9', '2027-01-31')`,
@@ -233,7 +271,7 @@ const despues = await falla(
 )
 check(despues?.includes('ya está cerrado'), 'cerrada el acta, no se le agrega nada mas')
 
-const dosVeces = await falla(`select cerrar_ingreso_sin_aviso($1)`, [doc.pedido])
+const dosVeces = await falla(`select cerrar_ingreso($1)`, [doc.pedido])
 check(dosVeces?.includes('ya está cerrado'), 'ni se cierra dos veces')
 
 const yaNo = await db.query(`select pedido from ingreso_abierto where pedido = $1`, [doc.pedido])

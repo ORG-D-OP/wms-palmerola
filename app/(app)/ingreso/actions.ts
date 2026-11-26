@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth/session'
@@ -381,16 +382,33 @@ export async function recibirSinAviso(
   }
 }
 
-export async function cerrarSinAviso(pedido: string): Promise<{ ok: true } | Fail> {
+/**
+ * Cerrar el camión. Con razón escrita se cierra aunque le falte lista: ése es el camión corto.
+ *
+ * Esto se llamaba `cerrarSinAviso` y sólo valía para los camiones a ciegas. El que llegaba
+ * corto con papeles no lo podía cerrar nadie, ni el administrador, y se quedaba en RECEIVING
+ * ocupando su andén para siempre.
+ */
+export async function cerrarIngreso(pedido: string, nota?: string): Promise<{ ok: true } | Fail> {
   await requirePermission('ingresos:administrar')
 
   const parsed = Pedido.safeParse(pedido)
   if (!parsed.success) return { ok: false, error: 'Código de ingreso inválido.' }
 
+  const razon = z.string().trim().max(200).safeParse(nota ?? '')
+  if (!razon.success) return { ok: false, error: 'La razón es muy larga.' }
+
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.rpc('cerrar_ingreso_sin_aviso', { p_pedido: parsed.data })
+  const { error } = await supabase.rpc('cerrar_ingreso', {
+    p_pedido: parsed.data,
+    p_forzar: razon.data !== '',
+    p_nota: razon.data || undefined,
+  })
   if (error) return fallo(error)
 
+  // La lista de camiones a medio descargar la pinta el servidor. Sin esto el que acaba de
+  // cerrar seguía en la lista, y abrirlo otra vez contestaba «ya está cerrado».
+  revalidatePath('/ingreso')
   return { ok: true }
 }
 

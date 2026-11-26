@@ -11,7 +11,7 @@ import { FaltaDecirQueEs } from './clase'
 import {
   abrirSinAviso,
   buscarIngreso,
-  cerrarSinAviso,
+  cerrarIngreso,
   corregirRecibo,
   recibirPallet,
   type Documento,
@@ -23,10 +23,20 @@ import { nombrePosicion } from '@/lib/posiciones'
 
 type Dock = { id: string; code: string }
 
+/** Un camión que está abierto ahora mismo, de quien sea. */
+export type Abierto = {
+  pedido: string
+  anden: string | null
+  pallets: number
+  recibidos: number
+  sinAviso: boolean
+}
+
 export function IngresoForm({
   docks,
   anden,
   abierto,
+  abiertos,
   deAnden,
 }: {
   docks: Dock[]
@@ -34,6 +44,12 @@ export function IngresoForm({
   anden: string | null
   /** El camión que se está descargando en su andén, traído ya por el servidor. */
   abierto: Documento | null
+  /**
+   * Todos los que están a medias, el de su andén primero. La pantalla era una caja de
+   * escaneo y nada más: para seguir con el camión del compañero había que saberse de memoria
+   * el pedido de ocho cifras.
+   */
+  abiertos: Abierto[]
   /**
    * El que manda en el andén: abre un ingreso sin aviso y corrige las cajas que bajaron. El
    * auxiliar sí recibe pallets de un ingreso ya abierto, pero no hace ninguna de esas dos.
@@ -50,8 +66,17 @@ export function IngresoForm({
   const [abriendoCiego, setAbriendoCiego] = useState(false)
   const [enCrossdock, setEnCrossdock] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState(false)
+  const [cerrandoCorto, setCerrandoCorto] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Los andenes que tienen más de un camión abierto a la vez.
+  const apilados = Object.entries(
+    abiertos.reduce<Record<string, number>>((cuenta, a) => {
+      if (a.anden) cuenta[a.anden] = (cuenta[a.anden] ?? 0) + 1
+      return cuenta
+    }, {}),
+  ).filter(([, cuantos]) => cuantos > 1)
 
   const cargar = (pedido: string) =>
     startTransition(async () => {
@@ -74,12 +99,19 @@ export function IngresoForm({
     })
   }
 
-  const cerrarActa = () => {
+  /**
+   * Cerrar el acta. Con razón escrita cierra el camión que llegó corto.
+   *
+   * Sin la razón la base no deja cerrar un camión al que le falta lista, y está bien: eso
+   * protege del cierre por accidente del que todavía está descargando.
+   */
+  const cerrarActa = (razon?: string) => {
     if (!doc) return
     setError(null)
     startTransition(async () => {
-      const res = await cerrarSinAviso(doc.pedido)
+      const res = await cerrarIngreso(doc.pedido, razon)
       if (!res.ok) return setError(res.error)
+      setCerrandoCorto(false)
       setDoc(null)
       setUltimo(null)
     })
@@ -162,6 +194,51 @@ export function IngresoForm({
           Son los ocho dígitos de la página que trae la lista de productos. Se abre una vez por
           camión; después solo se escanean las etiquetas de los pallets.
         </p>
+
+        {abiertos.length > 0 ? (
+          <section className="flex flex-col gap-2 border-t border-borde pt-5">
+            <span className={ETIQUETA}>Camiones a medio descargar</span>
+
+            {/*
+              Un andén es un sitio donde cabe un camión, y el sistema dejaba cinco a la vez en
+              el 9 sin decir nada. No lo impide —uno abierto de ayer no puede dejar el andén
+              muerto hoy— pero lo pone delante del que está mirando.
+            */}
+            {apilados.length > 0 ? (
+              <p className="rounded-xl bg-celeste/15 p-3 text-sm">
+                {apilados
+                  .map(([donde, cuantos]) => `${nombrePosicion(donde)}: ${cuantos} camiones`)
+                  .join(' · ')}
+                . En un andén cabe un camión: si alguno ya se fue, ciérralo.
+              </p>
+            ) : null}
+
+            <ul className="flex flex-col divide-y divide-borde">
+              {abiertos.map((a) => (
+                <li key={a.pedido}>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setError(null)
+                      cargar(a.pedido)
+                    }}
+                    className="flex w-full items-baseline gap-3 py-2 text-left"
+                  >
+                    <span className="font-mono tabular-nums">{a.pedido}</span>
+                    <span className="min-w-0 flex-1 text-xs text-azul/60">
+                      {a.anden ? nombrePosicion(a.anden) : 'sin andén'} ·{' '}
+                      {a.sinAviso
+                        ? `${plural(a.recibidos, 'pallet bajado', 'pallets bajados')}, sin lista`
+                        : `${a.recibidos} de ${a.pallets} bajados`}
+                    </span>
+                    <Icon name="chevron_right" className="!text-[18px] shrink-0" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {deAnden ? (
           <div className="border-t border-borde pt-5">
@@ -252,14 +329,14 @@ export function IngresoForm({
             <p className="mt-2 text-sm">
               {anunciado ? (
                 <>
-                  SAP anuncia {doc.esperado.length}{' '}
-                  {plural(doc.esperado.length, 'material', 'materiales')} ·{' '}
-                  {cajasEsperadas.toLocaleString('es-HN')} cajas · sin etiquetas de pallet
+                  SAP anuncia {plural(doc.esperado.length, 'material', 'materiales')} ·{' '}
+                  {plural(cajasEsperadas, 'caja', 'cajas')} · sin etiquetas de pallet
                 </>
               ) : (
                 <>
-                  {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
-                  {doc.cajas.toLocaleString('es-HN')} cajas
+                  {plural(doc.pallets, 'pallet', 'pallets')} ·{' '}
+                  {plural(doc.materiales, 'material', 'materiales')} ·{' '}
+                  {plural(doc.cajas, 'caja', 'cajas')}
                 </>
               )}
             </p>
@@ -268,8 +345,9 @@ export function IngresoForm({
         ) : (
           <>
             <p className="mt-2 text-sm">
-              {doc.recibidos} de {doc.pallets} pallets · {doc.materiales} materiales ·{' '}
-              {doc.cajas.toLocaleString('es-HN')} cajas
+              {doc.recibidos} de {plural(doc.pallets, 'pallet', 'pallets')} ·{' '}
+              {plural(doc.materiales, 'material', 'materiales')} ·{' '}
+              {plural(doc.cajas, 'caja', 'cajas')}
               {doc.anden ? ` · ${nombrePosicion(doc.anden)}` : ''}
             </p>
             <div
@@ -403,7 +481,12 @@ export function IngresoForm({
             </section>
           ) : null}
           {deAnden ? (
-            <button type="button" onClick={cerrarActa} disabled={pending} className={BOTON_SUAVE}>
+            <button
+              type="button"
+              onClick={() => cerrarActa()}
+              disabled={pending}
+              className={BOTON_SUAVE}
+            >
               Terminé de descargar: cerrar el acta
             </button>
           ) : (
@@ -413,11 +496,69 @@ export function IngresoForm({
           )}
         </>
       ) : enCrossdock ? null : faltan > 0 ? (
-        <ScanInput
-          label="Escanea la etiqueta del pallet"
-          disabled={pending}
-          onScan={escanearPallet}
-        />
+        <>
+          <ScanInput
+            label="Escanea la etiqueta del pallet"
+            disabled={pending}
+            onScan={escanearPallet}
+          />
+
+          {/*
+            El camión corto. Hasta aquí la pantalla sólo ofrecía «Dejarlo para después», así
+            que un camión al que le faltó producto se quedaba abierto para siempre: el cierre
+            automático llega cuando entra el último pallet, y el último no iba a entrar.
+            Igual que el despacho incompleto, se cierra diciendo por qué.
+          */}
+          {deAnden ? (
+            cerrandoCorto ? (
+              <form
+                action={(datos) => cerrarActa(String(datos.get('razon') ?? ''))}
+                className="flex flex-col gap-3 rounded-2xl border border-borde p-4"
+              >
+                <label className="flex flex-col gap-1.5">
+                  <span className={ETIQUETA}>
+                    ¿Por qué no bajaron {plural(faltan, 'pallet', 'pallets')}?
+                  </span>
+                  <input
+                    name="razon"
+                    required
+                    autoFocus
+                    maxLength={200}
+                    placeholder="No venían en el camión"
+                    className={CAMPO}
+                  />
+                </label>
+                <p className="text-sm text-azul/60">
+                  Quedan marcados como no llegados, con tu razón, y el camión cerrado.
+                </p>
+                <button type="submit" disabled={pending} className={BOTON}>
+                  {pending ? 'Cerrando...' : 'Cerrar el camión'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCerrandoCorto(false)}
+                  className={BOTON_SUAVE}
+                >
+                  Mejor no
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCerrandoCorto(true)}
+                disabled={pending}
+                className={BOTON_SUAVE}
+              >
+                El camión llegó corto: cerrarlo
+              </button>
+            )
+          ) : (
+            <p className="text-sm text-azul/60">
+              Si el camión llegó corto, o si una tarima no trae las cajas que dice el papel,
+              eso lo arregla el chequeador del andén: avísale antes de irte.
+            </p>
+          )}
+        </>
       ) : (
         <div className="flex flex-col gap-3 rounded-2xl bg-[var(--verde)]/20 p-4 text-center">
           <p className="text-lg">Camión completo</p>
