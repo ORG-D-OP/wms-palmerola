@@ -951,4 +951,28 @@ check(
   'y entre las tres suman lo que salio de la bodega, ni mas ni menos',
 )
 
+// La vista del camion contaba la tarea entera una vez por linea: 432 surtidas de 144 pedidas.
+const progresoJuntas = await one(
+  `select pedido, surtido, pendientes from despacho_progreso where id = $1`,
+  [camionJuntas],
+)
+check(
+  Number(progresoJuntas.surtido) === 144,
+  `el camion dice lo que salio, no la tarea una vez por linea (${progresoJuntas.surtido})`,
+)
+check(
+  Number(progresoJuntas.pendientes) === 0,
+  `y las tareas vivas se cuentan por tarea, no por apartado (${progresoJuntas.pendientes})`,
+)
+
+// --- el camion se busca por la entrega -----------------------------------------------------
+
+// El chequeador trae la hoja de una parada con su numero de entrega, no el del transporte.
+const porEntrega = await one(`select buscar_despacho('0314015681') as id`)
+check(porEntrega.id === camion, 'el camion se encuentra por cualquiera de sus entregas')
+const conCeros = await one(`select buscar_despacho('0003916464') as id`)
+check(conCeros.id === camion, 'y los ceros de la izquierda no lo esconden')
+const transporteManda = await one(`select buscar_despacho('3916464') as id`)
+check(transporteManda.id === camion, 'y el transporte sigue mandando sobre los demas')
+
 await db.close()

@@ -319,3 +319,55 @@ language sql stable security definer set search_path = public as $f$
 $f$;
 
 grant execute on function surtido_de_linea to authenticated;
+
+/**
+ * Y la vista del camión, que contaba la tarea entera una vez por cada línea que sirve.
+ *
+ * `surtido` sumaba `task.qty_base` por cada `allocation`: con una tarea de 144 sirviendo a
+ * tres líneas, el camión decía 432 surtidas de 144 pedidas. Y `pendientes`, que es cuántas
+ * tareas quedan vivas, contaba tres donde hay una. Las dos cuentan ahora por lo que le tocó a
+ * cada línea y por tareas distintas.
+ */
+create or replace view despacho_progreso as
+  select
+    o.id,
+    o.code,
+    o.transporte,
+    o.entregas,
+    o.customer,
+    o.status,
+    d.code as anden,
+    count(ol.id)::integer as lineas,
+    coalesce(sum(ol.qty_base), 0) as pedido,
+    coalesce(
+      (select sum(a.qty_base)
+       from order_line l
+       join allocation a on a.order_line_id = l.id
+       join task t on t.id = a.task_id and t.status = 'DONE'
+       where l.order_id = o.id),
+      0
+    ) + coalesce(
+      (select sum(c.qty_base)
+       from order_line l
+       join order_crossdock c on c.order_line_id = l.id
+       where l.order_id = o.id),
+      0
+    ) as surtido,
+    (select count(distinct t.id)
+     from order_line l
+     join allocation a on a.order_line_id = l.id
+     join task t on t.id = a.task_id and t.status not in ('DONE', 'CANCELLED')
+     where l.order_id = o.id)::integer as pendientes,
+    coalesce(
+      (select sum(c.qty_base)
+       from order_line l
+       join order_crossdock c on c.order_line_id = l.id
+       where l.order_id = o.id),
+      0
+    ) as crossdock
+  from sales_order o
+  left join dock_door d on d.id = o.dock_door_id
+  left join order_line ol on ol.order_id = o.id
+  group by o.id, d.code;
+
+grant select on despacho_progreso to authenticated;
