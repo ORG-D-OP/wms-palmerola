@@ -45,9 +45,20 @@ export async function buscarEspacio(
   }
 }
 
+/**
+ * La cantidad siempre positiva, y la dirección sólo del botón.
+ *
+ * Antes se recibía un `delta` con signo y la pantalla lo armaba multiplicando por ±1. Medido a
+ * clic: escribir «-5» en «Guardar aquí» quitaba 5, y escribir «-500» en «Quitar de aquí»
+ * sumaba 500. Un menos de más en el teclado del teléfono invertía la operación en silencio.
+ */
 const Conteo = z.object({
   posicion: Posicion,
-  delta: z.coerce.number().int().refine((n) => n !== 0, 'Escribe cuántas.'),
+  cuantas: z.coerce
+    .number({ message: 'Escribe cuántas.' })
+    .int('Las cuentas van de una en una: escribe un número entero.')
+    .positive('Escribe cuántas, de 1 en adelante. Para quitar, usa «Quitar de aquí».'),
+  signo: z.union([z.literal(1), z.literal(-1)]),
 })
 
 export async function contarRetornable(
@@ -64,7 +75,7 @@ export async function contarRetornable(
   const { data, error } = await supabase
     .rpc('contar_retornable', {
       p_posicion: parsed.data.posicion,
-      p_delta: parsed.data.delta,
+      p_delta: parsed.data.signo * parsed.data.cuantas,
     })
     .single()
 

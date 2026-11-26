@@ -31,7 +31,8 @@ export function RetornablesForm() {
     empezar(async () => {
       const res = await contarRetornable({
         posicion: espacio.code,
-        delta: signo * Number(datos.get('cuantas') ?? 0),
+        cuantas: String(datos.get('cuantas') ?? ''),
+        signo,
       })
       if (!res.ok) return setError(res.error)
       setEspacio(res.espacio)
@@ -73,11 +74,18 @@ export function RetornablesForm() {
       <form className="flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">
           <span className={ETIQUETA}>¿Cuántas?</span>
+          {/*
+            `pattern` de sólo dígitos a propósito: el teclado del teléfono trae el menos, y un
+            menos aquí invertía el botón. El servidor lo vuelve a comprobar; esto es para que
+            no llegue ni a salir del teléfono.
+          */}
           <input
             name="cuantas"
             autoFocus
             required
             inputMode="numeric"
+            pattern="[0-9]*"
+            title="Sólo números, de 1 en adelante."
             className={`${CAMPO} tabular-nums`}
           />
         </label>

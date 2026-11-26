@@ -1,5 +1,6 @@
 import { requirePermission } from '@/lib/auth/session'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { plural } from '@/lib/plural'
 import { CargaForm } from './carga-form'
 
 export const metadata = { title: 'Carga inicial · WMS Palmerola' }
@@ -8,10 +9,10 @@ export default async function CargaInicialPage() {
   await requirePermission('inventario:mover')
 
   const supabase = await createSupabaseServerClient()
-  const { count } = await supabase
-    .from('stock_movement')
-    .select('id', { count: 'exact', head: true })
-    .eq('reason_code', 'CARGA_INICIAL')
+  // Matrículas, no movimientos, y sin la siembra: la cuenta a pelo decía «157,258 pallets» en
+  // una bodega donde caben 5,283. La función 0106 explica por qué no se puede contar aquí.
+  const { data: cargados } = await supabase.rpc('pallets_de_carga_inicial')
+  const count = Number(cargados ?? 0)
 
   return (
     <main className="flex w-full max-w-md flex-1 flex-col gap-6 p-4 pb-8 md:p-8">
@@ -25,10 +26,9 @@ export default async function CargaInicialPage() {
 
       <CargaForm />
 
-      {count ? (
+      {count > 0 ? (
         <p className="text-sm text-azul/60">
-          {count.toLocaleString('es-HN')} {count === 1 ? 'pallet cargado' : 'pallets cargados'}{' '}
-          hasta ahora.
+          {plural(count, 'pallet cargado', 'pallets cargados')} hasta ahora.
         </p>
       ) : null}
     </main>

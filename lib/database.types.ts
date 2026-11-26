@@ -5235,6 +5235,7 @@ export type Database = {
       }
       manda_sobre_personal: { Args: never; Returns: boolean }
       medianoche_de_su_dia: { Args: { p_momento: string }; Returns: string }
+      pallets_de_carga_inicial: { Args: never; Returns: number }
       pallets_que_caben: {
         Args: { p_location_id: string; p_product_id: string }
         Returns: number
