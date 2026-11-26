@@ -364,7 +364,10 @@ create or replace view despacho_progreso as
        join order_crossdock c on c.order_line_id = l.id
        where l.order_id = o.id),
       0
-    ) as crossdock
+    ) as crossdock,
+    -- Al final a propósito: `create or replace view` no deja meter una columna en medio, y
+    -- la hoja de despacho la necesita para listar primero los camiones que SAP mandó hoy.
+    o.created_at
   from sales_order o
   left join dock_door d on d.id = o.dock_door_id
   left join order_line ol on ol.order_id = o.id
