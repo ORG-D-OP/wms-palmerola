@@ -57,6 +57,9 @@ export type Hueco = {
   grupo: string | null
   dist_despacho_m: number | null
   usage_name: string | null
+  guarda: boolean
+  apartada: boolean
+  caben: number | null
   sku: string | null
   nombre: string | null
   lpn_code: string | null

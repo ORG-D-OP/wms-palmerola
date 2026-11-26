@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { cajas, colorPlanimetria, NAVE } from '@/lib/warehouse/plano'
+import { cajas, COLOR, colorPlanimetria, NAVE, OCUPACION, type Pilas } from '@/lib/warehouse/plano'
 import type { Modo, Ocupacion, Segmentos } from './warehouse-canvas'
 
 /**
@@ -20,10 +20,13 @@ export default function Warehouse3D({
   ocupacion,
   modo,
   segmentos,
+  pilas,
 }: {
   ocupacion: Ocupacion
   modo: Modo
   segmentos?: Segmentos
+  /** Los pallets apilados en cada posición de piso: aquí se dibuja la pila de verdad. */
+  pilas?: Pilas
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null)
 
@@ -55,7 +58,7 @@ export default function Warehouse3D({
     piso.position.set(NAVE.ancho / 2, -0.02, NAVE.alto / 2)
     escena.add(piso)
 
-    const grupos = cajas()
+    const grupos = cajas(pilas)
     const total = grupos.reduce((s, g) => s + g.cajas.length, 0)
 
     const malla = new THREE.InstancedMesh(
@@ -66,11 +69,13 @@ export default function Warehouse3D({
     const m = new THREE.Matrix4()
     // Cada caja es una posicion con su nivel, asi que el color es el de esa posicion y no
     // el promedio de la zona: aqui se ve en que nivel esta puesto el pallet.
+    // Los mismos colores que el mapa de arriba y que la leyenda, de `plano.ts`: cada vista
+    // tenía los suyos escritos a mano y el celeste de aquí no era el celeste de allá.
     const COLORES = {
-      libre: new THREE.Color('#dcdcea'),
-      OCUPADA: new THREE.Color('#2c2b8f'),
-      APARTADA: new THREE.Color('#009bdd'),
-      OTRO_USO: new THREE.Color('#aeaebe'),
+      libre: new THREE.Color(OCUPACION.libre),
+      OCUPADA: new THREE.Color(COLOR.azul),
+      APARTADA: new THREE.Color(OCUPACION.apartada),
+      OTRO_USO: new THREE.Color(OCUPACION.otroUso),
     }
     const noAlimento = new Set(segmentos?.no_alimento ?? [])
     const picking = new Set(segmentos?.areas?.PICKING ?? [])
@@ -170,12 +175,12 @@ export default function Warehouse3D({
       renderer.dispose()
       lienzo.remove()
     }
-  }, [ocupacion, modo, segmentos])
+  }, [ocupacion, modo, segmentos, pilas])
 
   return (
     <div
       ref={contenedorRef}
-      className="h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-grab touch-none overflow-hidden rounded-2xl border border-borde active:cursor-grabbing"
+      className="h-[clamp(18rem,52vw,34rem)] xl:h-[calc(100dvh-21rem)] xl:min-h-80 w-full cursor-default touch-none overflow-hidden rounded-2xl border border-borde active:cursor-grabbing"
     />
   )
 }

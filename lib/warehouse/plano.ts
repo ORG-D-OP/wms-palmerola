@@ -242,18 +242,51 @@ export const COLOR = {
   borde: 'rgba(44, 43, 143, 0.35)',
 }
 
+/** Un color de marca aclarado sobre blanco. `t` es cuánto queda del color: 1 es el color. */
+function aclarado(hex: string, t: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  const canal = (desplazamiento: number) =>
+    Math.round(255 - (255 - ((n >> desplazamiento) & 255)) * t)
+  return `rgb(${canal(16)}, ${canal(8)}, ${canal(0)})`
+}
+
 /**
- * El color de la planimetría: el tinte dice el grupo —azul el alimento, celeste lo que no lo
+ * Los colores de la ocupación. Enteros y no el azul con transparencia, por lo mismo que la
+ * planimetría: el isométrico no pinta transparencia, así que el mismo estado salía de un
+ * color en el mapa de arriba y de otro en el de cajas, y la leyenda dejaba de ser la llave
+ * de ninguno de los dos. Mapa, isométrico y leyenda leen de aquí.
+ *
+ * El otro uso es gris a propósito: es lo único que no guarda producto, y sin tinte de marca
+ * no se confunde con un azul flojo.
+ */
+export const OCUPACION = {
+  libre: aclarado(COLOR.azul, 0.08),
+  apartada: COLOR.celeste,
+  otroUso: '#aeaebe',
+}
+
+/**
+ * Lo lleno que está el cuadro, de blanco a azul. Arranca al 62% y no en cero: por debajo de
+ * eso un cuadro con un pallet se leía más claro que uno de otro uso y parecía estar más vacío.
+ */
+const TONO_MINIMO = 0.62
+
+export function tonoOcupada(fraccion: number): string {
+  const f = Math.max(0, Math.min(1, fraccion))
+  return aclarado(COLOR.azul, TONO_MINIMO + f * (1 - TONO_MINIMO))
+}
+
+/**
+ * El color de la planimetría: el tinte dice el grupo —azul el alimento, verde lo que no lo
  * es— y la fuerza dice el oficio: subido, la cara de picking; apagado, la reserva.
  *
- * Son colores enteros y no el azul de la marca con transparencia. La vista isométrica no sabe
- * pintar transparencia y la luz le sube el tono a cada caja, así que un tinte al 62% salía
- * casi igual que uno al 16% y no se distinguía la cara de la reserva. Con el color entero los
- * dos mapas y la leyenda pintan lo mismo, que es lo que hace que la leyenda sirva de llave.
+ * El no alimento iba en celeste, que es el mismo celeste con que la ocupación pinta lo
+ * apartado por una tarea: los dos mapas salían del mismo par de tintes y cambiar de modo no
+ * se notaba. Con el verde, la planimetría no comparte ni un color con la ocupación.
  */
 export const PLANIMETRIA = {
-  ALIMENTO: { cara: COLOR.azul, reserva: '#d7d7e8' },
-  NO_ALIMENTO: { cara: COLOR.celeste, reserva: '#bfe6f7' },
+  ALIMENTO: { cara: COLOR.azul, reserva: aclarado(COLOR.azul, 0.18) },
+  NO_ALIMENTO: { cara: aclarado(COLOR.verde, 0.95), reserva: aclarado(COLOR.verde, 0.3) },
 }
 
 /**
@@ -285,21 +318,31 @@ export type Caja = {
   alto: number
 }
 
-export function cajas(): { bloque: Bloque; cajas: Caja[] }[] {
+/**
+ * Cuántos pallets hay encima de una posición de piso y cuántos le caben, por su código.
+ *
+ * En el rack la pila es la estantería y la dibuja la geometría: seis niveles son seis cajas.
+ * En el piso no hay estantería, así que el apilado sale del maestro del producto —las latas
+ * aguantan tres y el tetra de la misma familia dos— y sin este dato el mapa pintaba un solo
+ * pallet donde hay tres (migración 0047).
+ */
+export type Pilas = Record<string, { hay: number; caben: number }>
+
+export function cajas(pilas: Pilas = {}): { bloque: Bloque; cajas: Caja[] }[] {
   return BLOQUES.filter((b) => b.tipo !== 'preparacion').map((b) => {
-    const niveles = b.niveles ?? 1
-    const alto = b.tipo === 'rack' ? ALTURA.nivel * 0.82 : ALTURA.piso
+    const rack = b.tipo === 'rack'
+    const alto = rack ? ALTURA.nivel * 0.82 : ALTURA.piso
     const lista: Caja[] = []
     for (const c of b.celdas) {
-      for (let n = 0; n < niveles; n++) {
+      const pisos = rack ? (b.niveles ?? 1) : Math.max(1, pilas[c.code]?.hay ?? 1)
+      for (let n = 0; n < pisos; n++) {
         lista.push({
-          code:
-            b.tipo === 'rack' ? c.code.replace(/-P(\d)$/, `-N${n + 1}-P$1`) : c.code,
+          code: rack ? c.code.replace(/-P(\d)$/, `-N${n + 1}-P$1`) : c.code,
           x: c.x,
           z: c.y,
           w: c.w,
           d: c.h,
-          y: b.tipo === 'rack' ? n * ALTURA.nivel : 0,
+          y: n * (rack ? ALTURA.nivel : ALTURA.piso),
           alto,
         })
       }
@@ -322,6 +365,18 @@ const CENTRO = new Map<string, Punto>(
     b.celdas.map((c) => [c.code, { x: c.x + c.w / 2, y: c.y + c.h / 2 }] as const),
   ),
 )
+
+/**
+ * El cuadro de una posición, no su centro. El mapa marcaba el destino con un círculo encima
+ * de la planta y lo que la gente busca es su cuadro: ahora se ilumina el cuadro que es.
+ */
+const RECTANGULO = new Map<string, Celda>(
+  BLOQUES.flatMap((b) => b.celdas.map((c) => [c.code, c] as const)),
+)
+
+export function rectangulo(code: string): Celda | null {
+  return RECTANGULO.get(claveDePlanta(code)) ?? null
+}
 
 export function ubicar(code: string): Punto | null {
   const centro = CENTRO.get(claveDePlanta(code))

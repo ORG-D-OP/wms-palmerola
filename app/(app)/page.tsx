@@ -4,6 +4,7 @@ import { can } from '@/lib/auth/roles'
 import { atajos, navMovil } from '@/components/app-shell/nav-items'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Ocupacion as Estados, Segmentos } from '@/components/warehouse-canvas'
+import type { Pilas } from '@/lib/warehouse/plano'
 import { Icon } from '@/components/ui/icon'
 import { Ocupacion } from './ocupacion'
 import { Trabajo, type Trabajo as EstadoTrabajo } from './trabajo'
@@ -19,6 +20,7 @@ type Planta = {
   otros?: string[]
   no_alimento?: string[]
   areas?: Record<string, string[]>
+  pilas?: Pilas
 }
 
 async function getDatos() {
@@ -60,6 +62,7 @@ async function getDatos() {
   return {
     ocupacion,
     segmentos,
+    pilas: mapa.pilas ?? {},
     totales,
     areas: (areas.data ?? []).filter((a) => (a.total ?? 0) > 0),
     productos: productos.count ?? 0,
@@ -86,7 +89,7 @@ async function getTrabajo(profileId: string): Promise<EstadoTrabajo | null> {
 
 export default async function DashboardPage() {
   const user = await requireUser()
-  const [{ ocupacion, segmentos, totales, areas, productos, tareas }, trabajo] =
+  const [{ ocupacion, segmentos, pilas, totales, areas, productos, tareas }, trabajo] =
     await Promise.all([getDatos(), getTrabajo(user.id)])
   const libres = totales.total - totales.ocupadas
   const pct = totales.total > 0 ? Math.round((totales.ocupadas / totales.total) * 100) : 0
@@ -166,6 +169,7 @@ export default async function DashboardPage() {
           <Ocupacion
             estados={ocupacion}
             segmentos={segmentos}
+            pilas={pilas}
             permite3D={can(user.roles, 'kpi:ver')}
           />
         </div>

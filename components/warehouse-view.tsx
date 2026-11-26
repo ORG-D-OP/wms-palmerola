@@ -10,7 +10,7 @@ import {
   type Toque,
 } from './warehouse-canvas'
 
-import { PLANIMETRIA } from '@/lib/warehouse/plano'
+import { COLOR, OCUPACION, type Pilas, PLANIMETRIA, tonoOcupada } from '@/lib/warehouse/plano'
 import { Icon } from './ui/icon'
 
 // ssr: false y carga diferida: Three.js solo baja cuando alguien abre la vista 3D,
@@ -29,29 +29,58 @@ const MODOS: { id: Modo; texto: string }[] = [
   { id: 'planimetria', texto: 'Planimetría' },
 ]
 
-/** Los mismos cuatro colores que pintan los dos mapas, para que la leyenda sirva de llave. */
-const LEYENDA_PLANIMETRIA = [
+type Viñeta = { color: string; texto: string; forma?: 'raya' }
+
+/**
+ * La leyenda sale de la misma paleta que pintan los dos mapas, así que no puede desfasarse.
+ * Antes cada vista tenía sus colores escritos a mano: el «otro uso» de la leyenda era gris y
+ * el del mapa de arriba un azul casi blanco, y al pasar a 3D ninguna viñeta cuadraba.
+ */
+const LEYENDA_PLANIMETRIA: Viñeta[] = [
   { color: PLANIMETRIA.ALIMENTO.cara, texto: 'alimento, cara de picking' },
   { color: PLANIMETRIA.ALIMENTO.reserva, texto: 'alimento, almacén' },
   { color: PLANIMETRIA.NO_ALIMENTO.cara, texto: 'no alimento, cara de picking' },
   { color: PLANIMETRIA.NO_ALIMENTO.reserva, texto: 'no alimento, almacén' },
 ]
 
+const LEYENDA_OCUPACION: Viñeta[] = [
+  { color: OCUPACION.libre, texto: 'libre' },
+  { color: tonoOcupada(1), texto: 'con producto' },
+  { color: OCUPACION.apartada, texto: 'apartada por una tarea' },
+  { color: OCUPACION.otroUso, texto: 'otro uso' },
+]
+
+const LEYENDA_GUIADO: Viñeta[] = [
+  { color: COLOR.verde, texto: 'la posición que buscas' },
+  { color: COLOR.verde, texto: 'cómo llegar', forma: 'raya' },
+]
+
 export function WarehouseView({
   ocupacion,
   permite3D,
   segmentos,
+  pilas,
   onTocar,
 }: {
   ocupacion: Ocupacion
   permite3D: boolean
   /** Sin esto el mapa solo sabe pintar la ocupación: no hay nada que segmentar. */
   segmentos?: Segmentos
+  /** Los pallets apilados en cada posición de piso. */
+  pilas?: Pilas
   onTocar?: (toque: Toque) => void
 }) {
   const [vista, setVista] = useState<'2D' | '3D'>('2D')
   const [modo, setModo] = useState<Modo>('ocupacion')
   const [destino, setDestino] = useState<string | undefined>()
+
+  const enDosD = vista === '2D' || !permite3D
+  // La leyenda dice lo que esta vista está pintando y nada más: el destino y la ruta sólo
+  // existen en la planta, así que en el isométrico no se anuncian.
+  const viñetas =
+    modo === 'planimetria'
+      ? LEYENDA_PLANIMETRIA
+      : [...LEYENDA_OCUPACION, ...(enDosD && destino ? LEYENDA_GUIADO : [])]
 
   return (
     <div className="flex flex-col gap-2">
@@ -117,51 +146,38 @@ export function WarehouseView({
 
       {/* En computadora la leyenda se va a su propia columna: el plano se queda con el ancho. */}
       <div className="flex flex-col gap-2 xl:grid xl:grid-cols-[10rem_minmax(0,1fr)] xl:items-start xl:gap-4">
-        {vista === '3D' && permite3D ? (
-          <Warehouse3D ocupacion={ocupacion} modo={modo} segmentos={segmentos} />
-        ) : (
+        {enDosD ? (
           <WarehouseCanvas
             ocupacion={ocupacion}
             destino={destino}
             modo={modo}
             segmentos={segmentos}
+            pilas={pilas}
             onTocar={onTocar}
           />
+        ) : (
+          <Warehouse3D ocupacion={ocupacion} modo={modo} segmentos={segmentos} pilas={pilas} />
         )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-azul/60 xl:col-start-1 xl:row-start-1 xl:flex-col xl:items-start xl:gap-3 xl:rounded-2xl xl:border xl:border-borde xl:p-4">
-          <h3 className="hidden text-xs text-azul/50 xl:block">
-            Leyenda
-          </h3>
-          {modo === 'planimetria' ? (
-            <>
-              {LEYENDA_PLANIMETRIA.map((l) => (
-                <span key={l.texto} className="flex items-center gap-1.5">
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-[3px]"
-                    style={{ background: l.color }}
-                  />{' '}
-                  {l.texto}
-                </span>
-              ))}
-            </>
-          ) : (
-            <>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-[3px] border border-borde bg-azul-08" /> libre
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-[3px] bg-azul" /> con producto
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 shrink-0 rounded-[3px] bg-celeste/70" /> apartada por
-                una tarea
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-[3px] bg-[#aeaebe]" /> otro uso
-              </span>
-            </>
-          )}
+          <h3 className="hidden text-xs text-azul/50 xl:block">Leyenda</h3>
+
+          {viñetas.map((l) => (
+            <span key={l.texto} className="flex items-center gap-1.5">
+              <span
+                className={`shrink-0 ${l.forma === 'raya' ? 'h-1 w-4 rounded-full' : 'h-3 w-3 rounded-[3px] outline outline-borde'}`}
+                style={{ background: l.color }}
+              />{' '}
+              {l.texto}
+            </span>
+          ))}
+
+          {modo === 'ocupacion' && enDosD ? (
+            <p className="hidden xl:block xl:text-azul/50">
+              Cuanto más oscuro, más lleno. En el piso, cada raya blanca es un pallet más
+              encima.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
