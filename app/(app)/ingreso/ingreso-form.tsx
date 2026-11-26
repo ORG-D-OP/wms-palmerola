@@ -67,6 +67,9 @@ export function IngresoForm({
   const [enCrossdock, setEnCrossdock] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState(false)
   const [cerrandoCorto, setCerrandoCorto] = useState(false)
+  // La transición es una sola para la pantalla entera: sin esto el botón de cerrar pone
+  // «Cerrando...» mientras lo que se está escaneando es un pallet.
+  const [cerrando, setCerrando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -109,7 +112,9 @@ export function IngresoForm({
     if (!doc) return
     setError(null)
     startTransition(async () => {
+      setCerrando(true)
       const res = await cerrarIngreso(doc.pedido, razon)
+      setCerrando(false)
       if (!res.ok) return setError(res.error)
       setCerrandoCorto(false)
       setDoc(null)
@@ -532,7 +537,7 @@ export function IngresoForm({
                   Quedan marcados como no llegados, con tu razón, y el camión cerrado.
                 </p>
                 <button type="submit" disabled={pending} className={BOTON}>
-                  {pending ? 'Cerrando...' : 'Cerrar el camión'}
+                  {cerrando ? 'Cerrando...' : 'Cerrar el camión'}
                 </button>
                 <button
                   type="button"

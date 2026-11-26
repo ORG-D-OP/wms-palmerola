@@ -36,13 +36,17 @@ import { nombrePosicion } from '@/lib/posiciones'
  * El camión se puede cerrar incompleto, porque un camión que tiene que salir sale, pero eso
  * pide una razón: un faltante que nadie escribió es un descuadre que aparece la semana que
  * viene sin dueño.
+ *
+ * Y el chequeo es de uno: el que sube el producto no es el que lo comprueba. Quien no chequea
+ * ve la hoja entera —la necesita para saber qué cargar— pero sin la caja de escaneo.
  */
 export function DespachoForm({
-  puedeCerrar,
+  deAnden,
   abierto,
   andenes,
 }: {
-  puedeCerrar: boolean
+  /** Si esta persona es la que chequea el andén: marca líneas, corrige cantidades y cierra. */
+  deAnden: boolean
   /** El camión que se está cargando en su andén, traído ya por el servidor. */
   abierto: Camion | null
   andenes: string[]
@@ -51,6 +55,7 @@ export function DespachoForm({
   const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
   const [cerrandoCorto, setCerrandoCorto] = useState(false)
+  const [cerrando, setCerrando] = useState(false)
   const [pending, empezar] = useTransition()
 
   function resolver(respuesta: Awaited<ReturnType<typeof buscarDespacho>>) {
@@ -145,9 +150,16 @@ export function DespachoForm({
       setError('')
     })
 
+  /**
+   * Y el botón dice lo que está pasando de verdad. La transición es una sola para toda la
+   * pantalla, así que mientras el chequeador escaneaba una caja el botón de cerrar ponía
+   * «Despachando...»: visto a clic, y es de las cosas que asustan en un andén.
+   */
   const cerrar = (nota?: string) =>
     empezar(async () => {
+      setCerrando(true)
       const res = await despachar(camion.id, nota)
+      setCerrando(false)
       if (!res.ok) return setError(res.error)
       setCamion(res.camion)
       setCerrandoCorto(false)
@@ -176,7 +188,7 @@ export function DespachoForm({
 
       {despachado ? (
         <Logro>El camión salió. No queda nada por hacer con esta hoja.</Logro>
-      ) : (
+      ) : deAnden ? (
         <>
           <ScanInput
             label="Escanea lo que va subiendo al camión"
@@ -185,6 +197,11 @@ export function DespachoForm({
           />
           {aviso ? <Logro>{aviso}</Logro> : null}
         </>
+      ) : (
+        <p className="text-sm text-azul/60">
+          Ésta es la hoja del camión: carga lo que dice. Chequearla es del chequeador del
+          andén, que es quien compara lo que sube contra el papel.
+        </p>
       )}
 
       <p className="text-sm text-azul/60">
@@ -197,7 +214,7 @@ export function DespachoForm({
           <Renglon
             key={l.lineNo}
             linea={l}
-            editable={!despachado && puedeCerrar}
+            editable={!despachado && deAnden}
             onCorregir={(cajas) =>
               empezar(async () => {
                 const res = await corregirCantidad(camion.id, l.id, cajas)
@@ -211,7 +228,7 @@ export function DespachoForm({
         ))}
       </ul>
 
-      {!despachado && puedeCerrar ? (
+      {!despachado && deAnden ? (
         cerrandoCorto ? (
           <form
             action={(datos) => cerrar(String(datos.get('nota') ?? ''))}
@@ -233,7 +250,7 @@ export function DespachoForm({
               guardada en la hoja.
             </p>
             <button type="submit" disabled={pending} className={BOTON}>
-              {pending ? 'Cerrando...' : 'Cerrar el camión así'}
+              {cerrando ? 'Cerrando...' : 'Cerrar el camión así'}
             </button>
             <button type="button" onClick={() => setCerrandoCorto(false)} className={BOTON_SUAVE}>
               Mejor no
@@ -247,7 +264,7 @@ export function DespachoForm({
               onClick={() => (corto ? setCerrandoCorto(true) : cerrar())}
               className={BOTON}
             >
-              {pending ? 'Despachando...' : 'Marcar camión despachado'}
+              {cerrando ? 'Despachando...' : 'Marcar camión despachado'}
             </button>
             {!completo ? (
               <>
@@ -274,7 +291,7 @@ export function DespachoForm({
         )
       ) : null}
 
-      {!despachado && !puedeCerrar && completo ? (
+      {!despachado && !deAnden && completo ? (
         <p className="text-sm text-azul/60">
           Ya está todo arriba. El camión lo cierra el chequeador con la hoja en la mano.
         </p>

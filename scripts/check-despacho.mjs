@@ -20,8 +20,13 @@ const { id: jefe } = await one(
 const { id: operario } = await one(
   `insert into auth.users (email) values ('aux@ejemplo.test') returning id`,
 )
+// El que chequea es un rol aparte: el auxiliar sube el producto, el chequeador lo comprueba.
+const { id: chequeador } = await one(
+  `insert into auth.users (email) values ('chequeador@ejemplo.test') returning id`,
+)
 await db.query(`update profile set is_active = true, approved_at = now(), role = 'supervisor' where id = '${jefe}'`)
 await db.query(`update profile set is_active = true, approved_at = now(), role = 'auxiliar' where id = '${operario}'`)
+await db.query(`update profile set is_active = true, approved_at = now(), role = 'chequeador' where id = '${chequeador}'`)
 const como = (id) => db.query(`select set_config('request.jwt.claim.sub', '${id}', false)`)
 
 await como(jefe)
@@ -154,6 +159,23 @@ const sinPermiso = await falla(`select despachar($1)`, [camion])
 check(sinPermiso?.includes('permiso'), 'un auxiliar no despacha camiones')
 
 await como(jefe)
+
+// Un camion surtido entero y sin chequear una sola linea no sale: la regla vivia en la
+// pantalla, que apaga el boton, y la API estaba abierta.
+const sinChequear = await falla(`select despachar($1)`, [camion])
+check(
+  sinChequear?.includes('falta chequear'),
+  'un camion sin chequear no sale, aunque este todo surtido',
+)
+const sinChequearConNota = await falla(`select despachar($1, false, 'el cliente lo recibe asi')`, [
+  camion,
+])
+check(
+  sinChequearConNota?.includes('falta chequear'),
+  'y una nota suelta no lo arregla: la nota va con el forzado',
+)
+
+await one(`select * from verificar_linea($1, 'P-1')`, [camion])
 await one(`select despachar($1)`, [camion])
 const salido = await one(`select status, shipped_at from sales_order where id = $1`, [camion])
 check(salido.status === 'SHIPPED', 'el jefe cierra el camion')
@@ -219,7 +241,7 @@ check(Number(faltante.falta) === 60, 'la linea sin existencia queda entera por a
 
 // --- chequear escaneando ----------------------------------------------------------------
 
-await como(operario)
+await como(chequeador)
 
 // Chequear una linea de la que no ha bajado nada se para: la hoja mira la carga, no el codigo.
 const sinBajar = await falla(`select verificar_linea($1, '17802225689141')`, [segundo])
@@ -237,10 +259,17 @@ await db.query(
   `update task set status = 'IN_PROGRESS', assigned_to = '${operario}' where id = $1`,
   [tareaSegundo],
 )
+await como(operario)
 await one(`select * from complete_pick($1, '17802225689141', 1)`, [tareaSegundo])
 
+// El que acaba de subir la caja no es el que la comprueba: chequear es comparar contra el
+// papel, y eso lo firma el chequeador del anden.
+const noLeToca = await falla(`select verificar_linea($1, '17802225689141')`, [segundo])
+check(noLeToca?.includes('lo chequea el chequeador'), 'el auxiliar que subio la caja no chequea')
+
+await como(chequeador)
 const marcada = await one(`select * from verificar_linea($1, '17802225689141')`, [segundo])
-check(marcada.linea === 1, 'el auxiliar marca la linea escaneando la caja que sube')
+check(marcada.linea === 1, 'el chequeador marca la linea escaneando la caja que sube')
 check(marcada.ya_estaba === false, 'y la primera vez no estaba marcada')
 
 const repetida = await one(`select * from verificar_linea($1, '17802225689141')`, [segundo])
@@ -571,6 +600,7 @@ await surtirPendientes(camionC, 1, 5)
 const surtidoC = await one(`select status from sales_order where id = $1`, [camionC])
 check(surtidoC.status === 'PICKED', 'con la ultima caja surtida si queda surtido')
 
+await one(`select * from verificar_linea($1, 'P-4')`, [camionC])
 await one(`select despachar($1)`, [camionC])
 const salioC = await one(`select status from sales_order where id = $1`, [camionC])
 check(salioC.status === 'SHIPPED', 'y sale completo, sin nota de excepcion')
@@ -656,10 +686,12 @@ check(
   'en el anden quedan los dos renglones: lo desprendido sin matricula y el resto con ella',
 )
 
+await one(`select * from verificar_linea($1, 'P-5')`, [camionE])
 await one(`select despachar($1)`, [camionE])
 const salioE = await one(`select status from sales_order where id = $1`, [camionE])
 check(salioE.status === 'SHIPPED', 'el camion de la caja desprendida sale')
 
+await one(`select * from verificar_linea($1, 'P-5')`, [camionF])
 await one(`select despachar($1)`, [camionF])
 const salioF = await one(`select status from sales_order where id = $1`, [camionF])
 check(salioF.status === 'SHIPPED', 'y el del resto del pallet tambien')
