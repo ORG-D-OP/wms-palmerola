@@ -226,7 +226,7 @@ export default async function AreasPage({
               patron={patron}
               zona={zona}
               nivel={nivel}
-              // Sin las virtuales. Calidad, desguace, cross-dock y contenedores son áreas
+              // Sin las virtuales. Calidad, desguace y contenedores son áreas
               // «sin posiciones físicas» —lo dice esta misma pantalla dos renglones arriba—,
               // así que mover posiciones de rack a una de ellas no significa nada.
               areas={(areas ?? [])
