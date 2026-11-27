@@ -34,12 +34,13 @@ export default async function TurnoPage() {
             .select('id, full_name, role, rol_trabajo, disponible, pause_note, anden')
             .order('full_name')
         : { data: null },
-      reparte
-        ? supabase
-            .from('carga_por_anden')
-            .select('anden, libres, asignadas, en_curso, personas')
-            .order('anden')
-        : { data: null },
+      // La carga por andén la ve todo el mundo, no sólo el jefe: desde la 0120 la gente se
+      // mueve sola, y para escoger andén hace falta lo mismo que para repartir —dónde está
+      // el trabajo—. La vista ya deja fuera los andenes inhabilitados.
+      supabase
+        .from('carga_por_anden')
+        .select('anden, libres, asignadas, en_curso, personas')
+        .order('anden'),
     ])
 
   const abierto = turnos?.[0]
@@ -71,6 +72,11 @@ export default async function TurnoPage() {
             alcance: t.max_level,
           }),
         )}
+        andenes={(puertas ?? []).map((c) => ({
+          code: c.anden ?? '',
+          libres: c.libres ?? 0,
+          personas: c.personas ?? 0,
+        }))}
         rango={rolDe(user.role)}
         roles={rolesDeTrabajoDe(user.roles)}
       />

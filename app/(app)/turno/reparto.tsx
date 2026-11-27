@@ -33,9 +33,10 @@ export type Carga = {
  * sola persona. Por eso cada andén dice su carga, y cada opción del selector también.
  *
  * Las tareas son del andén, no de la persona: al mover a alguien, lo que tenía asignado y no
- * había empezado vuelve a la cola de su andén para que se lo lleve quien quede ahí. Lo que ya
- * empezó no se le toca, porque cancelarle una tarea a alguien que va con un pallet en las
- * uñas deja ese pallet a medio camino y sin dueño.
+ * había empezado vuelve a la cola de su andén para que se lo lleve quien quede ahí. Y a quien
+ * anda con un pallet en las uñas **no se le mueve**: está físicamente en el andén viejo, así
+ * que el cambio se niega hasta que termine. Desde la 0120 la gente también se mueve sola, con
+ * las mismas dos reglas; esto queda para colocarla.
  */
 export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) {
   const [aviso, setAviso] = useState<string | null>(null)
@@ -62,9 +63,6 @@ export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) 
           `Soltó ${plural(res.liberadas, 'tarea', 'tareas')} que no había empezado y ` +
             `${res.liberadas === 1 ? 'vuelve' : 'vuelven'} a la cola del andén que deja.`,
         )
-      }
-      if (res.enCurso) {
-        partes.push(`Anda a medio camino con algo para ${res.enCurso}: lo termina y pasa.`)
       }
       setAviso(partes.join(' '))
     })

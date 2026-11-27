@@ -5,7 +5,9 @@ import { Aviso, Logro } from '@/components/ui/feedback'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
 import { ROLE_LABELS, esDeTrabajo, type UserRole } from '@/lib/auth/roles'
 import { hora } from '@/lib/warehouse/hora'
+import { plural } from '@/lib/plural'
 import {
+  cambiarAnden,
   cambiarEquipo,
   cerrarTurno,
   iniciarTurno,
@@ -56,14 +58,22 @@ export type Turno = {
  * La pausa existe para cuando le hablan a alguien para otra cosa: sale de la cola sin
  * perder el equipo que tiene asignado.
  */
+export type Anden = {
+  code: string
+  libres: number
+  personas: number
+}
+
 export function TurnoForm({
   turno,
   tipos,
+  andenes,
   rango,
   roles,
 }: {
   turno: Turno | null
   tipos: Tipo[]
+  andenes: Anden[]
   rango: UserRole
   roles: UserRole[]
 }) {
@@ -102,11 +112,13 @@ export function TurnoForm({
             <dd className="text-lg">{turno.anden ?? 'Toda la bodega'}</dd>
             <dd className="text-sm text-azul/60">
               {turno.anden
-                ? 'Sólo te caen tareas de este andén. Lo cambia el jefe de bodega.'
+                ? 'Sólo te caen tareas de este andén.'
                 : 'Te cae trabajo de cualquier andén.'}
             </dd>
           </div>
         </dl>
+
+        <CambiarAnden actual={turno.anden} andenes={andenes} />
 
         <CambiarEquipo actual={turno.equipo} tipos={tipos} rol={turno.rol} />
 
@@ -200,6 +212,63 @@ export function TurnoForm({
  * rol no está entre los «otros»—. A los demás esta fila y la de abajo serían dos hileras de
  * los mismos tres botones haciendo cosas distintas.
  */
+/**
+ * Cambiarme de andén sin salir del turno.
+ *
+ * Lo dice quien se mueve, y no el jefe, porque el andén no es un privilegio: es dónde está
+ * parado. Quien termina en el 9 y se va al 12 lo cambia y sigue, en vez de esperar a que lo
+ * muevan mientras la cola le da trabajo del andén que ya dejó.
+ *
+ * Cada opción dice cuánto hay sin tomar, que es lo único que ayuda a escoger. Y lo que tenía
+ * asignado sin empezar vuelve a la cola del andén que deja, porque las tareas son del andén;
+ * si anda con algo en la mano, la base no deja el cambio y lo dice.
+ */
+function CambiarAnden({ actual, andenes }: { actual: string | null; andenes: Anden[] }) {
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  if (andenes.length === 0) return null
+
+  const cambiar = (code: string) =>
+    startTransition(async () => {
+      setAviso(null)
+      setError(null)
+      const res = await cambiarAnden(code)
+      if (!res.ok) return setError(res.error)
+      setAviso(
+        res.liberadas > 0
+          ? `Pasas a ${res.anden ?? 'toda la bodega'}. Soltaste ${plural(res.liberadas, 'tarea', 'tareas')} sin empezar al andén que dejas.`
+          : `Pasas a ${res.anden ?? 'toda la bodega'}.`,
+      )
+    })
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borde pt-4">
+      <label className={ETIQUETA} htmlFor="mi-anden">
+        En qué andén estoy
+      </label>
+      <select
+        id="mi-anden"
+        value={actual ?? ''}
+        disabled={pending}
+        onChange={(e) => cambiar(e.target.value)}
+        className={`${CAMPO} disabled:opacity-50`}
+      >
+        <option value="">Toda la bodega</option>
+        {andenes.map((a) => (
+          <option key={a.code} value={a.code}>
+            {a.code}
+            {a.libres > 0 ? ` · ${a.libres} sin tomar` : ''}
+          </option>
+        ))}
+      </select>
+      {aviso ? <Logro>{aviso}</Logro> : null}
+      {error ? <Aviso>{error}</Aviso> : null}
+    </div>
+  )
+}
+
 function CambiarEquipo({
   actual,
   tipos,

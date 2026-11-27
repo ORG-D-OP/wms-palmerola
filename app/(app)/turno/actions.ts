@@ -133,6 +133,33 @@ export async function cambiarEquipo(tipo: string) {
   return { ok: true as const }
 }
 
+/**
+ * Me cambio de andén.
+ *
+ * Lo dice quien se mueve, no el jefe: el andén decide qué cola le da trabajo, y quien acaba
+ * en el 9 y se va al 12 no tiene por qué esperar a que lo muevan. Sin código, «toda la
+ * bodega». Lo que tenía asignado y no había empezado vuelve a la cola del andén que deja.
+ */
+export async function cambiarAnden(anden: string) {
+  await requirePermission('turno:iniciar')
+
+  const codigo = z.string().trim().max(20).safeParse(anden)
+  if (!codigo.success) return { ok: false as const, error: 'Revisa el andén.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .rpc('cambiar_anden', { p_anden: codigo.data || undefined })
+    .single()
+
+  if (error) return fallo(error)
+  refrescar()
+  return {
+    ok: true as const,
+    anden: data?.anden ?? null,
+    liberadas: data?.liberadas ?? 0,
+  }
+}
+
 export async function pausarTurno(datos: FormData) {
   await requirePermission('turno:iniciar')
 
@@ -166,8 +193,9 @@ export async function cerrarTurno() {
 /**
  * El jefe de bodega para a alguien en un andén, o lo suelta para toda la bodega.
  *
- * Devuelve qué pasó con su trabajo, porque eso es lo que hay que contarle: cuántas tareas
- * soltó al andén que deja, y si va a medio camino con algo que no se le puede quitar.
+ * Devuelve cuántas tareas soltó al andén que deja, porque eso es lo que hay que contarle. Si
+ * la persona anda a medio camino con algo, el cambio no pasa y vuelve como error, con el
+ * sitio donde está esa tarea.
  */
 export async function asignarAnden(personaId: string, anden: string) {
   await requirePermission('tareas:reasignar')
@@ -189,6 +217,5 @@ export async function asignarAnden(personaId: string, anden: string) {
     ok: true as const,
     anden: data?.anden ?? null,
     liberadas: data?.liberadas ?? 0,
-    enCurso: data?.en_curso ?? null,
   }
 }

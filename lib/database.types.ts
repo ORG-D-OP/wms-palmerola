@@ -4458,7 +4458,6 @@ export type Database = {
         Args: { p_anden?: string; p_profile_id: string }
         Returns: {
           anden: string
-          en_curso: string
           liberadas: number
         }[]
       }
@@ -4524,6 +4523,13 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      cambiar_anden: {
+        Args: { p_anden?: string }
+        Returns: {
+          anden: string
+          liberadas: number
+        }[]
       }
       cambiar_equipo: {
         Args: { p_tipo_equipo?: string }
@@ -5110,10 +5116,15 @@ export type Database = {
         }
       }
       planta: { Args: never; Returns: Json }
-      poner_anden: {
-        Args: { p_anden: string; p_order_id: string }
-        Returns: undefined
-      }
+      poner_anden:
+        | { Args: { p_anden: string; p_order_id: string }; Returns: undefined }
+        | {
+            Args: { p_anden: string; p_profile_id: string; p_propio: boolean }
+            Returns: {
+              anden: string
+              liberadas: number
+            }[]
+          }
       poner_clase: {
         Args: {
           p_clase: Database["public"]["Enums"]["contamination_class"]
