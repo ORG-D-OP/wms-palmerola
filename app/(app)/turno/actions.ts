@@ -160,6 +160,37 @@ export async function cambiarAnden(anden: string) {
   }
 }
 
+const Devolucion = z.object({
+  taskId: z.uuid(),
+  razon: z.string().trim().min(4, 'Escribe por qué vuelve a la cola.').max(200),
+})
+
+/**
+ * El jefe devuelve a la cola una tarea que alguien empezó y no va a terminar.
+ *
+ * No la cancela: la tarea sigue viva, con su pallet y su destino, y se la lleva el siguiente
+ * que pida trabajo en ese andén. Lo único que se deshace es de quién es — y con eso la persona
+ * deja de estar anclada a ese andén.
+ */
+export async function devolverTarea(datos: z.input<typeof Devolucion>) {
+  await requirePermission('tareas:reasignar')
+
+  const parsed = Devolucion.safeParse(datos)
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? 'Revisa los datos.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('devolver_tarea', {
+    p_task_id: parsed.data.taskId,
+    p_razon: parsed.data.razon,
+  })
+
+  if (error) return fallo(error)
+  refrescar()
+  return { ok: true as const }
+}
+
 export async function pausarTurno(datos: FormData) {
   await requirePermission('turno:iniciar')
 
