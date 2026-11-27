@@ -165,8 +165,8 @@ function pintarEstatico(
   ctx.textAlign = 'left'
   /*
     Decía «Descarga» arriba y «Carga» abajo, y ninguna de las dos franjas es de una sola cosa:
-    la de abajo lleva los cuatro de mayoreo y los cuatro de crossdock, que cargan, y seis de
-    recepción, que descargan. Ahora dicen el número, que es con lo que la gente los llama
+    la de abajo lleva los cuatro de mayoreo y los cuatro de despacho a cross, que cargan, y
+    seis de recepción, que descargan. Ahora dicen el número, que es con lo que la gente los llama
     —«el nueve»— y es lo único que la franja entera tiene en común. El oficio de cada andén
     lo lleva la base, y se ve en su pantalla.
   */

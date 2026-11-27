@@ -44,9 +44,9 @@ export default async function ConteosPage() {
   const [{ data: zonas }, { data: areas }, { data: abiertos }, { data: gente }, { data: ultimos }] =
     await Promise.all([
       supabase.from('zone').select('code, name, kind').order('code'),
-      // Sólo las áreas que tienen posiciones. El desplegable ofrecía las siete, las cuatro
-      // virtuales incluidas —calidad, desguace, cross-dock y contenedores—, y un conteo de un
-      // área sin una sola posición no cuenta nada.
+      // Sólo las áreas que tienen posiciones. El desplegable ofrecía todas, las virtuales
+      // incluidas —calidad, desguace y contenedores—, y un conteo de un área sin una sola
+      // posición no cuenta nada.
       supabase.from('area_occupancy').select('code, name, total').gt('total', 0).order('code'),
       supabase.from('conteos_pendientes').select('task_id, posicion, assigned_to, status'),
       supabase.from('inexactitud').select('*').order('conteos', { ascending: false }),

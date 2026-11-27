@@ -5,7 +5,6 @@ import { ScanInput } from '@/components/ui/scan-input'
 import { Aviso } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { BOTON, BOTON_SUAVE, CAMPO, ETIQUETA } from '@/components/ui/campos'
-import { Crossdock } from './crossdock'
 import { SinAviso } from './sin-aviso'
 import { FaltaDecirQueEs } from './clase'
 import {
@@ -78,7 +77,6 @@ export function IngresoForm({
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
   const [verLista, setVerLista] = useState(false)
   const [abriendoCiego, setAbriendoCiego] = useState(false)
-  const [enCrossdock, setEnCrossdock] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState(false)
   const [cerrandoCorto, setCerrandoCorto] = useState(false)
   // La transición es una sola para la pantalla entera: sin esto el botón de cerrar pone
@@ -487,14 +485,6 @@ export function IngresoForm({
         </div>
       ) : null}
 
-      {ultimo ? (
-        <Crossdock
-          key={ultimo.lpnCode}
-          lpnCode={ultimo.lpnCode}
-          onEsperandoAnden={setEnCrossdock}
-        />
-      ) : null}
-
       {doc.sinClase.length > 0 ? (
         <FaltaDecirQueEs productos={doc.sinClase} onHecho={() => cargar(doc.pedido)} />
       ) : null}
@@ -543,7 +533,7 @@ export function IngresoForm({
             </p>
           )}
         </>
-      ) : enCrossdock ? null : faltan > 0 ? (
+      ) : faltan > 0 ? (
         <>
           <ScanInput
             label="Escanea la etiqueta del pallet"
