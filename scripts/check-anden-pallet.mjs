@@ -155,24 +155,37 @@ await como(jefe)
 const mismo = await falla(`select * from asignar_anden($1, $2)`, [dos, andenB.code])
 check(mismo?.includes('ya está ahí'), 'moverlo al anden donde ya esta no hace nada')
 
-const movido = await one(`select * from asignar_anden($1, $2)`, [dos, andenA.code])
-check(movido.anden === andenA.code, 'el jefe lo pasa al otro anden')
-check(movido.liberadas === 1, 'y suelta la tarea que tenia asignada sin empezar')
+// Con algo empezado no se mueve a nadie (0120). Antes el cambio pasaba y se avisaba «lo
+// termina y pasa»; eso dejaba al sistema diciendo que la persona esta en un anden mientras
+// ella esta fisicamente en el otro, con el pallet en las uñas.
+const aMedias = await falla(`select * from asignar_anden($1, $2)`, [dos, andenA.code])
 check(
-  movido.en_curso !== null,
-  'y avisa que anda a medio camino con algo, con la posicion a la que va',
+  aMedias?.includes('medio camino'),
+  'con una tarea empezada el jefe no lo puede mover, y le dice donde esta esa tarea',
 )
+
+const sigueEnB = await one(`select anden from disponibles where id = $1`, [dos])
+check(sigueEnB.anden === andenB.code, 'y no paso nada: sigue en el anden donde estaba')
+
+const intacta = await one(`select status, assigned_to from task where id = $1`, [asignada.id])
+check(
+  intacta.status === 'ASSIGNED' && intacta.assigned_to === dos,
+  'ni se le solto lo que tenia asignado: el cambio no llego a empezar',
+)
+
+// En cuanto la termina, el cambio pasa y lo asignado sin empezar vuelve a la cola.
+await db.query(`update task set status = 'DONE', completed_at = now() where id = $1`, [
+  empezada.id,
+])
+
+const movido = await one(`select * from asignar_anden($1, $2)`, [dos, andenA.code])
+check(movido.anden === andenA.code, 'terminada esa, el jefe si lo pasa al otro anden')
+check(movido.liberadas === 1, 'y suelta la tarea que tenia asignada sin empezar')
 
 const suelta = await one(`select status, assigned_to from task where id = $1`, [asignada.id])
 check(
   suelta.status === 'READY' && suelta.assigned_to === null,
   'la tarea sin empezar vuelve libre a la cola de su anden, no se va con la persona',
-)
-
-const enCurso = await one(`select status, assigned_to from task where id = $1`, [empezada.id])
-check(
-  enCurso.status === 'IN_PROGRESS' && enCurso.assigned_to === dos,
-  'la que ya empezo no se le toca: un pallet a medio camino no se queda sin dueño',
 )
 
 // Lo que solto se lo lleva quien quede en ese anden: `uno` sigue parado ahi.
@@ -186,7 +199,6 @@ check(
 // Y al llegar al anden nuevo, le caen las de ahi.
 await tarea('PUTAWAY', stgA.id, posicion)
 await como(dos)
-await db.query(`update task set status = 'DONE' where id = $1`, [empezada.id])
 const yaEnA = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 const deDonde = await one(`select from_location_id from task where id = $1`, [yaEnA.id])
 check(

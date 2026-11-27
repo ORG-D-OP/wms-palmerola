@@ -103,6 +103,13 @@ export type Database = {
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "allocation_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_empezado"
+            referencedColumns: ["task_id"]
+          },
         ]
       }
       area: {
@@ -911,6 +918,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_reserved_by_task_id_fkey"
+            columns: ["reserved_by_task_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_empezado"
+            referencedColumns: ["task_id"]
           },
           {
             foreignKeyName: "location_usage_code_fkey"
@@ -2673,6 +2687,13 @@ export type Database = {
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_empezado"
+            referencedColumns: ["task_id"]
+          },
         ]
       }
       stock_movement: {
@@ -2932,6 +2953,76 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      tarea_devuelta: {
+        Row: {
+          de_quien: string | null
+          id: number
+          occurred_at: string
+          por_quien: string | null
+          razon: string
+          task_id: string
+        }
+        Insert: {
+          de_quien?: string | null
+          id?: never
+          occurred_at?: string
+          por_quien?: string | null
+          razon: string
+          task_id: string
+        }
+        Update: {
+          de_quien?: string | null
+          id?: never
+          occurred_at?: string
+          por_quien?: string | null
+          razon?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "conteos_pendientes"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_tarea"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "task_timing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarea_devuelta_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_empezado"
+            referencedColumns: ["task_id"]
+          },
+        ]
       }
       task: {
         Row: {
@@ -3949,6 +4040,13 @@ export type Database = {
             referencedRelation: "task_timing"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_count_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_empezado"
+            referencedColumns: ["task_id"]
+          },
         ]
       }
       retornables: {
@@ -4329,6 +4427,21 @@ export type Database = {
           },
         ]
       }
+      trabajo_empezado: {
+        Row: {
+          full_name: string | null
+          lugar: string | null
+          matricula: string | null
+          producto: string | null
+          profile_id: string | null
+          sku: string | null
+          started_at: string | null
+          task_id: string | null
+          type: Database["public"]["Enums"]["task_type"] | null
+          vueltas: number | null
+        }
+        Relationships: []
+      }
       ultima_carga: {
         Row: {
           detail: Json | null
@@ -4458,7 +4571,6 @@ export type Database = {
         Args: { p_anden?: string; p_profile_id: string }
         Returns: {
           anden: string
-          en_curso: string
           liberadas: number
         }[]
       }
@@ -4524,6 +4636,13 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      cambiar_anden: {
+        Args: { p_anden?: string }
+        Returns: {
+          anden: string
+          liberadas: number
+        }[]
       }
       cambiar_equipo: {
         Args: { p_tipo_equipo?: string }
@@ -4894,6 +5013,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      devolver_tarea: {
+        Args: { p_razon: string; p_task_id: string }
+        Returns: undefined
+      }
       dias_antes_de_vencer: { Args: never; Returns: number }
       es_de_almacenaje: { Args: { p_location_id: string }; Returns: boolean }
       es_rol_de_trabajo: {
@@ -5110,10 +5233,15 @@ export type Database = {
         }
       }
       planta: { Args: never; Returns: Json }
-      poner_anden: {
-        Args: { p_anden: string; p_order_id: string }
-        Returns: undefined
-      }
+      poner_anden:
+        | { Args: { p_anden: string; p_order_id: string }; Returns: undefined }
+        | {
+            Args: { p_anden: string; p_profile_id: string; p_propio: boolean }
+            Returns: {
+              anden: string
+              liberadas: number
+            }[]
+          }
       poner_clase: {
         Args: {
           p_clase: Database["public"]["Enums"]["contamination_class"]

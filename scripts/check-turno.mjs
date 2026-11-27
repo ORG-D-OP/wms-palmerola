@@ -792,4 +792,239 @@ check(
   'pero si baja a ayudar de auxiliar, el mismo pallet si le cae',
 )
 
+// -----------------------------------------------------------------------------------------
+// El anden lo escoge quien esta parado en el (0120)
+// -----------------------------------------------------------------------------------------
+//
+// Antes solo lo cambiaba el jefe, y con una tareaAnden empezada dejaba pasar el cambio: la persona
+// seguia fisicamente en el anden viejo y el sistema decia que estaba en otro. Ahora se mueve
+// quien se mueve, y con algo en curso no se mueve nadie.
+
+const andenes = await db.query(
+  `select code from dock_door where is_active order by code limit 3`,
+)
+const [unAnden, otroAnden] = andenes.rows.map((r) => r.code)
+
+await como(aPie)
+await one(`select iniciar_turno()`)
+
+const sinAnden = await one(
+  `select dock_door_id from shift_assignment where profile_id = $1 and ended_at is null`,
+  [aPie],
+)
+check(sinAnden.dock_door_id === null, 'quien entra a trabajo sin anden queda en toda la bodega')
+
+const puesto = await one(`select * from cambiar_anden($1)`, [unAnden])
+check(puesto.anden === unAnden, 'y se pone en un anden el mismo, sin pedirselo al jefe')
+check(puesto.liberadas === 0, 'sin nada que soltar, suelta cero')
+
+const mismo = await fails(`select * from cambiar_anden($1)`, [unAnden])
+check(mismo?.includes('Ya andas ahi') || mismo?.includes('Ya andas ah'), 'y no se cambia al que ya tiene')
+
+const andenInventado = await fails(`select * from cambiar_anden('AND-99')`)
+check(andenInventado?.includes('ningun anden activo') || andenInventado?.includes('ningún andén activo'),
+  'un anden que no existe se rechaza')
+
+const apagado = await one(`select code from dock_door where not is_active limit 1`)
+const inhabilitado = await fails(`select * from cambiar_anden($1)`, [apagado.code])
+check(
+  inhabilitado?.includes('activo'),
+  'y un anden inhabilitado tampoco: no se puede estar donde no se trabaja',
+)
+
+// Lo asignado y sin empezar es del anden, no de la persona: al moverse, vuelve a la cola.
+const { id: prodDock } = await one(
+  `insert into product (sku, name, base_uom) values ('T-ANDEN-1', 'Para el anden', 'ST')
+   returning id`,
+)
+const { id: cajaAnden } = await one(
+  `insert into packaging_level (product_id, code, qty_base_units) values ($1, 'CASE', 12)
+   returning id`,
+  [prodDock],
+)
+const { id: posAnden } = await one(`select id from location where code = $1`, [
+  'STG-' + unAnden,
+])
+const { id: destino } = await one(
+  `select l.id from location l
+   join location_area la on la.location_id = l.id and la.valid_to is null
+   join area a on a.id = la.area_id and a.code = 'ALMACEN'
+   where l.status = 'available' and l.reserved_by_task_id is null
+     and not exists (select 1 from stock s where s.location_id = l.id and s.qty_base > 0)
+   limit 1`,
+)
+const { id: tareaAnden } = await one(
+  `insert into task (type, product_id, qty_base, packaging_level_id, from_location_id,
+     to_location_id, priority, min_level, flow, status, assigned_to, assigned_at)
+   values ('PUTAWAY', $1, 120, $2, $3, $4, 100, 0, 'INBOUND', 'ASSIGNED', $5, now())
+   returning id`,
+  [prodDock, cajaAnden, posAnden, destino, aPie],
+)
+
+const conSuelta = await one(`select * from cambiar_anden($1)`, [otroAnden])
+check(conSuelta.anden === otroAnden, 'cambiarse de anden con una tarea asignada si se puede')
+check(conSuelta.liberadas === 1, 'y la suelta: dice cuantas devolvio a la cola')
+
+const devueltaDock = await one(
+  `select status::text as estado, assigned_to from task where id = $1`,
+  [tareaAnden],
+)
+check(
+  devueltaDock.estado === 'READY' && devueltaDock.assigned_to === null,
+  'la tarea vuelve libre a la cola del anden que deja, no se va con la persona',
+)
+
+// Y la guarda que faltaba: con algo empezado no se mueve nadie, ni el mismo ni el jefe.
+await db.query(
+  `update task set status = 'IN_PROGRESS', assigned_to = $1, assigned_at = now(),
+     started_at = now() where id = $2`,
+  [aPie, tareaAnden],
+)
+
+const aMediasDock = await fails(`select * from cambiar_anden($1)`, [unAnden])
+check(
+  aMediasDock?.includes('empezado'),
+  'con una tarea empezada no se cambia de anden el mismo',
+)
+
+await como(jefe)
+await one(`select iniciar_turno()`)
+const niElJefe = await fails(`select * from asignar_anden($1, $2)`, [aPie, unAnden])
+check(
+  niElJefe?.includes('medio camino'),
+  'ni el jefe lo mueve: esta fisicamente en el anden viejo con el pallet',
+)
+
+const dondeQuedo = await one(
+  `select d.code from shift_assignment sa join dock_door d on d.id = sa.dock_door_id
+   where sa.profile_id = $1 and sa.ended_at is null`,
+  [aPie],
+)
+check(dondeQuedo.code === otroAnden, 'y el anden se queda como estaba: el cambio no paso')
+
+// Terminada la tareaAnden, el cambio vuelve a estar permitido.
+await db.query(`update task set status = 'DONE', completed_at = now() where id = $1`, [tareaAnden])
+const yaSi = await one(`select * from asignar_anden($1, $2)`, [aPie, unAnden])
+check(yaSi.anden === unAnden, 'en cuanto la termina, el jefe si lo puede mover')
+
+// Y el auxiliar no reparte a los demas.
+await como(aPie)
+const ajeno = await fails(`select * from asignar_anden($1, $2)`, [jefe, otroAnden])
+check(
+  ajeno?.includes('jefe de bodega'),
+  'repartir a los demas sigue siendo solo del jefe',
+)
+
+// La puerta de atras no existe: `poner_anden` no esta concedida, asi que nadie se salta el
+// filtro de rango llamando directo al trabajo de abajo. Se comprueba el permiso y no la
+// llamada, porque aqui todo corre como dueno de la base y el grant no muerde.
+const conPermiso = await one(
+  `select has_function_privilege('authenticated', 'poner_anden(uuid,text,boolean)', 'execute')
+     as puede`,
+)
+check(
+  conPermiso.puede === false,
+  'y poner_anden no se concede: al cambio solo se entra por las dos puertas con filtro',
+)
+
+// -----------------------------------------------------------------------------------------
+// La tarea empezada se puede devolver a la cola (0121)
+// -----------------------------------------------------------------------------------------
+//
+// Desde la 0120 una tarea en curso ancla a la persona a su anden. Si no la puede terminar
+// —el pallet no esta donde dice, o escaneo el que no era— quedaba atrapada ahi, porque nada
+// pasaba un IN_PROGRESS de vuelta a READY. Devolver no es cancelar: la tarea sigue viva.
+
+const { id: devDestino } = await one(
+  `select l.id from location l
+   join location_area la on la.location_id = l.id and la.valid_to is null
+   join area a on a.id = la.area_id and a.code = 'ALMACEN'
+   where l.status = 'available' and l.reserved_by_task_id is null
+     and not exists (select 1 from stock s where s.location_id = l.id and s.qty_base > 0)
+   limit 1`,
+)
+const { id: devTarea } = await one(
+  `insert into task (type, product_id, qty_base, packaging_level_id, from_location_id,
+     to_location_id, priority, min_level, flow, status, assigned_to, assigned_at, started_at)
+   values ('PUTAWAY', $1, 60, $2, $3, $4, 100, 0, 'INBOUND', 'IN_PROGRESS', $5, now(), now())
+   returning id`,
+  [prodDock, cajaAnden, posAnden, devDestino, aPie],
+)
+await db.query(
+  `update location set reserved_by_task_id = $1, reserved_until = now() + interval '2 hours'
+   where id = $2`,
+  [devTarea, devDestino],
+)
+
+await como(aPie)
+const devSinRango = await fails(`select devolver_tarea($1, 'el pallet no esta ahi')`, [devTarea])
+check(
+  devSinRango?.includes('jefe de bodega'),
+  'devolver una tarea empezada no lo hace quien la trae',
+)
+
+await como(jefe)
+const devSinRazon = await fails(`select devolver_tarea($1, '')`, [devTarea])
+check(devSinRazon?.includes('Escribe por qué'), 'y no se devuelve sin decir por que')
+
+const { id: devAsignada } = await one(
+  `insert into task (type, product_id, qty_base, packaging_level_id, from_location_id,
+     to_location_id, priority, min_level, flow, status, assigned_to, assigned_at)
+   values ('PUTAWAY', $1, 60, $2, $3, $4, 100, 0, 'INBOUND', 'ASSIGNED', $5, now())
+   returning id`,
+  [prodDock, cajaAnden, posAnden, devDestino, aPie],
+)
+const devNoEmpezada = await fails(`select devolver_tarea($1, 'no la quiero')`, [devAsignada])
+check(
+  devNoEmpezada?.includes('no se ha empezado'),
+  'la que esta asignada y sin empezar no pasa por aqui: se suelta sola, y se dice',
+)
+
+await one(`select devolver_tarea($1, 'el pallet no esta en esa posicion')`, [devTarea])
+
+const devVuelta = await one(
+  `select status::text as estado, assigned_to, assigned_at, started_at, to_location_id
+   from task where id = $1`,
+  [devTarea],
+)
+check(devVuelta.estado === 'READY', 'el jefe si la devuelve, y vuelve libre a la cola')
+check(
+  devVuelta.assigned_to === null && devVuelta.assigned_at === null,
+  'sin dueno: se la lleva el siguiente que pida trabajo en ese anden',
+)
+check(devVuelta.started_at === null, 'y sin hora de inicio, porque la va a empezar otro')
+check(
+  devVuelta.to_location_id === devDestino,
+  'no es una cancelacion: la tarea conserva su destino',
+)
+
+const devHueco = await one(
+  `select reserved_by_task_id = $1 as sigue from location where id = $2`,
+  [devTarea, devDestino],
+)
+check(devHueco.sigue === true, 'y el hueco sigue apartado para ella: nadie mas se lo lleva')
+
+const devActa = await one(
+  `select de_quien, por_quien, razon from tarea_devuelta where task_id = $1`,
+  [devTarea],
+)
+check(devActa.de_quien === aPie, 'queda escrito a quien se le quito')
+check(devActa.por_quien === jefe, 'y quien se la quito')
+check(
+  devActa.razon === 'el pallet no esta en esa posicion',
+  'y por que, que es lo que explica una tarea que da dos vueltas',
+)
+
+// Y lo que motivo todo esto: con la tarea devuelta, la persona ya se puede mover.
+await como(aPie)
+const devMovida = await one(`select * from cambiar_anden($1)`, [otroAnden])
+check(
+  devMovida.anden === otroAnden,
+  'y con eso deja de estar anclada: ya se puede cambiar de anden',
+)
+
+await como(jefe)
+const devDosVeces = await fails(`select devolver_tarea($1, 'otra vez')`, [devTarea])
+check(devDosVeces?.includes('ya no la trae nadie'), 'y una que ya volvio no se devuelve dos veces')
+
 await db.close()

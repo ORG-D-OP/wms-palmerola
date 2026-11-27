@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react'
 import { ROLE_LABELS, type UserRole } from '@/lib/auth/roles'
 import { Aviso, Logro } from '@/components/ui/feedback'
-import { CAMPO } from '@/components/ui/campos'
-import { asignarAnden } from './actions'
+import { BOTON_SUAVE, CAMPO } from '@/components/ui/campos'
+import { asignarAnden, devolverTarea } from './actions'
 import { plural } from '@/lib/plural'
 
 export type Persona = {
@@ -24,6 +24,16 @@ export type Carga = {
   personas: number
 }
 
+export type EnMano = {
+  taskId: string
+  quien: string
+  sku: string | null
+  producto: string | null
+  matricula: string | null
+  lugar: string | null
+  vueltas: number
+}
+
 /**
  * El reparto del jefe de bodega.
  *
@@ -33,11 +43,20 @@ export type Carga = {
  * sola persona. Por eso cada andén dice su carga, y cada opción del selector también.
  *
  * Las tareas son del andén, no de la persona: al mover a alguien, lo que tenía asignado y no
- * había empezado vuelve a la cola de su andén para que se lo lleve quien quede ahí. Lo que ya
- * empezó no se le toca, porque cancelarle una tarea a alguien que va con un pallet en las
- * uñas deja ese pallet a medio camino y sin dueño.
+ * había empezado vuelve a la cola de su andén para que se lo lleve quien quede ahí. Y a quien
+ * anda con un pallet en las uñas **no se le mueve**: está físicamente en el andén viejo, así
+ * que el cambio se niega hasta que termine. Desde la 0120 la gente también se mueve sola, con
+ * las mismas dos reglas; esto queda para colocarla.
  */
-export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) {
+export function Reparto({
+  gente,
+  carga,
+  enMano,
+}: {
+  gente: Persona[]
+  carga: Carga[]
+  enMano: EnMano[]
+}) {
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, empezar] = useTransition()
@@ -62,9 +81,6 @@ export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) 
           `Soltó ${plural(res.liberadas, 'tarea', 'tareas')} que no había empezado y ` +
             `${res.liberadas === 1 ? 'vuelve' : 'vuelven'} a la cola del andén que deja.`,
         )
-      }
-      if (res.enCurso) {
-        partes.push(`Anda a medio camino con algo para ${res.enCurso}: lo termina y pasa.`)
       }
       setAviso(partes.join(' '))
     })
@@ -138,6 +154,114 @@ export function Reparto({ gente, carga }: { gente: Persona[]; carga: Carga[] }) 
           ))}
         </ul>
       )}
+
+      <EnCurso tareas={enMano} />
     </section>
+  )
+}
+
+/**
+ * Lo que anda empezado, y la salida cuando se traba.
+ *
+ * Una tarea en curso ancla a la persona a su andén: no se le puede mover hasta que la
+ * termine, y eso es lo correcto mientras pueda terminarla. Cuando no puede —el pallet no está
+ * donde dice, o escaneó el que no era— el jefe la devuelve a la cola de su andén diciendo por
+ * qué, y se la lleva el siguiente que pida trabajo ahí.
+ *
+ * No la cancela: la tarea sigue viva, con su pallet, su destino y su hueco apartado. Lo único
+ * que se deshace es de quién es.
+ */
+function EnCurso({ tareas }: { tareas: EnMano[] }) {
+  const [abierta, setAbierta] = useState<string | null>(null)
+  const [razon, setRazon] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, empezar] = useTransition()
+
+  if (tareas.length === 0) return null
+
+  const devolver = (taskId: string) => {
+    setError(null)
+    empezar(async () => {
+      const res = await devolverTarea({ taskId, razon })
+      if (!res.ok) return setError(res.error)
+      setAbierta(null)
+      setRazon('')
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-borde pt-4">
+      <div>
+        <h3 className="text-lg">Lo que anda empezado</h3>
+        <p className="text-sm text-azul/60">
+          Mientras traigan algo en la mano no se les puede mover de andén. Si no lo pueden
+          terminar, devuélvelo a la cola.
+        </p>
+      </div>
+
+      <ul className="flex flex-col divide-y divide-borde">
+        {tareas.map((t) => (
+          <li key={t.taskId} className="flex flex-col gap-2 py-3">
+            <div className="flex items-baseline gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{t.quien}</span>
+                <span className="block text-sm text-azul/60">
+                  {t.producto ?? t.sku ?? 'sin producto'}
+                  {t.matricula ? ` · ${t.matricula}` : ''}
+                  {t.lugar ? ` · ${t.lugar}` : ''}
+                  {t.vueltas > 0
+                    ? ` · ya volvió ${plural(t.vueltas, 'vez', 'veces')}`
+                    : ''}
+                </span>
+              </span>
+              {abierta === t.taskId ? null : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbierta(t.taskId)
+                    setRazon('')
+                    setError(null)
+                  }}
+                  className="shrink-0 text-sm text-azul/60 underline underline-offset-4"
+                >
+                  Devolver a la cola
+                </button>
+              )}
+            </div>
+
+            {abierta === t.taskId ? (
+              <div className="flex flex-col gap-2">
+                <input
+                  className={CAMPO}
+                  value={razon}
+                  onChange={(e) => setRazon(e.target.value)}
+                  placeholder="Por qué vuelve a la cola"
+                  aria-label={`Por qué vuelve a la cola la tarea de ${t.quien}`}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => devolver(t.taskId)}
+                    className={BOTON_SUAVE}
+                  >
+                    Devolverla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAbierta(null)}
+                    className="text-sm text-azul/60 underline underline-offset-4"
+                  >
+                    Mejor no
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+
+      {error ? <Aviso>{error}</Aviso> : null}
+    </div>
   )
 }
