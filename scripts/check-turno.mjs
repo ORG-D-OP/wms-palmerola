@@ -915,16 +915,16 @@ check(
   'repartir a los demas sigue siendo solo del jefe',
 )
 
-// La puerta de atras no existe: `poner_anden` no esta concedida, asi que nadie se salta el
+// La puerta de atras no existe: `parar_en_anden` no esta concedida, asi que nadie se salta el
 // filtro de rango llamando directo al trabajo de abajo. Se comprueba el permiso y no la
 // llamada, porque aqui todo corre como dueno de la base y el grant no muerde.
 const conPermiso = await one(
-  `select has_function_privilege('authenticated', 'poner_anden(uuid,text,boolean)', 'execute')
+  `select has_function_privilege('authenticated', 'parar_en_anden(uuid,text,boolean)', 'execute')
      as puede`,
 )
 check(
   conPermiso.puede === false,
-  'y poner_anden no se concede: al cambio solo se entra por las dos puertas con filtro',
+  'y parar_en_anden no se concede: al cambio solo se entra por las dos puertas con filtro',
 )
 
 // -----------------------------------------------------------------------------------------
