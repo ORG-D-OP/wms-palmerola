@@ -5209,6 +5209,13 @@ export type Database = {
         Args: { p_location_id: string; p_product_id: string }
         Returns: number
       }
+      parar_en_anden: {
+        Args: { p_anden: string; p_profile_id: string; p_propio: boolean }
+        Returns: {
+          anden: string
+          liberadas: number
+        }[]
+      }
       pausar_turno: {
         Args: { p_motivo?: string }
         Returns: {
@@ -5233,15 +5240,10 @@ export type Database = {
         }
       }
       planta: { Args: never; Returns: Json }
-      poner_anden:
-        | { Args: { p_anden: string; p_order_id: string }; Returns: undefined }
-        | {
-            Args: { p_anden: string; p_profile_id: string; p_propio: boolean }
-            Returns: {
-              anden: string
-              liberadas: number
-            }[]
-          }
+      poner_anden: {
+        Args: { p_anden: string; p_order_id: string }
+        Returns: undefined
+      }
       poner_clase: {
         Args: {
           p_clase: Database["public"]["Enums"]["contamination_class"]

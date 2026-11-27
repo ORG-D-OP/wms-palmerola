@@ -915,16 +915,16 @@ check(
   'repartir a los demas sigue siendo solo del jefe',
 )
 
-// La puerta de atras no existe: `poner_anden` no esta concedida, asi que nadie se salta el
+// La puerta de atras no existe: `parar_en_anden` no esta concedida, asi que nadie se salta el
 // filtro de rango llamando directo al trabajo de abajo. Se comprueba el permiso y no la
 // llamada, porque aqui todo corre como dueno de la base y el grant no muerde.
 const conPermiso = await one(
-  `select has_function_privilege('authenticated', 'poner_anden(uuid,text,boolean)', 'execute')
+  `select has_function_privilege('authenticated', 'parar_en_anden(uuid,text,boolean)', 'execute')
      as puede`,
 )
 check(
   conPermiso.puede === false,
-  'y poner_anden no se concede: al cambio solo se entra por las dos puertas con filtro',
+  'y parar_en_anden no se concede: al cambio solo se entra por las dos puertas con filtro',
 )
 
 // -----------------------------------------------------------------------------------------
@@ -1026,5 +1026,90 @@ check(
 await como(jefe)
 const devDosVeces = await fails(`select devolver_tarea($1, 'otra vez')`, [devTarea])
 check(devDosVeces?.includes('ya no la trae nadie'), 'y una que ya volvio no se devuelve dos veces')
+
+// -----------------------------------------------------------------------------------------
+// A nadie se le devuelve la tarea que ya le quitaron (0123)
+// -----------------------------------------------------------------------------------------
+//
+// La tarea devuelta volvia a la cola de su anden y la cola no sabia de donde venia: a quien la
+// devolvio le caia otra vez. Y le caia por una razon que no cambia sola.
+
+// `aPie` acabo en `otroAnden` y el jefe esta en turno. Los dos en el mismo anden, para que la
+// cola tenga a quien darsela.
+// Los dos en el mismo anden, para que la cola tenga a quien darsela. Se pone a mano y no con
+// `asignar_anden` porque lo que se prueba aqui es a quien le da trabajo la cola, no el cambio
+// de anden: con las funciones habria que saber en que anden quedo cada uno del paso anterior.
+await como(jefe)
+await one(`select iniciar_turno()`)
+await db.query(
+  `update shift_assignment
+   set dock_door_id = (select id from dock_door where code = $2), paused_at = null
+   where profile_id = $1 and ended_at is null`,
+  [jefe, otroAnden],
+)
+await como(aPie)
+await one(`select iniciar_turno()`)
+await db.query(
+  `update shift_assignment
+   set dock_door_id = (select id from dock_door where code = $2), paused_at = null
+   where profile_id = $1 and ended_at is null`,
+  [aPie, otroAnden],
+)
+
+const { id: posOtro } = await one(`select id from location where code = $1`, [
+  'STG-' + otroAnden,
+])
+const { id: vueltaDestino } = await one(
+  `select l.id from location l
+   join location_area la on la.location_id = l.id and la.valid_to is null
+   join area a on a.id = la.area_id and a.code = 'ALMACEN'
+   where l.status = 'available' and l.reserved_by_task_id is null
+     and not exists (select 1 from stock s where s.location_id = l.id and s.qty_base > 0)
+   limit 1`,
+)
+const { id: vueltaTarea } = await one(
+  `insert into task (type, product_id, qty_base, packaging_level_id, from_location_id,
+     to_location_id, priority, min_level, flow, status, assigned_to, assigned_at, started_at)
+   values ('PUTAWAY', $1, 36, $2, $3, $4, 500, 0, 'INBOUND', 'IN_PROGRESS', $5, now(), now())
+   returning id`,
+  [prodDock, cajaAnden, posOtro, vueltaDestino, aPie],
+)
+
+await como(jefe)
+await one(`select devolver_tarea($1, 'escaneo el pallet que no era')`, [vueltaTarea])
+
+// Hay dos personas en ese anden, asi que al que la devolvio no le vuelve.
+await como(aPie)
+const noLeVuelve = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  noLeVuelve.id !== vueltaTarea,
+  'al que le quitaron la tarea no se le vuelve a dar mientras haya otro',
+)
+
+// Y al otro si: la tarea sigue viva y en la cola de su anden.
+await como(jefe)
+await one(`select trabajar_como('auxiliar')`)
+const alOtro = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(alOtro.id === vueltaTarea, 'y al que queda en el anden si le cae: la tarea sigue viva')
+
+// La excepcion que evita el callejon nuevo: si no queda nadie a quien darsela, le vuelve a
+// caer. «Nadie» es nadie que pueda: en turno, disponible, y en ese anden o en ninguno. Se
+// cierran los turnos de los demas para que el unico candidato sea el que la devolvio.
+await db.query(
+  `update task set status = 'READY', assigned_to = null, assigned_at = null, started_at = null
+   where id = $1`,
+  [vueltaTarea],
+)
+await db.query(
+  `update shift_assignment set ended_at = now() where ended_at is null and profile_id <> $1`,
+  [aPie],
+)
+
+await como(aPie)
+const soloEl = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  soloEl.id === vueltaTarea,
+  'pero si no queda nadie a quien darsela, si le vuelve a caer: es el unico que puede',
+)
 
 await db.close()
