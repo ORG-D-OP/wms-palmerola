@@ -101,6 +101,55 @@ export async function startPutaway(taskId: string, code: string) {
   return error ? fallo(error) : { ok: true as const }
 }
 
+/**
+ * Volver a preguntar dónde va este pallet.
+ *
+ * Es la salida de la tarea que nació sin destino, cuando al recibir no había hueco: el motor
+ * se llamaba sólo al recibir, así que al liberarse uno la tarea seguía sin saber a dónde ir y
+ * la pantalla decía «Elige un hueco» sin enseñar mapa ni candidatos.
+ */
+export async function buscarHueco(
+  taskId: string,
+): Promise<{ ok: true; code: string; cara: Cara | null } | Fail> {
+  await requirePermission('inventario:mover')
+  if (!z.uuid().safeParse(taskId).success) return { ok: false, error: 'Tarea inválida.' }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .rpc('buscar_hueco_otra_vez', { p_task_id: taskId })
+    .single()
+
+  if (error) return fallo(error)
+  if (!data) return { ok: false, error: 'No se pudo buscar hueco.' }
+
+  return { ok: true, code: data.code, cara: await caraDe(supabase, data.code) }
+}
+
+const Cierre = z.object({
+  taskId: z.uuid(),
+  razon: z.string().trim().min(4, 'Escribe por qué no se va a guardar.').max(200),
+})
+
+/**
+ * El jefe cierra el guardado y el pallet se queda donde está. Para el caso sin otra salida:
+ * un químico que entra cuando no queda un hueco de su grupo. No mueve ni borra existencia.
+ */
+export async function cerrarGuardado(datos: z.input<typeof Cierre>) {
+  await requirePermission('tareas:reasignar')
+
+  const parsed = Cierre.safeParse(datos)
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? 'Revisa los datos.' }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.rpc('cancelar_guardado', {
+    p_task_id: parsed.data.taskId,
+    p_razon: parsed.data.razon,
+  })
+  return error ? fallo(error) : { ok: true as const }
+}
+
 export async function completePutaway(taskId: string, code: string) {
   await requirePermission('inventario:mover')
   const parsed = Scan.safeParse({ taskId, code })

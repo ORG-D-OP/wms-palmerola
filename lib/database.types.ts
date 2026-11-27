@@ -4491,6 +4491,13 @@ export type Database = {
         Returns: number
       }
       buscar_despacho: { Args: { p_codigo: string }; Returns: string }
+      buscar_hueco_otra_vez: {
+        Args: { p_task_id: string }
+        Returns: {
+          code: string
+          era_la_misma: boolean
+        }[]
+      }
       buscar_ingreso: {
         Args: { p_pedido: string }
         Returns: {
@@ -4563,6 +4570,10 @@ export type Database = {
         }
       }
       camion_completo: { Args: { p_order_id: string }; Returns: boolean }
+      cancelar_guardado: {
+        Args: { p_razon: string; p_task_id: string }
+        Returns: undefined
+      }
       carga_inicial_de: {
         Args: { p_codigo: string }
         Returns: {
@@ -4884,6 +4895,7 @@ export type Database = {
         }
       }
       dias_antes_de_vencer: { Args: never; Returns: number }
+      es_de_almacenaje: { Args: { p_location_id: string }; Returns: boolean }
       es_rol_de_trabajo: {
         Args: { p_rol: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
