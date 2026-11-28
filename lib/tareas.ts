@@ -47,9 +47,17 @@ export async function porQueNoHayNada(
   // lo que sobra es trabajo de piso sería mandarlo a buscar al que ya es.
   const deMiEquipo = alAlcance.filter((t) => t.de_mi_equipo)
   if (deMiEquipo.length === 0) {
-    return `Lo que queda por ${oficio} es de piso, y andas con el montacargas de rack. Si te toca el piso, pídele al jefe que te cambie el equipo.`
+    return `Lo que queda por ${oficio} es de piso, y andas con el montacargas de rack. Si te toca el piso, cámbiate de máquina en Disponibilidad.`
   }
 
-  // Del flujo y de su equipo, y aun así la cola no suelta nada: lo que queda es de otro andén.
-  return `Queda trabajo por ${oficio}, pero no en tu andén. Si tienes que atender otro, pídele al jefe que te mueva.`
+  /*
+    Del flujo y de su equipo, y aun así la cola no suelta nada: lo que queda es de otro andén.
+
+    Y estos dos mensajes mandaban a buscar al jefe para dos cosas que la persona hace sola. El
+    de la máquina estaba mal desde siempre —`cambiar_equipo` no pide rango— y el del andén se
+    quedó mal con la 0120, que le dio a cada quien su propio selector. Son los dos mensajes que
+    salen justo cuando alguien está parado sin trabajo: mandarlo a caminar a buscar al jefe
+    cuando la salida son dos toques en su teléfono es el peor momento para equivocarse.
+  */
+  return `Queda trabajo por ${oficio}, pero no en tu andén. Si tienes que atender otro, cámbiate de andén en Disponibilidad.`
 }
