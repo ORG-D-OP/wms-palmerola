@@ -125,6 +125,14 @@ const TODOS = [
     grupo: 'inventario',
   },
   {
+    href: '/etiquetas',
+    label: 'Etiquetas',
+    icon: 'label',
+    permiso: 'etiquetas:imprimir',
+    movil: false,
+    grupo: 'operacion',
+  },
+  {
     href: '/kpi',
     label: 'Indicadores',
     icon: 'insights',

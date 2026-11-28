@@ -51,6 +51,9 @@ const PERMISSIONS = {
   // reabastecimiento lo lanza el jefe, y lo que el sistema hace es avisarle a tiempo.
   'reabastecimiento:lanzar': ['supervisor', 'admin'],
   'turno:iniciar': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
+  // La etiqueta la imprime quien está armando el pallet en el andén, que puede ser cualquiera
+  // de los que descargan: si hubiera que llamar al jefe para cada pallet a granel, no se usa.
+  'etiquetas:imprimir': ['auxiliar', 'chequeador', 'montacargista', 'supervisor', 'admin'],
   'ingresos:administrar': ['chequeador', 'supervisor', 'admin'],
   'despachos:administrar': ['chequeador', 'supervisor', 'admin'],
   'areas:administrar': ['supervisor', 'admin'],
