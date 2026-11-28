@@ -10,10 +10,13 @@
  * al mismo callejón y obligar al jefe a sacarlo dos veces. El contador de vueltas de la
  * pantalla del jefe dejaba ver el bucle; esto lo corta.
  *
- * **Con una excepción, que es la que evita el callejón nuevo:** si no hay nadie más trabajando,
- * le vuelve a caer. Una tarea que nadie puede tomar es peor que una que vuelve a quien ya la
- * tuvo, y el que está solo en la bodega es el único que puede intentarlo otra vez —puede que
- * entre las dos veces alguien haya puesto el pallet donde va.
+ * **Con una excepción, que es la que evita el callejón nuevo:** si no queda nadie más en ese
+ * andén —ni nadie sin andén, que toma de cualquiera—, le vuelve a caer. Una tarea que nadie
+ * puede tomar es peor que una que vuelve a quien ya la tuvo, y puede que entre las dos veces
+ * alguien haya puesto el pallet donde va.
+ *
+ * Esa excepción se quedó corta y la arregla la 0124: contaba personas, y no todas las personas
+ * de un andén pueden tomar una tarea cualquiera.
  *
  * Lo demás de `claim_next_task` queda igual, declarado desde su versión vigente (0107).
  */

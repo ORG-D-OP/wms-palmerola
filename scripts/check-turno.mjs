@@ -1034,8 +1034,6 @@ check(devDosVeces?.includes('ya no la trae nadie'), 'y una que ya volvio no se d
 // La tarea devuelta volvia a la cola de su anden y la cola no sabia de donde venia: a quien la
 // devolvio le caia otra vez. Y le caia por una razon que no cambia sola.
 
-// `aPie` acabo en `otroAnden` y el jefe esta en turno. Los dos en el mismo anden, para que la
-// cola tenga a quien darsela.
 // Los dos en el mismo anden, para que la cola tenga a quien darsela. Se pone a mano y no con
 // `asignar_anden` porque lo que se prueba aqui es a quien le da trabajo la cola, no el cambio
 // de anden: con las funciones habria que saber en que anden quedo cada uno del paso anterior.
@@ -1078,13 +1076,32 @@ const { id: vueltaTarea } = await one(
 await como(jefe)
 await one(`select devolver_tarea($1, 'escaneo el pallet que no era')`, [vueltaTarea])
 
-// Hay dos personas en ese anden, asi que al que la devolvio no le vuelve.
+// Y una segunda tarea del mismo anden, con menos prioridad. Sin ella la comprobacion de abajo
+// pasaria por la razon equivocada: la cola no devolveria nada y «no es la devuelta» seria
+// cierto igual. Con ella se prueba lo que importa —que la devuelta se retiene y la cola sigue
+// dando trabajo— en vez de sólo que no da la devuelta.
+const { id: vueltaOtra } = await one(
+  `insert into task (type, product_id, qty_base, packaging_level_id, from_location_id,
+     to_location_id, priority, min_level, flow, status)
+   values ('PUTAWAY', $1, 24, $2, $3, $4, 400, 0, 'INBOUND', 'READY')
+   returning id`,
+  [prodDock, cajaAnden, posOtro, vueltaDestino],
+)
+
+// Hay dos personas en ese anden, asi que al que la devolvio no le vuelve: le cae la otra.
 await como(aPie)
 const noLeVuelve = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
 check(
-  noLeVuelve.id !== vueltaTarea,
-  'al que le quitaron la tarea no se le vuelve a dar mientras haya otro',
+  noLeVuelve.id === vueltaOtra,
+  'al que le quitaron la tarea no se le vuelve a dar mientras haya otro: le cae la siguiente',
 )
+
+// Y esa segunda se cierra aqui: si se queda en las manos de `aPie`, la cola se la devolveria
+// antes que nada en todas las comprobaciones de abajo —lo que trae en la mano va primero— y
+// ninguna probaria lo que dice probar.
+await db.query(`update task set status = 'DONE', completed_at = now() where id = $1`, [
+  vueltaOtra,
+])
 
 // Y al otro si: la tarea sigue viva y en la cola de su anden.
 await como(jefe)
@@ -1111,5 +1128,89 @@ check(
   soloEl.id === vueltaTarea,
   'pero si no queda nadie a quien darsela, si le vuelve a caer: es el unico que puede',
 )
+
+// -----------------------------------------------------------------------------------------
+// «Nadie mas» es nadie a quien la cola se la daria, no nadie (0124)
+// -----------------------------------------------------------------------------------------
+//
+// La salida de la 0123 contaba personas, y esta cola no reparte por personas: reparte por rol,
+// por maquina, por nivel y por lado de la operacion. Bastaba alguien incapaz de tomarla para
+// que la tarea no volviera a quien si podia, y entonces no la hacia nadie.
+
+const enElAndenOtro = async (quien) =>
+  db.query(
+    `update shift_assignment
+     set dock_door_id = (select id from dock_door where code = $2), paused_at = null
+     where profile_id = $1 and ended_at is null`,
+    [quien, otroAnden],
+  )
+const devuelveALaCola = () =>
+  db.query(
+    `update task set status = 'READY', assigned_to = null, assigned_at = null, started_at = null
+     where id = $1`,
+    [vueltaTarea],
+  )
+
+// 1. Un chequeador parado en el mismo anden. `tareas_de('chequeador')` es un array vacio.
+const { id: qCheq } = await one(
+  `insert into auth.users (email) values ('cheq-anden@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'chequeador'
+   where id = '${qCheq}'`,
+)
+await como(qCheq)
+await one(`select iniciar_turno()`)
+await enElAndenOtro(qCheq)
+
+await devuelveALaCola()
+await como(aPie)
+const qConChequeador = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  qConChequeador.id === vueltaTarea,
+  'un chequeador en el mismo anden no cuenta: a el no le cae ninguna tarea',
+)
+
+// 2. Un supervisor en turno que no bajo a ayudar: `es_rol_de_trabajo` lo deja fuera de la cola.
+await db.query(`update shift_assignment set ended_at = now()
+  where profile_id = '${qCheq}' and ended_at is null`)
+await como(jefe)
+await one(`select iniciar_turno()`)
+await enElAndenOtro(jefe)
+
+await devuelveALaCola()
+await como(aPie)
+const qConJefe = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  qConJefe.id === vueltaTarea,
+  'y un supervisor en turno sin bajar a ayudar tampoco: a su rango no le caen tareas',
+)
+
+// 3. Y el control: un auxiliar de verdad en ese anden si cuenta, y la tarea no le vuelve.
+await db.query(`update shift_assignment set ended_at = now()
+  where profile_id = '${jefe}' and ended_at is null`)
+const { id: qAux } = await one(
+  `insert into auth.users (email) values ('aux-anden@ejemplo.test') returning id`,
+)
+await db.query(
+  `update profile set is_active = true, approved_at = now(), role = 'auxiliar'
+   where id = '${qAux}'`,
+)
+await como(qAux)
+await one(`select iniciar_turno()`)
+await enElAndenOtro(qAux)
+
+await devuelveALaCola()
+await como(aPie)
+const qConAuxiliar = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(
+  qConAuxiliar.id !== vueltaTarea,
+  'pero un auxiliar que si puede hacerla si cuenta, y no se la devuelven',
+)
+
+// Y se la lleva el, que es de lo que iba todo esto.
+await como(qAux)
+const qSeLaLleva = await one(`select * from claim_next_task(array['PUTAWAY']::task_type[])`)
+check(qSeLaLleva.id === vueltaTarea, 'se la lleva el companero, que es para lo que se devolvio')
 
 await db.close()
