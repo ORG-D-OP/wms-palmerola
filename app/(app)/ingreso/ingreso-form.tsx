@@ -16,6 +16,7 @@ import {
   type Documento,
   type Recibido,
 } from './actions'
+import { cambiarAnden } from '../turno/actions'
 import { plural } from '@/lib/plural'
 import { fecha } from '@/lib/fechas'
 import { nombrePosicion } from '@/lib/posiciones'
@@ -31,38 +32,27 @@ export type Abierto = {
   sinAviso: boolean
 }
 
-/** Un camión que SAP anunció y que nadie ha abierto todavía. */
-export type Anunciado = {
-  pedido: string
-  fecha: string | null
-  productos: number
-}
-
 export function IngresoForm({
   docks,
   anden,
   abierto,
   abiertos,
-  anunciados,
   deAnden,
 }: {
   docks: Dock[]
-  /** El andén del turno. Es el que viene puesto: casi nadie descarga en otro. */
+  /**
+   * El andén declarado del turno, o nulo si trabaja en toda la bodega. Viene puesto cuando lo
+   * hay, y cuando no, la pantalla pregunta: no se adivina ninguno.
+   */
   anden: string | null
   /** El camión que se está descargando en su andén, traído ya por el servidor. */
   abierto: Documento | null
   /**
-   * Todos los que están a medias, el de su andén primero. La pantalla era una caja de
-   * escaneo y nada más: para seguir con el camión del compañero había que saberse de memoria
-   * el pedido de ocho cifras.
+   * Los que están a medias en toda la bodega. La pantalla enseña **los del andén que tiene
+   * puesto**: el camión es del andén, así que el que se para ahí retoma lo que haya, lo
+   * hubiera abierto él o el compañero que se fue a almorzar.
    */
   abiertos: Abierto[]
-  /**
-   * Los que vienen y no ha abierto nadie, del último anunciado hacia atrás. Es la otra mitad
-   * de lo mismo: sin esta lista, el que llega sin el papel en la mano no tiene por dónde
-   * empezar.
-   */
-  anunciados: Anunciado[]
   /**
    * El que manda en el andén: abre un ingreso sin aviso y corrige las cajas que bajaron. El
    * auxiliar sí recibe pallets de un ingreso ya abierto, pero no hace ninguna de esas dos.
@@ -70,9 +60,14 @@ export function IngresoForm({
    */
   deAnden: boolean
 }) {
-  const [dockId, setDockId] = useState(
-    docks.find((d) => d.code === anden)?.id ?? docks[0]?.id ?? '',
-  )
+  /**
+   * El andén de descarga. Nace con el declarado del turno y **nada más**: el `docks[0]` que
+   * había antes mandó al `AND-09` los nueve ingresos con andén que hay en la base, porque es
+   * el primero de la lista y nadie lo tocaba. Quien trabaja en toda la bodega escoge, y hasta
+   * entonces la pantalla no deja escanear.
+   */
+  const [dockId, setDockId] = useState(docks.find((d) => d.code === anden)?.id ?? '')
+  const [movido, setMovido] = useState<{ anden: string; liberadas: number } | null>(null)
   const [doc, setDoc] = useState<Documento | null>(abierto)
   const [ultimo, setUltimo] = useState<Recibido | null>(null)
   const [verLista, setVerLista] = useState(false)
@@ -85,13 +80,27 @@ export function IngresoForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // Los andenes que tienen más de un camión abierto a la vez.
-  const apilados = Object.entries(
-    abiertos.reduce<Record<string, number>>((cuenta, a) => {
-      if (a.anden) cuenta[a.anden] = (cuenta[a.anden] ?? 0) + 1
-      return cuenta
-    }, {}),
-  ).filter(([, cuantos]) => cuantos > 1)
+  const dock = docks.find((d) => d.id === dockId) ?? null
+
+  // Los camiones de este andén y de ningún otro: el camión es del andén, no de quien lo abrió.
+  const delAnden = dock ? abiertos.filter((a) => a.anden === dock.code) : []
+
+  /**
+   * Pararse en el andén que se acaba de escoger.
+   *
+   * Se ofrece, nunca se hace callando: el andén del turno decide qué cola le da trabajo, y
+   * meterle a alguien un filtro que no pidió es peor que no moverlo. La base se niega si anda
+   * con una tarea empezada, y eso también se enseña.
+   */
+  const pasarme = () => {
+    if (!dock) return
+    setError(null)
+    startTransition(async () => {
+      const res = await cambiarAnden(dock.code)
+      if (!res.ok) return setError(res.error)
+      setMovido({ anden: dock.code, liberadas: res.liberadas })
+    })
+  }
 
   const cargar = (pedido: string) =>
     startTransition(async () => {
@@ -188,7 +197,16 @@ export function IngresoForm({
       <div className="flex flex-col gap-5">
         <label className="flex flex-col gap-1.5">
           <span className={ETIQUETA}>Andén de descarga</span>
-          <select value={dockId} onChange={(e) => setDockId(e.target.value)} className={CAMPO}>
+          <select
+            value={dockId}
+            onChange={(e) => {
+              setDockId(e.target.value)
+              setMovido(null)
+              setError(null)
+            }}
+            className={CAMPO}
+          >
+            <option value="">Escoge el andén</option>
             {docks.map((d) => (
               <option key={d.id} value={d.id}>
                 {nombrePosicion(d.code)}
@@ -197,9 +215,43 @@ export function IngresoForm({
           </select>
         </label>
 
+        {/*
+          Escoger andén aquí no mueve a nadie: se lo ofrece. El andén del turno decide qué cola
+          le da trabajo, así que pasarlo sin preguntar le metería un filtro que no pidió.
+        */}
+        {dock && dock.code !== anden && movido?.anden !== dock.code ? (
+          <div className="flex flex-col gap-2 rounded-xl bg-celeste/15 p-3 text-sm">
+            <p>
+              {anden
+                ? `Tu turno está en ${nombrePosicion(anden)}.`
+                : 'Trabajas en toda la bodega, así que te cae trabajo de todos los andenes.'}{' '}
+              ¿Te paso a {nombrePosicion(dock.code)}? Desde ahí te caerían solo sus tareas.
+            </p>
+            <button
+              type="button"
+              onClick={pasarme}
+              disabled={pending}
+              className={`${BOTON_SUAVE} self-start`}
+            >
+              {pending ? 'Pasando...' : `Sí, pásame a ${nombrePosicion(dock.code)}`}
+            </button>
+          </div>
+        ) : null}
+
+        {movido ? (
+          <p className="text-sm text-azul/60">
+            Estás en {nombrePosicion(movido.anden)}.
+            {movido.liberadas > 0
+              ? ` ${plural(movido.liberadas, 'tarea', 'tareas')} sin empezar ${
+                  movido.liberadas === 1 ? 'volvió' : 'volvieron'
+                } a la cola del andén que dejaste.`
+              : ''}
+          </p>
+        ) : null}
+
         <ScanInput
           label="Pedido del comprobante de carga"
-          disabled={pending}
+          disabled={pending || !dock}
           onScan={(codigo) => {
             setError(null)
             cargar(codigo)
@@ -208,30 +260,24 @@ export function IngresoForm({
         />
 
         <p className="text-sm text-azul/60">
-          Son los ocho dígitos de la página que trae la lista de productos. Se abre una vez por
-          camión; después solo se escanean las etiquetas de los pallets.
+          {dock
+            ? 'Son los ocho dígitos de la página que trae la lista de productos. Se abre una vez por camión; después solo se escanean las etiquetas de los pallets.'
+            : 'Escoge primero el andén donde estás parado: es donde va a quedar el producto que baje.'}
         </p>
 
-        {abiertos.length > 0 ? (
+        {/*
+          Los de este andén y de ningún otro. Un andén aguanta varios camiones abiertos a la
+          vez y eso no se avisa ni se impide: se vacía uno, queda producto por guardar y ya hay
+          otro en la puerta. Lo que hace falta es poder moverse entre ellos sin cerrar ninguno.
+        */}
+        {delAnden.length > 0 ? (
           <section className="flex flex-col gap-2 border-t border-borde pt-5">
-            <span className={ETIQUETA}>Camiones a medio descargar</span>
-
-            {/*
-              Un andén es un sitio donde cabe un camión, y el sistema dejaba cinco a la vez en
-              el 9 sin decir nada. No lo impide —uno abierto de ayer no puede dejar el andén
-              muerto hoy— pero lo pone delante del que está mirando.
-            */}
-            {apilados.length > 0 ? (
-              <p className="rounded-xl bg-celeste/15 p-3 text-sm">
-                {apilados
-                  .map(([donde, cuantos]) => `${nombrePosicion(donde)}: ${cuantos} camiones`)
-                  .join(' · ')}
-                . En un andén cabe un camión: si alguno ya se fue, ciérralo.
-              </p>
-            ) : null}
+            <span className={ETIQUETA}>
+              Camiones a medio descargar en {nombrePosicion(dock!.code)}
+            </span>
 
             <ul className="flex flex-col divide-y divide-borde">
-              {abiertos.map((a) => (
+              {delAnden.map((a) => (
                 <li key={a.pedido}>
                   <button
                     type="button"
@@ -244,39 +290,9 @@ export function IngresoForm({
                   >
                     <span className="font-mono tabular-nums">{a.pedido}</span>
                     <span className="min-w-0 flex-1 text-xs text-azul/60">
-                      {a.anden ? nombrePosicion(a.anden) : 'sin andén'} ·{' '}
                       {a.sinAviso
                         ? `${plural(a.recibidos, 'pallet bajado', 'pallets bajados')}, sin lista`
                         : `${a.recibidos} de ${a.pallets} bajados`}
-                    </span>
-                    <Icon name="chevron_right" className="!text-[18px] shrink-0" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {anunciados.length > 0 ? (
-          <section className="flex flex-col gap-2 border-t border-borde pt-5">
-            <span className={ETIQUETA}>Camiones anunciados</span>
-
-            <ul className="flex flex-col divide-y divide-borde">
-              {anunciados.map((a) => (
-                <li key={a.pedido}>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => {
-                      setError(null)
-                      cargar(a.pedido)
-                    }}
-                    className="flex w-full items-baseline gap-3 py-2 text-left"
-                  >
-                    <span className="font-mono tabular-nums">{a.pedido}</span>
-                    <span className="min-w-0 flex-1 text-xs text-azul/60">
-                      {a.fecha ? fecha(a.fecha) : 'sin fecha'} ·{' '}
-                      {plural(a.productos, 'producto', 'productos')}
                     </span>
                     <Icon name="chevron_right" className="!text-[18px] shrink-0" />
                   </button>
@@ -314,6 +330,7 @@ export function IngresoForm({
                 <button
                   type="button"
                   onClick={() => setAbriendoCiego(true)}
+                  disabled={!dock}
                   className={BOTON_SUAVE}
                 >
                   Llegó un camión sin aviso
