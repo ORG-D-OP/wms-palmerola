@@ -1470,6 +1470,50 @@ export type Database = {
         }
         Relationships: []
       }
+      print_job: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: number
+          lpn_id: string | null
+          printed_at: string | null
+          status: Database["public"]["Enums"]["print_status"]
+          titulo: string
+          zpl: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: never
+          lpn_id?: string | null
+          printed_at?: string | null
+          status?: Database["public"]["Enums"]["print_status"]
+          titulo: string
+          zpl: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: never
+          lpn_id?: string | null
+          printed_at?: string | null
+          status?: Database["public"]["Enums"]["print_status"]
+          titulo?: string
+          zpl?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_job_lpn_id_fkey"
+            columns: ["lpn_id"]
+            isOneToOne: false
+            referencedRelation: "lpn"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product: {
         Row: {
           base_code: string | null
@@ -3526,6 +3570,19 @@ export type Database = {
           no_caben: number | null
           productos: number | null
           zona: string | null
+        }
+        Relationships: []
+      }
+      etiqueta_de_pallet: {
+        Row: {
+          expiry_date: string | null
+          lot: string | null
+          lpn_id: string | null
+          matricula: string | null
+          por_caja: number | null
+          producto: string | null
+          qty_base: number | null
+          sku: string | null
         }
         Relationships: []
       }
@@ -5761,6 +5818,7 @@ export type Database = {
         | "SHIPPED"
         | "CANCELLED"
       packaging_code: "UNIT" | "INNER" | "CASE" | "LAYER" | "PALLET"
+      print_status: "pendiente" | "impresa" | "fallida"
       product_status: "active" | "blocked" | "discontinued"
       reason_category:
         | "VENTA"
@@ -5961,6 +6019,7 @@ export const Constants = {
         "CANCELLED",
       ],
       packaging_code: ["UNIT", "INNER", "CASE", "LAYER", "PALLET"],
+      print_status: ["pendiente", "impresa", "fallida"],
       product_status: ["active", "blocked", "discontinued"],
       reason_category: [
         "VENTA",
